@@ -3,9 +3,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
+  /* Keep everything dark by default */
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #000000;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,6 +13,19 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Make the app fill the screen and kill scrollbars */
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000000;
+}
+
+/* Links */
 a {
   font-weight: 500;
   color: #646cff;
@@ -22,19 +35,18 @@ a:hover {
   color: #535bf2;
 }
 
+/* Body no longer centers everything – components handle layout */
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
 }
 
+/* Headings */
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
 
+/* Base button style (your inline styles can override this) */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -54,6 +66,9 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* You can drop the light-mode override since we want a dark app,
+   but keeping it here commented in case you want it later. */
+/*
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
@@ -66,3 +81,4 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+*/
