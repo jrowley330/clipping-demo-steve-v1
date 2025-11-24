@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 const POWERBI_EMBED_URL =
   'https://app.powerbi.com/view?r=eyJrIjoiYzUzYjI5YjMtYmZmYi00N2YzLThmZmYtZWU3YmY4OGViOWYyIiwidCI6ImQxYzU2YTYwLWRjZjItNGJhMC04ZDE5LWU0MTY0NmU2ZWFkOCIsImMiOjN9';
 
-const FOOTER_HIDE_HEIGHT = 60; // px to cover the bottom Power BI bar
+const FOOTER_HIDE_HEIGHT = 60; // px to cover Power BI footer
 
 export default function DashboardPage() {
   const handleLogout = async () => {
@@ -15,8 +15,8 @@ export default function DashboardPage() {
   return (
     <div
       style={{
-        width: '100vw',
-        height: '100vh',
+        position: 'fixed',   // lock to viewport
+        inset: 0,            // top:0, right:0, bottom:0, left:0
         margin: 0,
         padding: 0,
         background: '#000',
@@ -25,10 +25,9 @@ export default function DashboardPage() {
         overflow: 'hidden',
         fontFamily:
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        position: 'relative',
       }}
     >
-      {/* Floating logout button in top-right */}
+      {/* Floating Logout button */}
       <button
         onClick={handleLogout}
         style={{
@@ -48,7 +47,7 @@ export default function DashboardPage() {
         Logout
       </button>
 
-      {/* Fullscreen iframe wrapper */}
+      {/* Fullscreen iframe */}
       <div
         style={{
           flex: 1,
@@ -69,7 +68,7 @@ export default function DashboardPage() {
           allowFullScreen
         />
 
-        {/* Overlay strip to hide bottom Power BI footer / controls */}
+        {/* Overlay to hide Power BI bottom bar */}
         <div
           style={{
             position: 'absolute',
@@ -79,11 +78,10 @@ export default function DashboardPage() {
             height: FOOTER_HIDE_HEIGHT,
             background:
               'linear-gradient(to top, #000 0%, rgba(0,0,0,0.9) 40%, transparent 100%)',
-            pointerEvents: 'auto', // blocks clicks on footer area
+            pointerEvents: 'auto',
           }}
         />
       </div>
     </div>
   );
 }
-
