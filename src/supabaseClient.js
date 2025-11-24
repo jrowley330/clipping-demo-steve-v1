@@ -1,7 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
-// For now, hard-code these so we don't fight env-file issues
-const supabaseUrl = 'https://tekxavfbwuhzmdmcybqe.supabase.co';
-const supabaseAnonKey ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRla3hhdmZid3Voem1kbWN5YnFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NjczNDgsImV4cCI6MjA3OTQ0MzM0OH0.Q3PmjUEZnPrm0GklRRxP0qXRTAjnfn1E4cpzqVA91-0';
+// Read from Vite env vars (provided by Cloudflare at build time)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Optional safety check – helps catch config mistakes
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Missing Supabase env vars. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
