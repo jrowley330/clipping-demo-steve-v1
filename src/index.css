@@ -13,16 +13,26 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Make the app fill the screen and kill scrollbars */
+/* Kill all default browser + Vite sizing */
 html,
 body,
 #root {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #000000;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+  background: #000 !important;
+  position: fixed; /* FIXES SCROLL 100% */
+  inset: 0;        /* replaces top/right/bottom/left */
+}
+
+/* Prevent Vite default body styles (min-width/min-height) */
+body {
+  min-width: 0 !important;
+  min-height: 0 !important;
 }
 
 /* Links */
@@ -33,11 +43,6 @@ a {
 }
 a:hover {
   color: #535bf2;
-}
-
-/* Body no longer centers everything – components handle layout */
-body {
-  margin: 0;
 }
 
 /* Headings */
@@ -66,8 +71,7 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-/* You can drop the light-mode override since we want a dark app,
-   but keeping it here commented in case you want it later. */
+/* Optional: disable light mode completely */
 /*
 @media (prefers-color-scheme: light) {
   :root {
@@ -82,3 +86,4 @@ button:focus-visible {
   }
 }
 */
+
