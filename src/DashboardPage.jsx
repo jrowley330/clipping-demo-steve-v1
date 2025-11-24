@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient';
 export default function DashboardPage() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    window.location.href = '/'; // redirect back to login
   };
 
   return (
@@ -13,7 +14,14 @@ export default function DashboardPage() {
         <button onClick={handleLogout}>Logout</button>
       </header>
 
-      <p>Dashboard content will go here (Power BI + payouts later).</p>
+      <div style={{ width: '100%', height: '85vh' }}>
+        <iframe
+          title="Clipper Dashboards Demo Dev v1"
+          src="https://app.powerbi.com/view?r=eyJrIjoiYzUzYjlJ5..." 
+          style={{ border: 'none', width: '100%', height: '100%' }}
+          allowFullScreen={true}
+        />
+      </div>
     </div>
   );
 }
