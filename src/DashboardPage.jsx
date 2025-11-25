@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 const POWERBI_EMBED_URL =
   'https://app.powerbi.com/view?r=eyJrIjoiYzUzYjI5YjMtYmZmYi00N2YzLThmZmYtZWU3YmY4OGViOWYyIiwidCI6ImQxYzU2YTYwLWRjZjItNGJhMC04ZDE5LWU0MTY0NmU2ZWFkOCIsImMiOjN9';
 
-const FOOTER_HIDE_HEIGHT = 150; // px to cover Power BI footer
+const FOOTER_HIDE_HEIGHT = 160; // px to cover Power BI footer
 
 export default function DashboardPage() {
   const handleLogout = async () => {
