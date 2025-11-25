@@ -29,38 +29,115 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: '80px auto', fontFamily: 'sans-serif' }}>
-      <h2>Client Login</h2>
-      <form onSubmit={handleLogin}>
-        <div style={{ marginBottom: 12 }}>
-          <label>Email</label>
+    <div
+      style={{
+        height: '100vh',
+        width: '100vw',
+        background: '#000',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        color: 'white',
+        fontFamily:
+          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 400,
+          padding: '40px 32px',
+          borderRadius: 18,
+          background: 'rgba(255,255,255,0.05)',
+          boxShadow: '0 0 25px rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          backdropFilter: 'blur(6px)',
+        }}
+      >
+        {/* Brand Title */}
+        <h1
+          style={{
+            textAlign: 'center',
+            marginBottom: 30,
+            fontSize: 28,
+            letterSpacing: 1.5,
+            fontWeight: 600,
+            textShadow: '0px 0px 10px rgba(255,255,255,0.25)',
+          }}
+        >
+          SteveWillDoIt Clipping
+        </h1>
+
+        <form onSubmit={handleLogin}>
+          <label style={{ fontSize: 14 }}>Email</label>
           <input
-            style={{ width: '100%', padding: 8 }}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              marginTop: 4,
+              marginBottom: 16,
+              borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.25)',
+              background: 'rgba(255,255,255,0.1)',
+              color: 'white',
+              fontSize: 15,
+            }}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label>Password</label>
+
+          <label style={{ fontSize: 14 }}>Password</label>
           <input
-            style={{ width: '100%', padding: 8 }}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              marginTop: 4,
+              marginBottom: 16,
+              borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.25)',
+              background: 'rgba(255,255,255,0.1)',
+              color: 'white',
+              fontSize: 15,
+            }}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-        </div>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <button
-          disabled={loading}
-          type="submit"
-          style={{ padding: '8px 16px', marginTop: 8 }}
-        >
-          {loading ? 'Logging in…' : 'Login'}
-        </button>
-      </form>
+
+          {error && (
+            <p style={{ color: '#ff6b6b', marginBottom: 12, fontSize: 14 }}>
+              {error}
+            </p>
+          )}
+
+          <button
+            disabled={loading}
+            type="submit"
+            style={{
+              width: '100%',
+              padding: '12px 0',
+              marginTop: 8,
+              borderRadius: 10,
+              border: 'none',
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: 'pointer',
+              color: '#000',
+              background:
+                'linear-gradient(90deg, #ffffff, #d8d8d8, #ffffff)',
+              boxShadow: '0 0 12px rgba(255,255,255,0.4)',
+              transition: '0.2s ease',
+            }}
+          >
+            {loading ? 'Logging in…' : 'Login'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
+
