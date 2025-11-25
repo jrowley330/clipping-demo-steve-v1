@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
-// IMPORTANT — correct background import
 import bgImage from './assets/sick_background.png';
 
 export default function LoginPage() {
@@ -31,9 +30,11 @@ export default function LoginPage() {
   return (
     <div
       style={{
-        height: '100vh',
-        width: '100vw',
-        overflow: 'hidden',
+        position: 'fixed',           // lock to viewport
+        inset: 0,                    // top/right/bottom/left = 0
+        margin: 0,
+        padding: 0,
+        overflow: 'hidden',          // no scrollbars
         backgroundImage: `url(${bgImage})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -48,12 +49,13 @@ export default function LoginPage() {
         style={{
           width: 480,
           padding: '50px 40px',
-          background: 'rgba(0,0,0,0.65)',
-          boxShadow: '0 0 50px rgba(0,0,0,0.7)',
-          borderRadius: 20,
-          backdropFilter: 'blur(6px)',
+          background: 'rgba(0,0,0,0.75)',
+          borderRadius: 24,
+          boxShadow:
+            '0 40px 80px rgba(0,0,0,0.95), 0 0 35px rgba(255,255,255,0.18)',
+          backdropFilter: 'blur(8px)',
           textAlign: 'center',
-          animation: 'fadeIn 0.8s ease-out',
+          animation: 'dropIn 0.85s cubic-bezier(0.22, 1.02, 0.24, 1)', // “breaking through ceiling”
         }}
       >
         {/* Logo / Title */}
@@ -65,7 +67,8 @@ export default function LoginPage() {
             letterSpacing: 2,
             color: 'white',
             fontWeight: 700,
-            textShadow: '0 0 18px rgba(255,255,255,0.8)',
+            textShadow:
+              '0 0 30px rgba(255,255,255,0.9), 0 0 12px rgba(255,255,255,0.8)',
           }}
         >
           STEVEWILLDOIT
@@ -77,13 +80,14 @@ export default function LoginPage() {
             letterSpacing: 4,
             marginBottom: 30,
             fontSize: 14,
+            textTransform: 'uppercase',
           }}
         >
-          CLIPPING DASHBOARD ACCESS
+          Clipping Dashboard Access
         </p>
 
         <form onSubmit={handleLogin}>
-          <div style={{ textAlign: 'left', marginBottom: 12 }}>
+          <div style={{ textAlign: 'left', marginBottom: 14 }}>
             <label style={{ color: '#ddd', fontSize: 14 }}>Email</label>
             <input
               type="email"
@@ -94,7 +98,7 @@ export default function LoginPage() {
                 width: '100%',
                 padding: '10px 14px',
                 marginTop: 4,
-                borderRadius: 10,
+                borderRadius: 12,
                 border: '1px solid #444',
                 background: '#111',
                 color: 'white',
@@ -103,7 +107,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <div style={{ textAlign: 'left', marginBottom: 20 }}>
+          <div style={{ textAlign: 'left', marginBottom: 22 }}>
             <label style={{ color: '#ddd', fontSize: 14 }}>Password</label>
             <input
               type="password"
@@ -114,7 +118,7 @@ export default function LoginPage() {
                 width: '100%',
                 padding: '10px 14px',
                 marginTop: 4,
-                borderRadius: 10,
+                borderRadius: 12,
                 border: '1px solid #444',
                 background: '#111',
                 color: 'white',
@@ -123,7 +127,11 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && <p style={{ color: 'red' }}>{error}</p>}
+          {error && (
+            <p style={{ color: '#ff7070', marginBottom: 10, fontSize: 13 }}>
+              {error}
+            </p>
+          )}
 
           <button
             type="submit"
@@ -131,15 +139,26 @@ export default function LoginPage() {
             style={{
               width: '100%',
               padding: '14px 0',
-              marginTop: 10,
+              marginTop: 4,
               borderRadius: 999,
               border: 'none',
-              background: 'linear-gradient(180deg,#ffffff 0%,#cccccc 100%)',
+              background: 'linear-gradient(180deg,#ffffff 0%,#dcdcdc 100%)',
               color: '#000',
               fontSize: 17,
               fontWeight: 600,
-              cursor: 'pointer',
-              boxShadow: '0 0 25px rgba(255,255,255,0.4)',
+              cursor: loading ? 'default' : 'pointer',
+              boxShadow: '0 0 30px rgba(255,255,255,0.6)',
+              transition: 'transform 0.12s ease, box-shadow 0.12s ease',
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = 'translateY(1px) scale(0.98)';
+              e.currentTarget.style.boxShadow =
+                '0 0 18px rgba(255,255,255,0.4)';
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'translateY(0) scale(1)';
+              e.currentTarget.style.boxShadow =
+                '0 0 30px rgba(255,255,255,0.6)';
             }}
           >
             {loading ? 'Logging in…' : 'Login'}
@@ -147,19 +166,27 @@ export default function LoginPage() {
         </form>
       </div>
 
-      {/* Fade animation */}
+      {/* Drop-in animation keyframes */}
       <style>{`
-        @keyframes fadeIn {
-          from {
+        @keyframes dropIn {
+          0% {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(-140px) scale(0.9);
+            box-shadow: 0 0 0 rgba(0,0,0,0);
           }
-          to {
+          60% {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(18px) scale(1.03);
+            box-shadow: 0 50px 90px rgba(0,0,0,1);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            box-shadow: 0 40px 80px rgba(0,0,0,0.95), 0 0 35px rgba(255,255,255,0.18);
           }
         }
       `}</style>
     </div>
   );
 }
+
