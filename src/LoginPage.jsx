@@ -86,84 +86,74 @@ export default function LoginPage() {
           Clipping Dashboard Access
         </p>
 
-        <form onSubmit={handleLogin}>
-          <div style={{ textAlign: 'left', marginBottom: 14 }}>
-            <label style={{ color: '#ddd', fontSize: 14 }}>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                marginTop: 4,
-                borderRadius: 12,
-                border: '1px solid #444',
-                background: '#111',
-                color: 'white',
-                fontSize: 15,
-              }}
-            />
-          </div>
+<form onSubmit={handleLogin}>
+  {/* Wrapper to align all fields and button */}
+  <div style={{ width: '80%', maxWidth: 420, margin: '0 auto' }}>
 
-          <div style={{ textAlign: 'left', marginBottom: 22 }}>
-            <label style={{ color: '#ddd', fontSize: 14 }}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                marginTop: 4,
-                borderRadius: 12,
-                border: '1px solid #444',
-                background: '#111',
-                color: 'white',
-                fontSize: 15,
-              }}
-            />
-          </div>
+    <div style={{ textAlign: 'left', marginBottom: 12 }}>
+      <label style={{ color: '#ddd', fontSize: 14 }}>Email</label>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        style={{
+          width: '100%',
+          padding: '10px 14px',
+          marginTop: 4,
+          borderRadius: 10,
+          border: '1px solid #444',
+          background: '#111',
+          color: 'white',
+          fontSize: 15,
+        }}
+      />
+    </div>
 
-          {error && (
-            <p style={{ color: '#ff7070', marginBottom: 10, fontSize: 13 }}>
-              {error}
-            </p>
-          )}
+    <div style={{ textAlign: 'left', marginBottom: 20 }}>
+      <label style={{ color: '#ddd', fontSize: 14 }}>Password</label>
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+        style={{
+          width: '100%',
+          padding: '10px 14px',
+          marginTop: 4,
+          borderRadius: 10,
+          border: '1px solid #444',
+          background: '#111',
+          color: 'white',
+          fontSize: 15,
+        }}
+      />
+    </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '14px 0',
-              marginTop: 4,
-              borderRadius: 999,
-              border: 'none',
-              background: 'linear-gradient(180deg,#ffffff 0%,#dcdcdc 100%)',
-              color: '#000',
-              fontSize: 17,
-              fontWeight: 600,
-              cursor: loading ? 'default' : 'pointer',
-              boxShadow: '0 0 30px rgba(255,255,255,0.6)',
-              transition: 'transform 0.12s ease, box-shadow 0.12s ease',
-            }}
-            onMouseDown={(e) => {
-              e.currentTarget.style.transform = 'translateY(1px) scale(0.98)';
-              e.currentTarget.style.boxShadow =
-                '0 0 18px rgba(255,255,255,0.4)';
-            }}
-            onMouseUp={(e) => {
-              e.currentTarget.style.transform = 'translateY(0) scale(1)';
-              e.currentTarget.style.boxShadow =
-                '0 0 30px rgba(255,255,255,0.6)';
-            }}
-          >
-            {loading ? 'Logging in…' : 'Login'}
-          </button>
-        </form>
+    {error && <p style={{ color: 'red' }}>{error}</p>}
+
+    <button
+      type="submit"
+      disabled={loading}
+      style={{
+        width: '100%',
+        padding: '14px 0',
+        borderRadius: 999,
+        border: 'none',
+        background: 'linear-gradient(180deg,#ffffff 0%,#cccccc 100%)',
+        color: '#000',
+        fontSize: 17,
+        fontWeight: 600,
+        cursor: 'pointer',
+        boxShadow: '0 0 25px rgba(255,255,255,0.4)',
+      }}
+    >
+      {loading ? 'Logging in…' : 'Login'}
+    </button>
+
+  </div>
+</form>
+
       </div>
 
       {/* Drop-in animation keyframes */}
