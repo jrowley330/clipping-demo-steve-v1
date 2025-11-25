@@ -31,8 +31,8 @@ export default function LoginPage() {
   return (
     <div
       style={{
-        height: '100vh',
-        width: '100vw',
+        position: 'fixed',          // lock to viewport
+        inset: 0,                   // top/right/bottom/left = 0
         background: '#000',
         display: 'flex',
         alignItems: 'center',
@@ -41,6 +41,7 @@ export default function LoginPage() {
         color: 'white',
         fontFamily:
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        overflow: 'hidden',         // no scroll
       }}
     >
       <div
@@ -131,6 +132,7 @@ export default function LoginPage() {
                 'linear-gradient(90deg, #ffffff, #d8d8d8, #ffffff)',
               boxShadow: '0 0 12px rgba(255,255,255,0.4)',
               transition: '0.2s ease',
+              opacity: loading ? 0.7 : 1,
             }}
           >
             {loading ? 'Logging in…' : 'Login'}
@@ -140,4 +142,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
