@@ -66,7 +66,7 @@ export default function DashboardPage() {
             border: 'none',
             width: '100%',            // zoom trick to remove side gutters
             height: '100%',
-            transform: 'scale(1.03)',
+            transform: 'scale(1.00)',
             transformOrigin: 'center center',
             display: 'block',
           }}
