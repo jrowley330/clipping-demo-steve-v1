@@ -4,7 +4,8 @@ import { supabase } from './supabaseClient';
 const POWERBI_EMBED_URL =
   'https://app.powerbi.com/view?r=eyJrIjoiYzUzYjI5YjMtYmZmYi00N2YzLThmZmYtZWU3YmY4OGViOWYyIiwidCI6ImQxYzU2YTYwLWRjZjItNGJhMC04ZDE5LWU0MTY0NmU2ZWFkOCIsImMiOjN9';
 
-const FOOTER_HIDE_HEIGHT = 160; // px to cover Power BI footer
+const FOOTER_BLOCK_HEIGHT = 40;   // solid bar that blocks clicks
+const GRADIENT_HEIGHT = 120;      // visual fade height above it
 
 export default function DashboardPage() {
   const handleLogout = async () => {
@@ -54,6 +55,8 @@ export default function DashboardPage() {
           position: 'relative',
           width: '100%',
           height: '100%',
+          overflow: 'hidden',
+          background: '#000',
         }}
       >
         <iframe
@@ -61,24 +64,39 @@ export default function DashboardPage() {
           src={POWERBI_EMBED_URL}
           style={{
             border: 'none',
-            width: '100%',
-            height: '100%',
+            width: '110%',            // zoom trick to remove side gutters
+            height: '110%',
+            transform: 'scale(1.06)',
+            transformOrigin: 'center center',
             display: 'block',
           }}
           allowFullScreen
         />
 
-        {/* Overlay to hide Power BI bottom bar */}
+        {/* CLICK-THROUGH gradient fade */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: FOOTER_BLOCK_HEIGHT,
+            height: GRADIENT_HEIGHT,
+            background:
+              'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 40%, transparent 100%)',
+            pointerEvents: 'none', // don't block clicks
+          }}
+        />
+
+        {/* NON-CLICKABLE bottom blocker (hides actual Power BI footer) */}
         <div
           style={{
             position: 'absolute',
             left: 0,
             right: 0,
             bottom: 0,
-            height: FOOTER_HIDE_HEIGHT,
-            background:
-              'linear-gradient(to top, #000 0%, rgba(0,0,0,0.9) 40%, transparent 100%)',
-            pointerEvents: 'auto',
+            height: FOOTER_BLOCK_HEIGHT,
+            background: '#000',
+            pointerEvents: 'auto', // blocks clicks only in this small bar
           }}
         />
       </div>
