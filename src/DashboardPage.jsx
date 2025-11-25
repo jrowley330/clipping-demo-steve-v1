@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 const POWERBI_EMBED_URL =
   'https://app.powerbi.com/view?r=eyJrIjoiYzUzYjI5YjMtYmZmYi00N2YzLThmZmYtZWU3YmY4OGViOWYyIiwidCI6ImQxYzU2YTYwLWRjZjItNGJhMC04ZDE5LWU0MTY0NmU2ZWFkOCIsImMiOjN9';
 
-const FOOTER_BLOCK_HEIGHT = 50;   // solid bar that blocks clicks
+const FOOTER_BLOCK_HEIGHT = 53;   // solid bar that blocks clicks
 const GRADIENT_HEIGHT = 20;      // visual fade height above it
 
 export default function DashboardPage() {
