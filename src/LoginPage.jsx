@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
-// FIX: rename file to remove space OR ensure exact filename
-import bgImage from './assets/sick_background.png'; // <-- use your correct filename here
+// IMPORTANT — correct background import
+import bgImage from './assets/sick_background.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -11,12 +11,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setMounted(true), 10);
-    return () => clearTimeout(t);
-  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -30,161 +24,142 @@ export default function LoginPage() {
 
     setLoading(false);
 
-    if (error) {
-      setError(error.message);
-    } else {
-      navigate('/dashboard');
-    }
+    if (error) setError(error.message);
+    else navigate('/dashboard');
   };
 
   return (
     <div
       style={{
-        position: 'fixed',
-        inset: 0,
+        height: '100vh',
+        width: '100vw',
         overflow: 'hidden',
-        backgroundImage: `
-          radial-gradient(circle at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.9) 70%, #000 100%),
-          url(${bgImage})
-        `,
+        backgroundImage: `url(${bgImage})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         display: 'flex',
-        alignItems: 'center',
         justifyContent: 'center',
-        padding: 20,
-        color: '#fff',
+        alignItems: 'center',
+        fontFamily: "'Segoe UI', sans-serif",
       }}
     >
+      {/* LOGIN CARD */}
       <div
         style={{
-          position: 'relative',
-          width: '100%',
-          maxWidth: 420,
-          padding: '40px 32px',
-          borderRadius: 18,
-          background: 'rgba(0,0,0,0.85)',
-          boxShadow:
-            '0 0 30px rgba(0,0,0,0.9), 0 0 25px rgba(255,255,255,0.15)',
-          border: '1px solid rgba(255,255,255,0.18)',
-          backdropFilter: 'blur(10px)',
-          opacity: mounted ? 1 : 0,
-          transform: mounted
-            ? 'translateY(0) scale(1)'
-            : 'translateY(18px) scale(0.97)',
-          transition: 'opacity 0.45s ease, transform 0.45s ease',
+          width: 480,
+          padding: '50px 40px',
+          background: 'rgba(0,0,0,0.65)',
+          boxShadow: '0 0 50px rgba(0,0,0,0.7)',
+          borderRadius: 20,
+          backdropFilter: 'blur(6px)',
+          textAlign: 'center',
+          animation: 'fadeIn 0.8s ease-out',
         }}
       >
-        {/* Brand Title */}
+        {/* Logo / Title */}
         <h1
           style={{
-            textAlign: 'center',
-            marginBottom: 8,
-            fontSize: 30,
+            margin: 0,
+            marginBottom: 12,
+            fontSize: 38,
             letterSpacing: 2,
+            color: 'white',
             fontWeight: 700,
-            textTransform: 'uppercase',
-            fontFamily: 'Impact, "Anton", system-ui, sans-serif',
-            textShadow:
-              '0 0 14px rgba(0,0,0,0.9), 0 0 10px rgba(255,255,255,0.25)',
+            textShadow: '0 0 18px rgba(255,255,255,0.8)',
           }}
         >
-          SteveWillDoIt
+          STEVEWILLDOIT
         </h1>
 
         <p
           style={{
-            textAlign: 'center',
-            marginBottom: 28,
+            color: '#ccc',
+            letterSpacing: 4,
+            marginBottom: 30,
             fontSize: 14,
-            letterSpacing: 2,
-            textTransform: 'uppercase',
-            opacity: 0.8,
           }}
         >
-          Clipping Dashboard Access
+          CLIPPING DASHBOARD ACCESS
         </p>
 
         <form onSubmit={handleLogin}>
-          <label style={{ fontSize: 13, opacity: 0.85 }}>Email</label>
-          <input
-            style={{
-              width: '100%',
-              maxWidth: 280,       // <— NEW
-              display: 'block',    // <— NEW
-              margin: '4px auto',  // <— NEW
-              padding: '10px 12px',
-              borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.25)',
-              background: 'rgba(255,255,255,0.06)',
-              color: 'white',
-              fontSize: 15,
-              outline: 'none',
-            }}
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-
-          <label style={{ fontSize: 13, opacity: 0.85 }}>Password</label>
-          <input
-            style={{
-              width: '100%',
-              maxWidth: 280,       // <— NEW
-              display: 'block',    // <— NEW
-              margin: '4px auto',  // <— NEW
-              padding: '10px 12px',
-              borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.25)',
-              background: 'rgba(255,255,255,0.06)',
-              color: 'white',
-              fontSize: 15,
-              outline: 'none',
-            }}
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-
-          {error && (
-            <p
+          <div style={{ textAlign: 'left', marginBottom: 12 }}>
+            <label style={{ color: '#ddd', fontSize: 14 }}>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
               style={{
-                color: '#ff6b6b',
-                marginBottom: 10,
-                fontSize: 13,
+                width: '100%',
+                padding: '10px 14px',
+                marginTop: 4,
+                borderRadius: 10,
+                border: '1px solid #444',
+                background: '#111',
+                color: 'white',
+                fontSize: 15,
               }}
-            >
-              {error}
-            </p>
-          )}
+            />
+          </div>
+
+          <div style={{ textAlign: 'left', marginBottom: 20 }}>
+            <label style={{ color: '#ddd', fontSize: 14 }}>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                marginTop: 4,
+                borderRadius: 10,
+                border: '1px solid #444',
+                background: '#111',
+                color: 'white',
+                fontSize: 15,
+              }}
+            />
+          </div>
+
+          {error && <p style={{ color: 'red' }}>{error}</p>}
 
           <button
-            disabled={loading}
             type="submit"
+            disabled={loading}
             style={{
-              width: 280,             // <— MATCH WIDTH
-              margin: '12px auto 0',  // <— CENTER BUTTON
-              display: 'block',
-              padding: '12px 0',
+              width: '100%',
+              padding: '14px 0',
+              marginTop: 10,
               borderRadius: 999,
               border: 'none',
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: loading ? 'default' : 'pointer',
+              background: 'linear-gradient(180deg,#ffffff 0%,#cccccc 100%)',
               color: '#000',
-              background:
-                'linear-gradient(90deg, #ffffff, #d9d9d9, #ffffff)',
-              boxShadow: '0 0 14px rgba(255,255,255,0.5)',
-              transition: '0.2s ease',
-              opacity: loading ? 0.75 : 1,
+              fontSize: 17,
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 0 25px rgba(255,255,255,0.4)',
             }}
           >
             {loading ? 'Logging in…' : 'Login'}
           </button>
         </form>
       </div>
+
+      {/* Fade animation */}
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
