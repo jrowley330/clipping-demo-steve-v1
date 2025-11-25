@@ -5,7 +5,7 @@ const POWERBI_EMBED_URL =
   'https://app.powerbi.com/view?r=eyJrIjoiYzUzYjI5YjMtYmZmYi00N2YzLThmZmYtZWU3YmY4OGViOWYyIiwidCI6ImQxYzU2YTYwLWRjZjItNGJhMC04ZDE5LWU0MTY0NmU2ZWFkOCIsImMiOjN9';
 
 const FOOTER_BLOCK_HEIGHT = 40;   // solid bar that blocks clicks
-const GRADIENT_HEIGHT = 100;      // visual fade height above it
+const GRADIENT_HEIGHT = 80;      // visual fade height above it
 
 export default function DashboardPage() {
   const handleLogout = async () => {
@@ -66,7 +66,7 @@ export default function DashboardPage() {
             border: 'none',
             width: '100%',            // zoom trick to remove side gutters
             height: '100%',
-            transform: 'scale(1.06)',
+            transform: 'scale(1.03)',
             transformOrigin: 'center center',
             display: 'block',
           }}
