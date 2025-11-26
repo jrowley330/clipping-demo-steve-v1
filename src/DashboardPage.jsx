@@ -4,8 +4,8 @@ import { supabase } from './supabaseClient';
 const POWERBI_EMBED_URL =
   'https://app.powerbi.com/view?r=eyJrIjoiYzUzYjI5YjMtYmZmYi00N2YzLThmZmYtZWU3YmY4OGViOWYyIiwidCI6ImQxYzU2YTYwLWRjZjItNGJhMC04ZDE5LWU0MTY0NmU2ZWFkOCIsImMiOjN9';
 
-const FOOTER_BLOCK_HEIGHT = 56;   // solid bar that blocks clicks
-const GRADIENT_HEIGHT = 10;      // visual fade height above it
+const FOOTER_BLOCK_HEIGHT = 56;   
+const GRADIENT_HEIGHT = 10;
 
 export default function DashboardPage() {
   const handleLogout = async () => {
@@ -13,11 +13,15 @@ export default function DashboardPage() {
     window.location.href = '/';
   };
 
+  const goPayouts = () => {
+    window.location.href = '/payouts';
+  };
+
   return (
     <div
       style={{
-        position: 'fixed',   // lock to viewport
-        inset: 0,            // top:0, right:0, bottom:0, left:0
+        position: 'fixed',
+        inset: 0,
         margin: 0,
         padding: 0,
         background: '#000',
@@ -28,23 +32,49 @@ export default function DashboardPage() {
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
     >
-      {/* Floating Logout button */}
+      {/* Payouts button */}
+      <button
+        onClick={goPayouts}
+        style={{
+          position: 'absolute',
+          top: 16,
+          left: 16,
+          zIndex: 20,
+          padding: '8px 18px',
+          borderRadius: 10,
+          border: '1px solid rgba(255,255,255,0.15)',
+          background: 'rgba(255,255,255,0.08)',
+          color: '#fff',
+          cursor: 'pointer',
+          fontSize: 14,
+          backdropFilter: 'blur(6px)',
+        }}
+      >
+        💰 Payouts
+      </button>
+
+      {/* Logout bottom-left */}
       <button
         onClick={handleLogout}
         style={{
           position: 'absolute',
-          top: 16,
-          right: 16,
-          zIndex: 10,
-          padding: '8px 16px',
+          bottom: 16,
+          left: 16,
+          zIndex: 20,
+          padding: '8px 16px 8px 14px',
           borderRadius: 999,
-          border: '1px solid rgba(255,255,255,0.4)',
-          background: 'rgba(0,0,0,0.6)',
-          color: '#f5f5f5',
+          border: '1px solid rgba(255,255,255,0.35)',
+          background: 'rgba(255,255,255,0.08)',
+          color: '#fff',
           cursor: 'pointer',
           fontSize: 14,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          backdropFilter: 'blur(5px)',
         }}
       >
+        <span style={{ fontSize: 16 }}>⏻</span>
         Logout
       </button>
 
@@ -60,11 +90,11 @@ export default function DashboardPage() {
         }}
       >
         <iframe
-          title="Clipper Dashboards Demo Dev v1"
+          title="Clipper Dashboards Dev"
           src={POWERBI_EMBED_URL}
           style={{
             border: 'none',
-            width: '100%',            // zoom trick to remove side gutters
+            width: '100%',
             height: '100%',
             transform: 'scale(1.00)',
             transformOrigin: 'center center',
@@ -83,11 +113,11 @@ export default function DashboardPage() {
             height: GRADIENT_HEIGHT,
             background:
               'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 40%, transparent 100%)',
-            pointerEvents: 'none', // don't block clicks
+            pointerEvents: 'none',
           }}
         />
 
-        {/* NON-CLICKABLE bottom blocker (hides actual Power BI footer) */}
+        {/* NON-CLICKABLE bottom blocker */}
         <div
           style={{
             position: 'absolute',
@@ -96,10 +126,11 @@ export default function DashboardPage() {
             bottom: 0,
             height: FOOTER_BLOCK_HEIGHT,
             background: '#000',
-            pointerEvents: 'auto', // blocks clicks only in this small bar
+            pointerEvents: 'auto',
           }}
         />
       </div>
     </div>
   );
 }
+
