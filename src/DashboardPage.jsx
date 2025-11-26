@@ -25,8 +25,6 @@ export default function DashboardPage() {
       style={{
         position: 'fixed',
         inset: 0,
-        margin: 0,
-        padding: 0,
         background: '#000',
         display: 'flex',
         flexDirection: 'column',
@@ -35,54 +33,59 @@ export default function DashboardPage() {
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
     >
-      {/* Payouts button (clean, top-left) */}
+      {/* ==================== PRIMARY: Payouts button (BOTTOM LEFT) ==================== */}
       <button
         onClick={goPayouts}
         style={{
           position: 'absolute',
-          top: 16,
+          bottom: 16,
           left: 16,
           zIndex: 20,
-          padding: '8px 18px',
-          borderRadius: 10,
-          border: '1px solid rgba(255,255,255,0.15)',
-          background: 'rgba(255,255,255,0.07)',
+          padding: '10px 22px',
+          borderRadius: 12,
+          border: '1px solid rgba(255,255,255,0.25)',
+          background: 'rgba(255,255,255,0.15)',
           color: '#fff',
+          fontWeight: 600,
+          fontSize: 15,
           cursor: 'pointer',
-          fontSize: 14,
-          letterSpacing: 0.3,
-          backdropFilter: 'blur(6px)',
+          letterSpacing: 0.4,
+          backdropFilter: 'blur(8px)',
+          boxShadow: '0 0 12px rgba(255,255,255,0.15)',
+          transition: 'all 0.2s ease',
         }}
       >
         Payouts
       </button>
 
-      {/* Logout button – a bit lower + smaller */}
+      {/* ==================== SECONDARY: Logout button (BOTTOM RIGHT) ==================== */}
       <button
         onClick={handleLogout}
         style={{
           position: 'absolute',
-          bottom: 10,
-          left: 16,
+          bottom: 12,
+          right: 16,
           zIndex: 20,
-          padding: '6px 12px',
+          padding: '5px 10px',
           borderRadius: 999,
-          border: '1px solid rgba(255,255,255,0.3)',
-          background: 'rgba(255,255,255,0.07)',
-          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.12)',
+          background: 'rgba(255,255,255,0.05)',
+          color: 'rgba(255,255,255,0.55)',
           cursor: 'pointer',
-          fontSize: 13,
+          fontSize: 11,
           display: 'flex',
           alignItems: 'center',
-          gap: 5,
-          backdropFilter: 'blur(5px)',
+          gap: 4,
+          backdropFilter: 'blur(4px)',
+          opacity: 0.55,
+          transition: 'opacity 0.2s ease',
         }}
       >
-        <span style={{ fontSize: 14 }}>⏻</span>
+        <span style={{ fontSize: 12 }}>⏻</span>
         Logout
       </button>
 
-      {/* Fullscreen iframe */}
+      {/* ==================== IFRAME AREA ==================== */}
       <div
         style={{
           flex: 1,
@@ -107,6 +110,7 @@ export default function DashboardPage() {
           allowFullScreen
         />
 
+        {/* gradient fade */}
         <div
           style={{
             position: 'absolute',
@@ -115,11 +119,12 @@ export default function DashboardPage() {
             bottom: FOOTER_BLOCK_HEIGHT,
             height: GRADIENT_HEIGHT,
             background:
-              'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 40%, transparent 100%)',
+              'linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.6) 40%, transparent)',
             pointerEvents: 'none',
           }}
         />
 
+        {/* bottom blocker */}
         <div
           style={{
             position: 'absolute',
