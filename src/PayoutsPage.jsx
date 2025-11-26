@@ -7,7 +7,7 @@ export default function PayoutsPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/login'); // or '/'
+    navigate('/login');
   };
 
   return (
@@ -47,8 +47,7 @@ export default function PayoutsPage() {
       </h1>
 
       <p style={{ opacity: 0.7 }}>
-        This is your Payouts page.
-        <br />
+        This is your Payouts page.  
         We’ll fill this in once you give me your ideas.
       </p>
     </div>
