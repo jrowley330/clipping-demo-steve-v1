@@ -13,11 +13,11 @@ export default function DashboardPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/');
+    navigate('/login'); // or '/'
   };
 
   const goPayouts = () => {
-    navigate('/payouts');
+    navigate('/payouts');  // 👈 THIS is what makes /payouts render
   };
 
   return (
@@ -25,13 +25,17 @@ export default function DashboardPage() {
       style={{
         position: 'fixed',
         inset: 0,
+        margin: 0,
+        padding: 0,
         background: '#000',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        fontFamily:
+          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
     >
-      {/* Payouts button */}
+      {/* Payouts button – clean version */}
       <button
         onClick={goPayouts}
         style={{
@@ -53,12 +57,12 @@ export default function DashboardPage() {
         Payouts
       </button>
 
-      {/* Logout button (smaller + slightly lower) */}
+      {/* Logout button – slightly lower + smaller */}
       <button
         onClick={handleLogout}
         style={{
           position: 'absolute',
-          bottom: 10,         // moved slightly downward
+          bottom: 10,          // a bit lower
           left: 16,
           zIndex: 20,
           padding: '6px 12px', // smaller
@@ -67,7 +71,7 @@ export default function DashboardPage() {
           background: 'rgba(255,255,255,0.07)',
           color: '#fff',
           cursor: 'pointer',
-          fontSize: 13,        // slightly smaller font
+          fontSize: 13,
           display: 'flex',
           alignItems: 'center',
           gap: 5,
@@ -85,10 +89,12 @@ export default function DashboardPage() {
           position: 'relative',
           width: '100%',
           height: '100%',
+          overflow: 'hidden',
+          background: '#000',
         }}
       >
         <iframe
-          title="Clipper Dashboards Dev"
+          title="Clipper Dashboards Demo Dev v1"
           src={POWERBI_EMBED_URL}
           style={{
             border: 'none',
@@ -101,6 +107,7 @@ export default function DashboardPage() {
           allowFullScreen
         />
 
+        {/* gradient + footer blocker */}
         <div
           style={{
             position: 'absolute',
@@ -109,11 +116,10 @@ export default function DashboardPage() {
             bottom: FOOTER_BLOCK_HEIGHT,
             height: GRADIENT_HEIGHT,
             background:
-              'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 40%, transparent 100%)',
+              'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 40%, transparent 100%)',
             pointerEvents: 'none',
           }}
         />
-
         <div
           style={{
             position: 'absolute',
@@ -122,10 +128,10 @@ export default function DashboardPage() {
             bottom: 0,
             height: FOOTER_BLOCK_HEIGHT,
             background: '#000',
+            pointerEvents: 'auto',
           }}
         />
       </div>
     </div>
   );
 }
-
