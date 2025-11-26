@@ -13,11 +13,11 @@ export default function DashboardPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/login'); // or '/'
+    navigate('/login');
   };
 
   const goPayouts = () => {
-    navigate('/payouts');  // 👈 THIS is what makes /payouts render
+    navigate('/payouts');
   };
 
   return (
@@ -35,7 +35,7 @@ export default function DashboardPage() {
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
     >
-      {/* Payouts button – clean version */}
+      {/* Payouts button (clean, top-left) */}
       <button
         onClick={goPayouts}
         style={{
@@ -57,15 +57,15 @@ export default function DashboardPage() {
         Payouts
       </button>
 
-      {/* Logout button – slightly lower + smaller */}
+      {/* Logout button – a bit lower + smaller */}
       <button
         onClick={handleLogout}
         style={{
           position: 'absolute',
-          bottom: 10,          // a bit lower
+          bottom: 10,
           left: 16,
           zIndex: 20,
-          padding: '6px 12px', // smaller
+          padding: '6px 12px',
           borderRadius: 999,
           border: '1px solid rgba(255,255,255,0.3)',
           background: 'rgba(255,255,255,0.07)',
@@ -94,7 +94,7 @@ export default function DashboardPage() {
         }}
       >
         <iframe
-          title="Clipper Dashboards Demo Dev v1"
+          title="Clipper Dashboards Dev"
           src={POWERBI_EMBED_URL}
           style={{
             border: 'none',
@@ -107,7 +107,6 @@ export default function DashboardPage() {
           allowFullScreen
         />
 
-        {/* gradient + footer blocker */}
         <div
           style={{
             position: 'absolute',
@@ -120,6 +119,7 @@ export default function DashboardPage() {
             pointerEvents: 'none',
           }}
         />
+
         <div
           style={{
             position: 'absolute',
