@@ -1,16 +1,19 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import App from './App.jsx';
 import LoginPage from './LoginPage.jsx';
 import DashboardPage from './DashboardPage.jsx';
-import PayoutsPage from './PayoutsPage.jsx';   // ⬅️ NEW
+import PayoutsPage from './PayoutsPage.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
+        {/* default: go to dashboard */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
         <Route path="/login" element={<LoginPage />} />
 
         <Route
@@ -22,7 +25,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           }
         />
 
-        {/* NEW: payouts route */}
         <Route
           path="/payouts"
           element={
@@ -32,10 +34,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           }
         />
 
-        {/* default route – send anything else to /dashboard */}
-        <Route path="*" element={<Navigate to="/dashboard" />} />
+        {/* any unknown hash -> dashboard */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   </React.StrictMode>
 );
-
