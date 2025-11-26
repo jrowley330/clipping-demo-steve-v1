@@ -38,7 +38,7 @@ export default function DashboardPage() {
         onClick={goPayouts}
         style={{
           position: 'absolute',
-          bottom: 8,
+          bottom: 10,
           left: 16,
           zIndex: 20,
           padding: '10px 22px',
