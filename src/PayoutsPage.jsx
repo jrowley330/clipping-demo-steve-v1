@@ -1,10 +1,13 @@
 import React from 'react';
 import { supabase } from './supabaseClient';
+import { useNavigate } from 'react-router-dom';
 
 export default function PayoutsPage() {
+  const navigate = useNavigate();
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    window.location.href = '/';
+    navigate('/login'); // or '/'
   };
 
   return (
@@ -44,7 +47,8 @@ export default function PayoutsPage() {
       </h1>
 
       <p style={{ opacity: 0.7 }}>
-        This is your Payouts page.  
+        This is your Payouts page.
+        <br />
         We’ll fill this in once you give me your ideas.
       </p>
     </div>
