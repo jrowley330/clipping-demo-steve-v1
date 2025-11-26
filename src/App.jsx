@@ -12,7 +12,11 @@ export default function App({ children }) {
       const { data } = await supabase.auth.getSession();
       setSession(data.session || null);
       setLoading(false);
-      if (!data.session) navigate('/login');
+
+      // if not logged in, send to login
+      if (!data.session) {
+        navigate('/login', { replace: true });
+      }
     };
 
     init();
@@ -21,8 +25,13 @@ export default function App({ children }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (!session) navigate('/login');
-      else navigate('/dashboard');
+
+      if (!session) {
+        // logged out → go to login
+        navigate('/login', { replace: true });
+      }
+      // ❌ IMPORTANT: do NOT force /dashboard here
+      // if there *is* a session, just stay on whatever route we're on
     });
 
     return () => subscription.unsubscribe();
@@ -31,5 +40,6 @@ export default function App({ children }) {
   if (loading) return <div>Loading…</div>;
   if (!session) return null; // redirect handled above
 
+  // render whichever page was wrapped in <App> ... </App>
   return <>{children}</>;
 }
