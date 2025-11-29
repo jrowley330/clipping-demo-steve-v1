@@ -266,7 +266,8 @@ export default function PayoutsPage() {
     setModalOpen(false);
     setModalClipper(null);
   };
-  return (
+  
+return (
   <div
     style={{
       minHeight: '100vh',
