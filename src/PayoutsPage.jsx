@@ -268,21 +268,22 @@ export default function PayoutsPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        width: '100vw',
-        boxSizing: 'border-box',
-        background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
-        color: '#fff',
-        fontFamily:
-          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        position: 'relative',
-        display: 'flex',
-        padding: '24px 28px 72px 28px',
-        overflowX: 'hidden',
-      }}
-    >
+  <div
+    style={{
+      minHeight: '100vh',
+      width: '100vw',
+      boxSizing: 'border-box',
+      background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
+      color: '#fff',
+      fontFamily:
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      position: 'relative',
+      display: 'flex',
+      padding: 0,              // 👈 no frame
+      overflowX: 'hidden',
+    }}
+  >
+
       {/* Faint watermark */}
       <div
         style={{
