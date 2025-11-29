@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
-const API_BASE_URL = 'https://your-cloud-run-url'; // TODO: replace later
+// 🔗 Your real Cloud Run base URL
+const API_BASE_URL = 'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
 export default function PayoutsPage() {
   const navigate = useNavigate();
@@ -15,13 +16,33 @@ export default function PayoutsPage() {
     navigate('/login');
   };
 
+  // helpers for formatting
+  const formatCurrency = (value) => {
+    if (value == null || isNaN(value)) return '—';
+    return `$${Number(value).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
+  const formatDate = (value) => {
+    if (!value) return '—';
+    // API returns "YYYY-MM-DD"
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value; // fallback to raw
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
   useEffect(() => {
     const fetchPayouts = async () => {
       try {
         setLoading(true);
         setError('');
 
-        // later we can include auth headers if needed
         const res = await fetch(`${API_BASE_URL}/payouts`);
 
         if (!res.ok) {
@@ -30,11 +51,11 @@ export default function PayoutsPage() {
 
         const data = await res.json();
 
-        // expect shape like:
+        // expect shape:
         // [{ clipper_id, clipper_name, total_earned_usd, last_payout_date }, ...]
-        setRows(data || []);
+        setRows(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error(err);
+        console.error('Error fetching payouts:', err);
         setError('Failed to load payouts. Please try again.');
       } finally {
         setLoading(false);
@@ -43,6 +64,12 @@ export default function PayoutsPage() {
 
     fetchPayouts();
   }, []);
+
+  // optional: compute total across all clippers for the little “summary” vibe
+  const totalAllEarned = rows.reduce(
+    (sum, r) => sum + (Number(r.total_earned_usd) || 0),
+    0
+  );
 
   return (
     <div
@@ -53,6 +80,7 @@ export default function PayoutsPage() {
         padding: '32px 32px 80px 32px',
         fontFamily:
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        position: 'relative',
       }}
     >
       {/* Logout – subtle bottom-left */}
@@ -81,11 +109,40 @@ export default function PayoutsPage() {
       </button>
 
       {/* Header */}
-      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'baseline', gap: 12 }}>
-        <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>Payouts</h1>
-        <span style={{ fontSize: 13, opacity: 0.7 }}>
-          Clipper earnings overview
-        </span>
+      <div
+        style={{
+          marginBottom: 24,
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 12,
+          justifyContent: 'space-between',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+          <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>Payouts</h1>
+          <span style={{ fontSize: 13, opacity: 0.7 }}>
+            Clipper earnings overview
+          </span>
+        </div>
+
+        {/* Small summary pill */}
+        {!loading && !error && rows.length > 0 && (
+          <div
+            style={{
+              fontSize: 12,
+              padding: '6px 10px',
+              borderRadius: 999,
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'rgba(255,255,255,0.04)',
+              opacity: 0.85,
+            }}
+          >
+            {rows.length} clippers · Total paid:{' '}
+            <span style={{ fontWeight: 600 }}>
+              {formatCurrency(totalAllEarned)}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Content card */}
@@ -194,12 +251,7 @@ export default function PayoutsPage() {
                         fontWeight: 500,
                       }}
                     >
-                      {row.total_earned_usd != null
-                        ? `$${row.total_earned_usd.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}`
-                        : '—'}
+                      {formatCurrency(row.total_earned_usd)}
                     </td>
                     <td
                       style={{
@@ -208,7 +260,7 @@ export default function PayoutsPage() {
                         opacity: 0.8,
                       }}
                     >
-                      {row.last_payout_date || '—'}
+                      {formatDate(row.last_payout_date)}
                     </td>
                   </tr>
                 ))}
