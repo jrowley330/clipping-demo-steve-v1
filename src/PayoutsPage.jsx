@@ -266,25 +266,24 @@ export default function PayoutsPage() {
     setModalOpen(false);
     setModalClipper(null);
   };
-
-<div
-  style={{
-    minHeight: '100vh',
-    width: '100vw',
-    boxSizing: 'border-box',
-    background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
-    color: '#fff',
-    fontFamily:
-      'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    position: 'relative',
-    display: 'flex',
-    
-    /* THE FIXES ↓↓↓ */
-    margin: 0,
-    padding: 0,
-    overflow: 'hidden',
-  }}
->
+  return (
+  <div
+    style={{
+      minHeight: '100vh',
+      width: '100vw',
+      boxSizing: 'border-box',
+      background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
+      color: '#fff',
+      fontFamily:
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      position: 'relative',
+      display: 'flex',
+      margin: 0,
+      padding: 0,
+      overflowX: 'hidden',
+      overflowY: 'auto',
+    }}
+  >
 
       {/* Faint watermark */}
       <div
