@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
-// 🔗 Real Cloud Run base URL (used for upcoming payouts demo)
-const API_BASE_URL
+// Cloud Run base URL (used for upcoming payouts demo)
+const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
 // ---- Demo placeholder data ----
@@ -153,7 +153,7 @@ export default function PayoutsPage() {
   };
 
   const handleReturnToDashboards = () => {
-    navigate('/'); // adjust route if dashboards live elsewhere
+    navigate('/'); // adjust if your dashboards live elsewhere
   };
 
   // Fetch upcoming payouts from API (with fallback to mock)
@@ -174,7 +174,10 @@ export default function PayoutsPage() {
           clipper_id: r.clipper_id || `clipper_${i + 1}`,
           clipper_name: r.clipper_name || `Clipper ${i + 1}`,
           total_earned_usd: Number(r.total_earned_usd) || 0,
-          last_payout_date: r.last_payout_date,
+          last_payout_date:
+            r.last_payout_date && typeof r.last_payout_date === 'object'
+              ? r.last_payout_date.value
+              : r.last_payout_date,
           // demo: just cycle processors
           processor: ['Stripe', 'PayPal', 'Wise'][i % 3],
         }));
@@ -268,13 +271,16 @@ export default function PayoutsPage() {
     <div
       style={{
         minHeight: '100vh',
+        width: '100vw',
+        boxSizing: 'border-box',
         background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
         color: '#fff',
-        padding: 0,
         fontFamily:
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         position: 'relative',
         display: 'flex',
+        padding: '24px 28px 72px 28px',
+        overflowX: 'hidden',
       }}
     >
       {/* Faint watermark */}
@@ -312,7 +318,7 @@ export default function PayoutsPage() {
         <div
           style={{
             borderRadius: 18,
-            background: 'rgba(0,0,0,0.65)',
+            background: 'rgba(0,0,0,0.8)',
             border: '1px solid rgba(255,255,255,0.06)',
             boxShadow: '0 18px 45px rgba(0,0,0,0.8)',
             padding: 10,
@@ -401,11 +407,31 @@ export default function PayoutsPage() {
               >
                 Settings
               </button>
-              <div
+
+              <div style={{ flexGrow: 1 }} />
+
+              <button
+                onClick={handleLogout}
                 style={{
-                  flexGrow: 1,
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 999,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'rgba(248,250,252,0.06)',
+                  color: 'rgba(255,255,255,0.85)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginBottom: 6,
                 }}
-              />
+              >
+                <span style={{ fontSize: 12 }}>⏻</span>
+                Logout
+              </button>
+
               <div
                 style={{
                   fontSize: 11,
@@ -1036,69 +1062,6 @@ export default function PayoutsPage() {
             </>
           )}
         </div>
-      </div>
-
-      {/* Bottom-left: Return to dashboards */}
-      <div
-        style={{
-          position: 'fixed',
-          left: 16,
-          bottom: 14,
-          display: 'flex',
-          gap: 10,
-          alignItems: 'center',
-          zIndex: 10,
-        }}
-      >
-        <button
-          onClick={handleReturnToDashboards}
-          style={{
-            padding: '6px 14px',
-            borderRadius: 999,
-            border: '1px solid rgba(255,255,255,0.18)',
-            background:
-              'linear-gradient(120deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
-            color: 'rgba(255,255,255,0.9)',
-            cursor: 'pointer',
-            fontSize: 12,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          ← Return to dashboards
-        </button>
-      </div>
-
-      {/* Bottom-right: Logout */}
-      <div
-        style={{
-          position: 'fixed',
-          right: 16,
-          bottom: 14,
-          zIndex: 10,
-        }}
-      >
-        <button
-          onClick={handleLogout}
-          style={{
-            padding: '6px 12px',
-            borderRadius: 999,
-            border: '1px solid rgba(255,255,255,0.18)',
-            background: 'rgba(0,0,0,0.55)',
-            color: 'rgba(255,255,255,0.75)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 12,
-            backdropFilter: 'blur(6px)',
-          }}
-        >
-          <span style={{ fontSize: 12 }}>⏻</span>
-          Logout
-        </button>
       </div>
 
       {/* Pay demo modal */}
