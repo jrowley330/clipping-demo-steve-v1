@@ -18,8 +18,9 @@ export default function PayoutsPage() {
 
   // helpers for formatting
   const formatCurrency = (value) => {
-    if (value == null || isNaN(value)) return '—';
-    return `$${Number(value).toLocaleString(undefined, {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '—';
+    return `$${num.toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
@@ -27,9 +28,8 @@ export default function PayoutsPage() {
 
   const formatDate = (value) => {
     if (!value) return '—';
-    // API returns "YYYY-MM-DD"
     const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return value; // fallback to raw
+    if (Number.isNaN(d.getTime())) return String(value);
     return d.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -51,9 +51,27 @@ export default function PayoutsPage() {
 
         const data = await res.json();
 
-        // expect shape:
-        // [{ clipper_id, clipper_name, total_earned_usd, last_payout_date }, ...]
-        setRows(Array.isArray(data) ? data : []);
+        // 🔁 Normalize BigQuery-style objects -> plain values
+        const normalized = (Array.isArray(data) ? data : []).map((r) => ({
+          clipper_id:
+            r.clipper_id && typeof r.clipper_id === 'object'
+              ? r.clipper_id.value
+              : r.clipper_id,
+          clipper_name:
+            r.clipper_name && typeof r.clipper_name === 'object'
+              ? r.clipper_name.value
+              : r.clipper_name,
+          total_earned_usd:
+            r.total_earned_usd && typeof r.total_earned_usd === 'object'
+              ? Number(r.total_earned_usd.value)
+              : Number(r.total_earned_usd),
+          last_payout_date:
+            r.last_payout_date && typeof r.last_payout_date === 'object'
+              ? r.last_payout_date.value
+              : r.last_payout_date,
+        }));
+
+        setRows(normalized);
       } catch (err) {
         console.error('Error fetching payouts:', err);
         setError('Failed to load payouts. Please try again.');
