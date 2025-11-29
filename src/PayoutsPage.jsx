@@ -267,7 +267,7 @@ export default function PayoutsPage() {
     setModalClipper(null);
   };
 
-  return (
+return (
   <div
     style={{
       minHeight: '100vh',
@@ -279,7 +279,7 @@ export default function PayoutsPage() {
         'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       position: 'relative',
       display: 'flex',
-      padding: 0,              // 👈 no frame
+      padding: '24px 28px 72px 28px',   // 👈 THIS creates that outer frame
       overflowX: 'hidden',
     }}
   >
