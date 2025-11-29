@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
 // 🔗 Real Cloud Run base URL (used for upcoming payouts demo)
-const API_BASE_URL =
+const API_BASE_URL
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
 // ---- Demo placeholder data ----
@@ -270,7 +270,7 @@ export default function PayoutsPage() {
         minHeight: '100vh',
         background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
         color: '#fff',
-        padding: '24px 32px 80px 32px',
+        padding: 0,
         fontFamily:
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         position: 'relative',
