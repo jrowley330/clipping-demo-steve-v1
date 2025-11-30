@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
-// Cloud Run base URL (used for upcoming payouts demo)
 const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
@@ -71,7 +70,7 @@ const MOCK_HISTORY = [
   },
 ];
 
-// ---- Small helpers ----
+// ---- Helpers ----
 
 const formatCurrency = (value) => {
   const num = Number(value);
@@ -106,7 +105,8 @@ const formatDateTime = (value) => {
   });
 };
 
-// simple chip for processor
+// ---- Processor badge ----
+
 function ProcessorBadge({ processor }) {
   const base = {
     Stripe: { bg: 'rgba(88, 101, 242, 0.16)', border: 'rgba(88, 101, 242, 0.6)' },
@@ -131,18 +131,19 @@ function ProcessorBadge({ processor }) {
   );
 }
 
+// ---- MAIN PAGE ----
+
 export default function PayoutsPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('upcoming'); // 'upcoming' | 'history'
+
+  const [activeTab, setActiveTab] = useState('upcoming');
   const [loadingUpcoming, setLoadingUpcoming] = useState(true);
   const [upcomingError, setUpcomingError] = useState('');
   const [upcomingRows, setUpcomingRows] = useState([]);
 
-  // history filter
   const [historyClipper, setHistoryClipper] = useState('all');
   const [historyMonth, setHistoryMonth] = useState('all');
 
-  // sidebar + modal
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalClipper, setModalClipper] = useState(null);
@@ -153,10 +154,11 @@ export default function PayoutsPage() {
   };
 
   const handleReturnToDashboards = () => {
-    navigate('/'); // adjust if your dashboards live elsewhere
+    navigate('/');
   };
 
-  // Fetch upcoming payouts from API (with fallback to mock)
+  // ---- Fetch demo payouts ----
+
   useEffect(() => {
     const fetchPayouts = async () => {
       try {
@@ -165,9 +167,7 @@ export default function PayoutsPage() {
 
         const res = await fetch(`${API_BASE_URL}/payouts`);
 
-        if (!res.ok) {
-          throw new Error(`API responded with ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`API responded with ${res.status}`);
 
         const data = await res.json();
         const normalized = (Array.isArray(data) ? data : []).map((r, i) => ({
@@ -178,15 +178,11 @@ export default function PayoutsPage() {
             r.last_payout_date && typeof r.last_payout_date === 'object'
               ? r.last_payout_date.value
               : r.last_payout_date,
-          // demo: just cycle processors
           processor: ['Stripe', 'PayPal', 'Wise'][i % 3],
         }));
 
-        if (!normalized.length) {
-          setUpcomingRows(MOCK_UPCOMING);
-        } else {
-          setUpcomingRows(normalized);
-        }
+        if (!normalized.length) setUpcomingRows(MOCK_UPCOMING);
+        else setUpcomingRows(normalized);
       } catch (err) {
         console.error('Error fetching payouts:', err);
         setUpcomingError('Using demo data (API unavailable).');
@@ -200,19 +196,14 @@ export default function PayoutsPage() {
   }, []);
 
   const totalAllEarned = useMemo(
-    () =>
-      upcomingRows.reduce(
-        (sum, r) => sum + (Number(r.total_earned_usd) || 0),
-        0
-      ),
+    () => upcomingRows.reduce((sum, r) => sum + Number(r.total_earned_usd || 0), 0),
     [upcomingRows]
   );
 
-  // history filters
+  // ---- Filters ----
+
   const clipperOptions = useMemo(() => {
-    const names = Array.from(
-      new Set(MOCK_HISTORY.map((h) => h.clipper_name))
-    ).sort();
+    const names = Array.from(new Set(MOCK_HISTORY.map((h) => h.clipper_name))).sort();
     return ['all', ...names];
   }, []);
 
@@ -224,39 +215,33 @@ export default function PayoutsPage() {
           if (Number.isNaN(d.getTime())) return null;
           const yy = d.getFullYear();
           const mm = String(d.getMonth() + 1).padStart(2, '0');
-          return `${yy}-${mm}`; // YYYY-MM
+          return `${yy}-${mm}`;
         }).filter(Boolean)
       )
-    ).sort((a, b) => (a > b ? -1 : 1)); // newest first
+    ).sort((a, b) => (a > b ? -1 : 1));
     return ['all', ...months];
   }, []);
 
   const filteredHistory = useMemo(() => {
     return MOCK_HISTORY.filter((h) => {
-      if (historyClipper !== 'all' && h.clipper_name !== historyClipper) {
-        return false;
-      }
+      if (historyClipper !== 'all' && h.clipper_name !== historyClipper) return false;
+
       if (historyMonth !== 'all') {
         const d = new Date(h.ts);
         const yy = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const key = `${yy}-${mm}`;
-        if (key !== historyMonth) return false;
+        if (`${yy}-${mm}` !== historyMonth) return false;
       }
+
       return true;
     }).sort((a, b) => (a.ts > b.ts ? -1 : 1));
   }, [historyClipper, historyMonth]);
 
   const totalHistoryPaid = useMemo(
-    () =>
-      filteredHistory.reduce(
-        (sum, h) => sum + (Number(h.amount_usd) || 0),
-        0
-      ),
+    () => filteredHistory.reduce((sum, h) => sum + Number(h.amount_usd || 0), 0),
     [filteredHistory]
   );
 
-  // demo pay handler -> animated modal
   const handleDemoPayClick = (clipper) => {
     setModalClipper(clipper);
     setModalOpen(true);
@@ -266,26 +251,29 @@ export default function PayoutsPage() {
     setModalOpen(false);
     setModalClipper(null);
   };
-  
-return (
-  <div
-    style={{
-      position: 'fixed',
-      inset: 0, // top:0, right:0, bottom:0, left:0
-      background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
-      color: '#fff',
-      fontFamily:
-        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      display: 'flex',
-      overflowX: 'hidden',
-      overflowY: 'auto',
-    }}
-  >
 
+  // -------------------------------------------------------------
+  //                 🚀  FULLSCREEN + BLACK GUTTER
+  // -------------------------------------------------------------
 
-
-
-      {/* Faint watermark */}
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
+        display: 'flex',
+        overflowX: 'hidden',
+        overflowY: 'auto',
+        color: '#fff',
+        fontFamily:
+          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        padding: '32px',       // <<<< 🔥 CLEAN BLACK OUTER GUTTER
+        paddingTop: '40px',
+        paddingBottom: '40px',
+      }}
+    >
+      {/* WATERMARK */}
       <div
         style={{
           position: 'fixed',
@@ -307,7 +295,7 @@ return (
         STEVEWILLDOIT
       </div>
 
-      {/* Sidebar */}
+      {/* SIDEBAR */}
       <div
         style={{
           width: sidebarOpen ? 190 : 54,
@@ -360,6 +348,7 @@ return (
               >
                 Navigation
               </div>
+
               <button
                 style={{
                   border: 'none',
@@ -378,6 +367,7 @@ return (
               >
                 Payouts
               </button>
+
               <button
                 style={{
                   border: 'none',
@@ -394,6 +384,7 @@ return (
               >
                 Dashboards
               </button>
+
               <button
                 style={{
                   border: 'none',
@@ -449,7 +440,7 @@ return (
         </div>
       </div>
 
-      {/* Main content */}
+      {/* MAIN CONTENT */}
       <div
         style={{
           flex: 1,
@@ -499,7 +490,6 @@ return (
             </span>
           </div>
 
-          {/* Summary pill */}
           {upcomingRows.length > 0 && (
             <div
               style={{
@@ -577,7 +567,7 @@ return (
           })}
         </div>
 
-        {/* Content card */}
+        {/* Content Card */}
         <div
           style={{
             borderRadius: 20,
@@ -587,6 +577,7 @@ return (
             boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
           }}
         >
+          {/* UPCOMING TAB */}
           {activeTab === 'upcoming' && (
             <>
               {loadingUpcoming && (
@@ -788,9 +779,9 @@ return (
             </>
           )}
 
+          {/* HISTORY TAB */}
           {activeTab === 'history' && (
             <>
-              {/* Filters */}
               <div
                 style={{
                   display: 'flex',
@@ -861,10 +852,7 @@ return (
                           );
                         }
                         const [yy, mm] = opt.split('-');
-                        const label = formatDate(`${yy}-${mm}-01`).slice(
-                          0,
-                          8
-                        );
+                        const label = formatDate(`${yy}-${mm}-01`).slice(0, 8);
                         return (
                           <option key={opt} value={opt}>
                             {label}
@@ -889,7 +877,6 @@ return (
                 </div>
               </div>
 
-              {/* History table */}
               {filteredHistory.length === 0 ? (
                 <div style={{ padding: 12, fontSize: 14, opacity: 0.8 }}>
                   No payments match the selected filters.
@@ -1066,7 +1053,7 @@ return (
         </div>
       </div>
 
-      {/* Pay demo modal */}
+      {/* PAY MODAL */}
       {modalOpen && modalClipper && (
         <div
           onClick={closeModal}
@@ -1097,12 +1084,13 @@ return (
           >
             <style>
               {`
-              @keyframes modal-pop {
-                0% { opacity: 0; transform: translateY(10px) scale(0.96); }
-                100% { opacity: 1; transform: translateY(0) scale(1); }
-              }
-            `}
+                @keyframes modal-pop {
+                  0% { opacity: 0; transform: translateY(10px) scale(0.96); }
+                  100% { opacity: 1; transform: translateY(0) scale(1); }
+                }
+              `}
             </style>
+
             <div
               style={{
                 marginBottom: 10,
@@ -1135,6 +1123,7 @@ return (
                 ✕
               </button>
             </div>
+
             <p
               style={{
                 fontSize: 13,
@@ -1146,6 +1135,7 @@ return (
               would trigger a secure payout via{' '}
               <strong>{modalClipper.processor}</strong>.
             </p>
+
             <div
               style={{
                 fontSize: 14,
@@ -1166,6 +1156,7 @@ return (
                 <span style={{ opacity: 0.75 }}>Clipper</span>
                 <span>{modalClipper.clipper_name}</span>
               </div>
+
               <div
                 style={{
                   display: 'flex',
@@ -1176,6 +1167,7 @@ return (
                 <span style={{ opacity: 0.75 }}>Amount</span>
                 <span>{formatCurrency(modalClipper.total_earned_usd)}</span>
               </div>
+
               <div
                 style={{
                   display: 'flex',
@@ -1186,6 +1178,7 @@ return (
                 <span>{modalClipper.processor}</span>
               </div>
             </div>
+
             <button
               onClick={() => {
                 alert(
