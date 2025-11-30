@@ -267,19 +267,31 @@ export default function PayoutsPage() {
     setModalClipper(null);
   };
   
-  return (
+return (
+  <div
+    style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
+      display: 'flex',
+      flexDirection: 'row',
+      overflow: 'hidden',
+      fontFamily:
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      color: '#fff',
+    }}
+  >
+    {/* Scrollable content wrapper */}
     <div
       style={{
-        position: 'fixed',
-        inset: 0,
-        background: '#000',
+        flex: 1,
         display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        fontFamily:
-          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        overflowY: 'auto',
+        overflowX: 'hidden',
       }}
     >
+      {/* 👉 Put ALL your existing page JSX inside HERE (sidebar + main content) */}
+
 
       {/* Faint watermark */}
       <div
