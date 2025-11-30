@@ -270,27 +270,20 @@ export default function PayoutsPage() {
 return (
   <div
     style={{
-      position: 'fixed',
-      inset: 0,
+      minHeight: '100vh',
+      width: '100vw',
+      boxSizing: 'border-box',
       background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
-      display: 'flex',
-      flexDirection: 'row',
-      overflow: 'hidden',
+      color: '#fff',
       fontFamily:
         'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      color: '#fff',
+      position: 'relative',
+      display: 'flex',
+      padding: 0,
+      overflowX: 'hidden',
     }}
   >
-    {/* Scrollable content wrapper */}
-    <div
-      style={{
-        flex: 1,
-        display: 'flex',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-      }}
-    >
-      {/* 👉 Put ALL your existing page JSX inside HERE (sidebar + main content) */}
+
 
 
       {/* Faint watermark */}
