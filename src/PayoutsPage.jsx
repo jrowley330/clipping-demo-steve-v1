@@ -270,19 +270,18 @@ export default function PayoutsPage() {
 return (
   <div
     style={{
-      minHeight: '100vh',
-      width: '100vw',
-      boxSizing: 'border-box',
+      position: 'fixed',
+      inset: 0, // top:0, right:0, bottom:0, left:0
       background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
       color: '#fff',
       fontFamily:
         'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      position: 'relative',
       display: 'flex',
-      padding: 0,
       overflowX: 'hidden',
+      overflowY: 'auto',
     }}
   >
+
 
 
 
