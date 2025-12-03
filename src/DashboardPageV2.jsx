@@ -269,24 +269,6 @@ export default function DashboardsPageV2() {
                 Dashboards V2
               </button>
 
-              {/* Dashboards V1 (Power BI) */}
-              <button
-                onClick={goDashV1}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.7)',
-                }}
-              >
-                Dashboards V1
-              </button>
-
               {/* Payouts */}
               <button
                 onClick={goPayouts}
@@ -305,8 +287,46 @@ export default function DashboardsPageV2() {
                 Payouts
               </button>
 
+              {/* Settings (placeholder) */}
+              <button
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.55)',
+                }}
+              >
+                Settings
+              </button>
+
+              {/* push bottom cluster down */}
               <div style={{ flexGrow: 1 }} />
 
+              {/* Dashboards V1 at bottom */}
+              <button
+                onClick={goDashV1}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginBottom: 4,
+                }}
+              >
+                Dashboards V1
+              </button>
+
+              {/* Logout */}
               <button
                 onClick={handleLogout}
                 style={{
