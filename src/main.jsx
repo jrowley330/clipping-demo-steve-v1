@@ -23,7 +23,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           path="/dashboard-v2"
           element={
             <App>
-              <DashboardsPageV2 />
+              <DashboardPageV2 />
             </App>
           }
         />
