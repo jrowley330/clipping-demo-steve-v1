@@ -41,6 +41,15 @@ const formatDate = (value) => {
   });
 };
 
+const unwrapValue = (v) => {
+  // BigQuery sometimes returns { value: '2025-11-01' } or similar
+  if (v && typeof v === 'object' && 'value' in v) {
+    return v.value;
+  }
+  return v;
+};
+
+
 export default function DashboardsPageV2() {
   const navigate = useNavigate();
 
@@ -91,19 +100,23 @@ export default function DashboardsPageV2() {
         const data = await res.json();
 
         const normalized = (Array.isArray(data) ? data : []).map((row, i) => {
-          const views = Number(row.VIEWS_GENERATED ?? row.views_generated ?? 0);
-          const videos = Number(row.VIDEOS_POSTED ?? row.videos_posted ?? 0);
-          const payout =
-            row.PAYOUT_USD ?? row.payout_usd ?? views / 1000; // fallback if not precomputed
-          return {
-            id: `${row.NAME || 'name'}_${row.MONTH || 'month'}_${i}`,
-            name: row.NAME || row.name || `Clipper ${i + 1}`,
-            month: row.MONTH || row.month || 'Unknown',
-            videosPosted: videos,
-            viewsGenerated: views,
-            payoutUsd: Number(payout || 0),
-          };
-        });
+        const rawName = unwrapValue(row.NAME ?? row.name);
+        const rawMonth = unwrapValue(row.MONTH ?? row.month);
+
+        const views = Number(unwrapValue(row.VIEWS_GENERATED ?? row.views_generated) ?? 0);
+        const videos = Number(unwrapValue(row.VIDEOS_POSTED ?? row.videos_posted) ?? 0);
+        const payout =
+          unwrapValue(row.PAYOUT_USD ?? row.payout_usd) ?? views / 1000;
+
+        return {
+          id: `${rawName || 'name'}_${rawMonth || 'month'}_${i}`,
+          name: rawName || `Clipper ${i + 1}`,
+          month: rawMonth || 'Unknown',
+          videosPosted: videos,
+          viewsGenerated: views,
+          payoutUsd: Number(payout || 0),
+  };
+});
 
         setSummaryRows(normalized);
       } catch (err) {
@@ -129,21 +142,27 @@ export default function DashboardsPageV2() {
         const data = await res.json();
 
         const normalized = (Array.isArray(data) ? data : []).map((row, i) => {
-          return {
-            id: `${row.NAME || 'name'}_${row.ACCOUNT || 'acct'}_${
-              row.WEEK_OF || i
-            }_${i}`,
-            name: row.NAME || row.name || `Clipper ${i + 1}`,
-            account: row.ACCOUNT || row.account || '',
-            platform: row.PLATFORM || row.platform || '',
-            weekOf: row.WEEK_OF || row.week_of || null,
-            month: row.MONTH || row.month || 'Unknown',
-            snapshotTs: row.SNAPSHOT_TS || row.snapshot_ts || null,
-            videosPosted: Number(row.VIDEOS_POSTED ?? row.videos_posted ?? 0),
-            totalViews: Number(row.TOTAL_VIEWS ?? row.total_views ?? 0),
-            weeklyViews: Number(row.WEEKLY_VIEWS ?? row.weekly_views ?? 0),
-          };
-        });
+        const rawName = unwrapValue(row.NAME ?? row.name);
+        const rawAccount = unwrapValue(row.ACCOUNT ?? row.account);
+        const rawPlatform = unwrapValue(row.PLATFORM ?? row.platform);
+        const rawWeekOf = unwrapValue(row.WEEK_OF ?? row.week_of);
+        const rawMonth = unwrapValue(row.MONTH ?? row.month);
+        const rawSnapshot = unwrapValue(row.SNAPSHOT_TS ?? row.snapshot_ts);
+
+        return {
+          id: `${rawName || 'name'}_${rawAccount || 'acct'}_${rawWeekOf || i}_${i}`,
+          name: rawName || `Clipper ${i + 1}`,
+          account: rawAccount || '',
+          platform: rawPlatform || '',
+          weekOf: rawWeekOf || null,        // now a plain string like '2025-11-01'
+          month: rawMonth || 'Unknown',
+          snapshotTs: rawSnapshot || null,
+          videosPosted: Number(unwrapValue(row.VIDEOS_POSTED ?? row.videos_posted) ?? 0),
+          totalViews: Number(unwrapValue(row.TOTAL_VIEWS ?? row.total_views) ?? 0),
+          weeklyViews: Number(unwrapValue(row.WEEKLY_VIEWS ?? row.weekly_views) ?? 0),
+      };
+      });
+
 
         setDetailsRows(normalized);
       } catch (err) {
@@ -168,12 +187,15 @@ export default function DashboardsPageV2() {
   }, [summaryRows]);
 
   const summaryClipperOptions = useMemo(() => {
-    const set = new Set();
-    summaryRows.forEach((r) => {
-      if (r.name) set.add(r.name);
-    });
-    return ['all', ...Array.from(set).sort()];
-  }, [summaryRows]);
+  const set = new Set();
+  summaryRows.forEach((r) => {
+    if (typeof r.name === 'string') {
+      const trimmed = r.name.trim();
+      if (trimmed) set.add(trimmed);
+    }
+  });
+  return ['all', ...Array.from(set).sort()];
+}, [summaryRows]);
 
   const filteredSummaryRows = useMemo(() => {
     return summaryRows.filter((r) => {
@@ -221,13 +243,15 @@ export default function DashboardsPageV2() {
   }, [detailsRows]);
 
   const detailsWeekOfOptions = useMemo(() => {
-    const set = new Set();
-    detailsRows.forEach((r) => {
-      if (r.weekOf) set.add(r.weekOf);
-    });
-    // sorts newest first
-    return ['all', ...Array.from(set).sort((a, b) => (a > b ? -1 : 1))];
-  }, [detailsRows]);
+  const set = new Set();
+  detailsRows.forEach((r) => {
+    if (r.weekOf) {
+      const key = unwrapValue(r.weekOf);
+      if (key) set.add(key);
+    }
+  });
+  return ['all', ...Array.from(set).sort((a, b) => (a > b ? -1 : 1))];
+}, [detailsRows]);
 
   const detailsClipperOptions = useMemo(() => {
     const set = new Set();
