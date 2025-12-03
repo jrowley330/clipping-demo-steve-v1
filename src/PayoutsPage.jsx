@@ -148,13 +148,18 @@ export default function PayoutsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalClipper, setModalClipper] = useState(null);
 
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
   };
 
-  const handleReturnToDashboards = () => {
-    navigate('/');
+   const handleGoDashV2 = () => {
+    navigate('/dashboard-v2');  // new BigQuery-powered dashboards page
+  };
+
+  const handleGoDashV1 = () => {
+    navigate('/dashboard');     // your existing Power BI dashboards page
   };
 
   // ---- Fetch demo payouts ----
@@ -349,6 +354,43 @@ export default function PayoutsPage() {
                 Navigation
               </div>
 
+              {/* Dashboards V2 */}
+              <button
+                onClick={handleGoDashV2}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                Dashboards V2
+              </button>
+
+              {/* Dashboards V1 (existing Power BI page) */}
+              <button
+                onClick={handleGoDashV1}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                Dashboards V1
+              </button>
+
+              {/* Payouts – active page */}
               <button
                 style={{
                   border: 'none',
@@ -366,23 +408,6 @@ export default function PayoutsPage() {
                 }}
               >
                 Payouts
-              </button>
-
-              <button
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.7)',
-                }}
-                onClick={handleReturnToDashboards}
-              >
-                Dashboards
               </button>
 
               <button
@@ -439,6 +464,7 @@ export default function PayoutsPage() {
           )}
         </div>
       </div>
+
 
       {/* MAIN CONTENT */}
       <div
