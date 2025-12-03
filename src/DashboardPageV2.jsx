@@ -1,4 +1,4 @@
-// DashboardsPageV2.jsx
+// DashboardPageV2.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
@@ -23,7 +23,6 @@ const formatCurrency = (value) => {
 };
 
 const formatMonthLabel = (monthStr) => {
-  // expects 'YYYY-MM'
   if (!monthStr || typeof monthStr !== 'string') return String(monthStr || '');
   const [year, month] = monthStr.split('-');
   const d = new Date(Number(year), Number(month) - 1, 1);
@@ -31,129 +30,252 @@ const formatMonthLabel = (monthStr) => {
   return d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
 };
 
+const formatDate = (value) => {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
+};
+
 export default function DashboardsPageV2() {
   const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'details'
 
-  const [selectedMonth, setSelectedMonth] = useState('all');
-  const [selectedClipper, setSelectedClipper] = useState('all');
+  // SUMMARY DATA (CLIPPER_SUMMARY)
+  const [summaryRows, setSummaryRows] = useState([]);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState('');
+  const [summaryMonth, setSummaryMonth] = useState('all');
+  const [summaryClipper, setSummaryClipper] = useState('all');
 
+  // DETAILS DATA (CLIPPER_DETAILS)
+  const [detailsRows, setDetailsRows] = useState([]);
+  const [detailsLoading, setDetailsLoading] = useState(true);
+  const [detailsError, setDetailsError] = useState('');
+  const [detailsMonth, setDetailsMonth] = useState('all');
+  const [detailsWeekOf, setDetailsWeekOf] = useState('all');
+  const [detailsClipper, setDetailsClipper] = useState('all');
+
+  // NAV HANDLERS
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
   };
 
+  const goDashV2 = () => {
+    navigate('/dashboard-v2');
+  };
+
   const goDashV1 = () => {
-    // your existing PowerBI page
-    navigate('/dashboard'); // adjust if your route is different
+    navigate('/dashboard');
   };
 
   const goPayouts = () => {
     navigate('/payouts');
   };
 
-  const goDashV2 = () => {
-    // staying on this page, but keeps API same style
-    navigate('/dashboard-v2');
-  };
-
-  // Fetch dashboard data
+  // FETCH SUMMARY
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchSummary = async () => {
       try {
-        setLoading(true);
-        setError('');
-
-        const res = await fetch(`${API_BASE_URL}/dashboard-v2`);
-
-        if (!res.ok) {
-          throw new Error(`API responded with ${res.status}`);
-        }
-
+        setSummaryLoading(true);
+        setSummaryError('');
+        const res = await fetch(`${API_BASE_URL}/clipper-summary`);
+        if (!res.ok) throw new Error(`Summary API ${res.status}`);
         const data = await res.json();
 
         const normalized = (Array.isArray(data) ? data : []).map((row, i) => {
-          const views = Number(row.views_generated || 0);
+          const views = Number(row.VIEWS_GENERATED ?? row.views_generated ?? 0);
+          const videos = Number(row.VIDEOS_POSTED ?? row.videos_posted ?? 0);
+          const payout =
+            row.PAYOUT_USD ?? row.payout_usd ?? views / 1000; // fallback if not precomputed
           return {
-            id: `${row.clipper_id || 'row'}_${row.month || i}`,
-            clipper_id: row.clipper_id || `clipper_${i + 1}`,
-            clipper_name: row.clipper_name || `Clipper ${i + 1}`,
-            month: row.month || 'Unknown',
-            videos_posted: Number(row.videos_posted || 0),
-            views_generated: views,
-            payout_usd: views / 1000, // $1 per 1,000 views
+            id: `${row.NAME || 'name'}_${row.MONTH || 'month'}_${i}`,
+            name: row.NAME || row.name || `Clipper ${i + 1}`,
+            month: row.MONTH || row.month || 'Unknown',
+            videosPosted: videos,
+            viewsGenerated: views,
+            payoutUsd: Number(payout || 0),
           };
         });
 
-        setRows(normalized);
+        setSummaryRows(normalized);
       } catch (err) {
-        console.error('Error fetching dashboard-v2 data:', err);
-        setError(
-          'Unable to load dashboard data. Check the API /dashboard-v2 endpoint or BigQuery view.'
-        );
-        setRows([]);
+        console.error('Error fetching summary:', err);
+        setSummaryError('Unable to load summary data from BigQuery.');
+        setSummaryRows([]);
       } finally {
-        setLoading(false);
+        setSummaryLoading(false);
       }
     };
 
-    fetchData();
+    fetchSummary();
   }, []);
 
-  // Filter options
-  const monthOptions = useMemo(() => {
-    const distinct = new Set();
-    rows.forEach((r) => {
-      if (r.month) distinct.add(r.month);
-    });
-    return ['all', ...Array.from(distinct).sort().reverse()];
-  }, [rows]);
+  // FETCH DETAILS
+  useEffect(() => {
+    const fetchDetails = async () => {
+      try {
+        setDetailsLoading(true);
+        setDetailsError('');
+        const res = await fetch(`${API_BASE_URL}/clipper-details`);
+        if (!res.ok) throw new Error(`Details API ${res.status}`);
+        const data = await res.json();
 
-  const clipperOptions = useMemo(() => {
-    const distinct = new Set();
-    rows.forEach((r) => {
-      if (r.clipper_name) distinct.add(r.clipper_name);
-    });
-    return ['all', ...Array.from(distinct).sort()];
-  }, [rows]);
+        const normalized = (Array.isArray(data) ? data : []).map((row, i) => {
+          return {
+            id: `${row.NAME || 'name'}_${row.ACCOUNT || 'acct'}_${
+              row.WEEK_OF || i
+            }_${i}`,
+            name: row.NAME || row.name || `Clipper ${i + 1}`,
+            account: row.ACCOUNT || row.account || '',
+            platform: row.PLATFORM || row.platform || '',
+            weekOf: row.WEEK_OF || row.week_of || null,
+            month: row.MONTH || row.month || 'Unknown',
+            snapshotTs: row.SNAPSHOT_TS || row.snapshot_ts || null,
+            videosPosted: Number(row.VIDEOS_POSTED ?? row.videos_posted ?? 0),
+            totalViews: Number(row.TOTAL_VIEWS ?? row.total_views ?? 0),
+            weeklyViews: Number(row.WEEKLY_VIEWS ?? row.weekly_views ?? 0),
+          };
+        });
 
-  const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
-      if (selectedMonth !== 'all' && r.month !== selectedMonth) return false;
-      if (selectedClipper !== 'all' && r.clipper_name !== selectedClipper)
-        return false;
+        setDetailsRows(normalized);
+      } catch (err) {
+        console.error('Error fetching details:', err);
+        setDetailsError('Unable to load details data from BigQuery.');
+        setDetailsRows([]);
+      } finally {
+        setDetailsLoading(false);
+      }
+    };
+
+    fetchDetails();
+  }, []);
+
+  // SUMMARY FILTER OPTIONS
+  const summaryMonthOptions = useMemo(() => {
+    const set = new Set();
+    summaryRows.forEach((r) => {
+      if (r.month) set.add(r.month);
+    });
+    return ['all', ...Array.from(set).sort().reverse()];
+  }, [summaryRows]);
+
+  const summaryClipperOptions = useMemo(() => {
+    const set = new Set();
+    summaryRows.forEach((r) => {
+      if (r.name) set.add(r.name);
+    });
+    return ['all', ...Array.from(set).sort()];
+  }, [summaryRows]);
+
+  const filteredSummaryRows = useMemo(() => {
+    return summaryRows.filter((r) => {
+      if (summaryMonth !== 'all' && r.month !== summaryMonth) return false;
+      if (summaryClipper !== 'all' && r.name !== summaryClipper) return false;
       return true;
     });
-  }, [rows, selectedMonth, selectedClipper]);
+  }, [summaryRows, summaryMonth, summaryClipper]);
 
-  // KPI totals
-  const totalViews = useMemo(
+  // SUMMARY KPIs
+  const summaryTotalViews = useMemo(
     () =>
-      filteredRows.reduce(
-        (sum, r) => sum + Number(r.views_generated || 0),
+      filteredSummaryRows.reduce(
+        (sum, r) => sum + Number(r.viewsGenerated || 0),
         0
       ),
-    [filteredRows]
+    [filteredSummaryRows]
   );
 
-  const totalPayout = useMemo(
+  const summaryTotalPayout = useMemo(
     () =>
-      filteredRows.reduce((sum, r) => sum + Number(r.payout_usd || 0), 0),
-    [filteredRows]
-  );
-
-  const totalVideos = useMemo(
-    () =>
-      filteredRows.reduce(
-        (sum, r) => sum + Number(r.videos_posted || 0),
+      filteredSummaryRows.reduce(
+        (sum, r) => sum + Number(r.payoutUsd || 0),
         0
       ),
-    [filteredRows]
+    [filteredSummaryRows]
   );
+
+  const summaryTotalVideos = useMemo(
+    () =>
+      filteredSummaryRows.reduce(
+        (sum, r) => sum + Number(r.videosPosted || 0),
+        0
+      ),
+    [filteredSummaryRows]
+  );
+
+  // DETAILS FILTER OPTIONS
+  const detailsMonthOptions = useMemo(() => {
+    const set = new Set();
+    detailsRows.forEach((r) => {
+      if (r.month) set.add(r.month);
+    });
+    return ['all', ...Array.from(set).sort().reverse()];
+  }, [detailsRows]);
+
+  const detailsWeekOfOptions = useMemo(() => {
+    const set = new Set();
+    detailsRows.forEach((r) => {
+      if (r.weekOf) set.add(r.weekOf);
+    });
+    // sorts newest first
+    return ['all', ...Array.from(set).sort((a, b) => (a > b ? -1 : 1))];
+  }, [detailsRows]);
+
+  const detailsClipperOptions = useMemo(() => {
+    const set = new Set();
+    detailsRows.forEach((r) => {
+      if (r.name) set.add(r.name);
+    });
+    return ['all', ...Array.from(set).sort()];
+  }, [detailsRows]);
+
+  const filteredDetailsRows = useMemo(() => {
+    return detailsRows.filter((r) => {
+      if (detailsMonth !== 'all' && r.month !== detailsMonth) return false;
+      if (detailsWeekOf !== 'all' && r.weekOf !== detailsWeekOf) return false;
+      if (detailsClipper !== 'all' && r.name !== detailsClipper) return false;
+      return true;
+    });
+  }, [detailsRows, detailsMonth, detailsWeekOf, detailsClipper]);
+
+  // DETAILS KPIs
+  const detailsWeeklyViews = useMemo(
+    () =>
+      filteredDetailsRows.reduce(
+        (sum, r) => sum + Number(r.weeklyViews || 0),
+        0
+      ),
+    [filteredDetailsRows]
+  );
+
+  const detailsTotalViews = useMemo(
+    () =>
+      filteredDetailsRows.reduce(
+        (sum, r) => sum + Number(r.totalViews || 0),
+        0
+      ),
+    [filteredDetailsRows]
+  );
+
+  const detailsVideosPosted = useMemo(
+    () =>
+      filteredDetailsRows.reduce(
+        (sum, r) => sum + Number(r.videosPosted || 0),
+        0
+      ),
+    [filteredDetailsRows]
+  );
+
+  const showSummaryLoading = summaryLoading && !summaryError;
+  const showDetailsLoading = detailsLoading && !detailsError;
 
   return (
     <div
@@ -287,7 +409,7 @@ export default function DashboardsPageV2() {
                 Payouts
               </button>
 
-              {/* Settings (placeholder) */}
+              {/* Settings */}
               <button
                 style={{
                   border: 'none',
@@ -304,7 +426,6 @@ export default function DashboardsPageV2() {
                 Settings
               </button>
 
-              {/* push bottom cluster down */}
               <div style={{ flexGrow: 1 }} />
 
               {/* Dashboards V1 at bottom */}
@@ -398,7 +519,7 @@ export default function DashboardsPageV2() {
         {/* Header */}
         <div
           style={{
-            marginBottom: 24,
+            marginBottom: 20,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -410,187 +531,77 @@ export default function DashboardsPageV2() {
               Dashboards V2
             </h1>
             <span style={{ fontSize: 13, opacity: 0.7 }}>
-              Monthly clipper performance (BigQuery-powered)
+              BigQuery-powered clipper performance
             </span>
           </div>
 
-          {filteredRows.length > 0 && (
-            <div
-              style={{
-                fontSize: 12,
-                padding: '6px 12px',
-                borderRadius: 999,
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: 'rgba(0,0,0,0.6)',
-                display: 'flex',
-                gap: 10,
-                alignItems: 'center',
-                backdropFilter: 'blur(8px)',
-              }}
-            >
-              <span style={{ opacity: 0.85 }}>
-                {filteredRows.length} rows · {monthOptions.length - 1} months ·{' '}
-                {clipperOptions.length - 1} clippers
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Filters */}
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 12,
-            marginBottom: 16,
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {/* Month filter */}
-            <div
-              style={{
-                fontSize: 12,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 4,
-              }}
-            >
-              <span style={{ opacity: 0.7 }}>Filter by month</span>
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                style={{
-                  fontSize: 12,
-                  padding: '6px 8px',
-                  borderRadius: 999,
-                  border: '1px solid rgba(255,255,255,0.16)',
-                  background: 'rgba(0,0,0,0.6)',
-                  color: 'rgba(255,255,255,0.9)',
-                }}
-              >
-                {monthOptions.map((opt) =>
-                  opt === 'all' ? (
-                    <option key={opt} value={opt}>
-                      All months
-                    </option>
-                  ) : (
-                    <option key={opt} value={opt}>
-                      {formatMonthLabel(opt)}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
-
-            {/* Clipper filter */}
-            <div
-              style={{
-                fontSize: 12,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 4,
-              }}
-            >
-              <span style={{ opacity: 0.7 }}>Filter by clipper</span>
-              <select
-                value={selectedClipper}
-                onChange={(e) => setSelectedClipper(e.target.value)}
-                style={{
-                  fontSize: 12,
-                  padding: '6px 8px',
-                  borderRadius: 999,
-                  border: '1px solid rgba(255,255,255,0.16)',
-                  background: 'rgba(0,0,0,0.6)',
-                  color: 'rgba(255,255,255,0.9)',
-                  minWidth: 160,
-                }}
-              >
-                {clipperOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt === 'all' ? 'All clippers' : opt}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Loading / error */}
-          <div style={{ minHeight: 24 }}>
-            {loading && (
-              <span style={{ fontSize: 12, opacity: 0.8 }}>
-                Loading dashboard data…
-              </span>
-            )}
-            {!loading && error && (
-              <span style={{ fontSize: 12, color: '#fed7aa' }}>{error}</span>
-            )}
+          {/* Quick stats */}
+          <div
+            style={{
+              fontSize: 12,
+              padding: '6px 12px',
+              borderRadius: 999,
+              border: '1px solid rgba(255,255,255,0.14)',
+              background: 'rgba(0,0,0,0.6)',
+              display: 'flex',
+              gap: 10,
+              alignItems: 'center',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <span style={{ opacity: 0.85 }}>
+              {summaryRows.length} summary rows · {detailsRows.length} detail
+              rows
+            </span>
           </div>
         </div>
 
-        {/* KPI row */}
+        {/* Tabs */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: 16,
             marginBottom: 20,
+            display: 'inline-flex',
+            borderRadius: 999,
+            border: '1px solid rgba(255,255,255,0.12)',
+            background: 'rgba(0,0,0,0.55)',
+            padding: 3,
+            backdropFilter: 'blur(8px)',
           }}
         >
-          <div
-            style={{
-              borderRadius: 16,
-              padding: 14,
-              background:
-                'radial-gradient(circle at top left, rgba(250,204,21,0.18), rgba(15,23,42,1))',
-              border: '1px solid rgba(250,204,21,0.4)',
-            }}
-          >
-            <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
-              Total views (filtered)
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 600 }}>
-              {formatNumber(totalViews)}
-            </div>
-          </div>
-
-          <div
-            style={{
-              borderRadius: 16,
-              padding: 14,
-              background:
-                'radial-gradient(circle at top left, rgba(34,197,94,0.20), rgba(15,23,42,1))',
-              border: '1px solid rgba(34,197,94,0.5)',
-            }}
-          >
-            <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
-              Payout @ $1 / 1k views
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 600 }}>
-              {formatCurrency(totalPayout)}
-            </div>
-          </div>
-
-          <div
-            style={{
-              borderRadius: 16,
-              padding: 14,
-              background:
-                'radial-gradient(circle at top left, rgba(96,165,250,0.20), rgba(15,23,42,1))',
-              border: '1px solid rgba(96,165,250,0.5)',
-            }}
-          >
-            <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
-              Total videos posted
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 600 }}>
-              {formatNumber(totalVideos)}
-            </div>
-          </div>
+          {[
+            { key: 'summary', label: 'Summary' },
+            { key: 'details', label: 'Details' },
+          ].map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  padding: '6px 14px',
+                  borderRadius: 999,
+                  fontSize: 12,
+                  background: active
+                    ? 'linear-gradient(135deg, #f97316, #facc15)'
+                    : 'transparent',
+                  color: active ? '#000' : 'rgba(255,255,255,0.7)',
+                  fontWeight: active ? 600 : 400,
+                  boxShadow: active
+                    ? '0 0 0 1px rgba(0,0,0,0.25), 0 10px 25px rgba(0,0,0,0.7)'
+                    : 'none',
+                  transition: 'all 150ms ease',
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Table card */}
+        {/* CONTENT CARD */}
         <div
           style={{
             borderRadius: 20,
@@ -600,166 +611,715 @@ export default function DashboardsPageV2() {
             boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
           }}
         >
-          {filteredRows.length === 0 && !loading ? (
-            <div style={{ padding: 12, fontSize: 14, opacity: 0.8 }}>
-              No rows match the selected filters.
-            </div>
-          ) : (
-            <div
-              style={{
-                overflowX: 'auto',
-                marginTop: 4,
-              }}
-            >
-              <table
+          {activeTab === 'summary' ? (
+            <>
+              {/* Summary filters */}
+              <div
                 style={{
-                  width: '100%',
-                  borderCollapse: 'collapse',
-                  fontSize: 14,
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                  marginBottom: 18,
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                 }}
               >
-                <thead>
-                  <tr>
-                    <th
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    <span style={{ opacity: 0.7 }}>Month</span>
+                    <select
+                      value={summaryMonth}
+                      onChange={(e) => setSummaryMonth(e.target.value)}
                       style={{
-                        textAlign: 'left',
-                        padding: '10px 6px',
-                        borderBottom:
-                          '1px solid rgba(255,255,255,0.12)',
-                        fontWeight: 500,
-                        opacity: 0.7,
+                        fontSize: 12,
+                        padding: '6px 8px',
+                        borderRadius: 999,
+                        border: '1px solid rgba(255,255,255,0.16)',
+                        background: 'rgba(0,0,0,0.6)',
+                        color: 'rgba(255,255,255,0.9)',
                       }}
                     >
-                      Clipper
-                    </th>
-                    <th
+                      {summaryMonthOptions.map((opt) =>
+                        opt === 'all' ? (
+                          <option key={opt} value={opt}>
+                            All months
+                          </option>
+                        ) : (
+                          <option key={opt} value={opt}>
+                            {formatMonthLabel(opt)}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 12,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    <span style={{ opacity: 0.7 }}>Clipper</span>
+                    <select
+                      value={summaryClipper}
+                      onChange={(e) => setSummaryClipper(e.target.value)}
                       style={{
-                        textAlign: 'left',
-                        padding: '10px 6px',
-                        borderBottom:
-                          '1px solid rgba(255,255,255,0.12)',
-                        fontWeight: 500,
-                        opacity: 0.7,
+                        fontSize: 12,
+                        padding: '6px 8px',
+                        borderRadius: 999,
+                        border: '1px solid rgba(255,255,255,0.16)',
+                        background: 'rgba(0,0,0,0.6)',
+                        color: 'rgba(255,255,255,0.9)',
+                        minWidth: 160,
                       }}
                     >
-                      Month
-                    </th>
-                    <th
-                      style={{
-                        textAlign: 'right',
-                        padding: '10px 6px',
-                        borderBottom:
-                          '1px solid rgba(255,255,255,0.12)',
-                        fontWeight: 500,
-                        opacity: 0.7,
-                      }}
-                    >
-                      Videos posted
-                    </th>
-                    <th
-                      style={{
-                        textAlign: 'right',
-                        padding: '10px 6px',
-                        borderBottom:
-                          '1px solid rgba(255,255,255,0.12)',
-                        fontWeight: 500,
-                        opacity: 0.7,
-                      }}
-                    >
-                      Views generated
-                    </th>
-                    <th
-                      style={{
-                        textAlign: 'right',
-                        padding: '10px 6px',
-                        borderBottom:
-                          '1px solid rgba(255,255,255,0.12)',
-                        fontWeight: 500,
-                        opacity: 0.7,
-                      }}
-                    >
-                      Payout (USD)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRows.map((row) => (
-                    <tr key={row.id}>
-                      <td
-                        style={{
-                          padding: '10px 6px',
-                          borderBottom:
-                            '1px solid rgba(255,255,255,0.06)',
-                        }}
-                      >
-                        <div
+                      {summaryClipperOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt === 'all' ? 'All clippers' : opt}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ minHeight: 24, fontSize: 12 }}>
+                  {showSummaryLoading && (
+                    <span style={{ opacity: 0.8 }}>Loading summary…</span>
+                  )}
+                  {!showSummaryLoading && summaryError && (
+                    <span style={{ color: '#fed7aa' }}>{summaryError}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Summary KPIs */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: 16,
+                  marginBottom: 18,
+                }}
+              >
+                <div
+                  style={{
+                    borderRadius: 16,
+                    padding: 14,
+                    background:
+                      'radial-gradient(circle at top left, rgba(250,204,21,0.18), rgba(15,23,42,1))',
+                    border: '1px solid rgba(250,204,21,0.4)',
+                  }}
+                >
+                  <div
+                    style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}
+                  >
+                    Total views (filtered)
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 600 }}>
+                    {formatNumber(summaryTotalViews)}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    borderRadius: 16,
+                    padding: 14,
+                    background:
+                      'radial-gradient(circle at top left, rgba(34,197,94,0.20), rgba(15,23,42,1))',
+                    border: '1px solid rgba(34,197,94,0.5)',
+                  }}
+                >
+                  <div
+                    style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}
+                  >
+                    Payout (USD)
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 600 }}>
+                    {formatCurrency(summaryTotalPayout)}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    borderRadius: 16,
+                    padding: 14,
+                    background:
+                      'radial-gradient(circle at top left, rgba(96,165,250,0.20), rgba(15,23,42,1))',
+                    border: '1px solid rgba(96,165,250,0.5)',
+                  }}
+                >
+                  <div
+                    style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}
+                  >
+                    Videos posted
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 600 }}>
+                    {formatNumber(summaryTotalVideos)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Summary table */}
+              <div
+                style={{
+                  overflowX: 'auto',
+                  marginTop: 4,
+                }}
+              >
+                {filteredSummaryRows.length === 0 && !showSummaryLoading ? (
+                  <div style={{ padding: 12, fontSize: 14, opacity: 0.8 }}>
+                    No rows match the selected filters.
+                  </div>
+                ) : (
+                  <table
+                    style={{
+                      width: '100%',
+                      borderCollapse: 'collapse',
+                      fontSize: 14,
+                    }}
+                  >
+                    <thead>
+                      <tr>
+                        <th
                           style={{
-                            display: 'flex',
-                            flexDirection: 'column',
+                            textAlign: 'left',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
                           }}
                         >
-                          <span>{row.clipper_name}</span>
-                          <span
+                          Clipper
+                        </th>
+                        <th
+                          style={{
+                            textAlign: 'left',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Month
+                        </th>
+                        <th
+                          style={{
+                            textAlign: 'right',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Videos posted
+                        </th>
+                        <th
+                          style={{
+                            textAlign: 'right',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Views generated
+                        </th>
+                        <th
+                          style={{
+                            textAlign: 'right',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Payout (USD)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredSummaryRows.map((row) => (
+                        <tr key={row.id}>
+                          <td
                             style={{
-                              fontSize: 11,
-                              opacity: 0.6,
-                              marginTop: 1,
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
                             }}
                           >
-                            ID: {row.clipper_id}
-                          </span>
-                        </div>
-                      </td>
-                      <td
-                        style={{
-                          padding: '10px 6px',
-                          borderBottom:
-                            '1px solid rgba(255,255,255,0.06)',
-                          opacity: 0.85,
-                        }}
-                      >
-                        {formatMonthLabel(row.month)}
-                      </td>
-                      <td
-                        style={{
-                          padding: '10px 6px',
-                          borderBottom:
-                            '1px solid rgba(255,255,255,0.06)',
-                          textAlign: 'right',
-                        }}
-                      >
-                        {formatNumber(row.videos_posted)}
-                      </td>
-                      <td
-                        style={{
-                          padding: '10px 6px',
-                          borderBottom:
-                            '1px solid rgba(255,255,255,0.06)',
-                          textAlign: 'right',
-                        }}
-                      >
-                        {formatNumber(row.views_generated)}
-                      </td>
-                      <td
-                        style={{
-                          padding: '10px 6px',
-                          borderBottom:
-                            '1px solid rgba(255,255,255,0.06)',
-                          textAlign: 'right',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {formatCurrency(row.payout_usd)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                            {row.name}
+                          </td>
+                          <td
+                            style={{
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                              opacity: 0.85,
+                            }}
+                          >
+                            {formatMonthLabel(row.month)}
+                          </td>
+                          <td
+                            style={{
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                              textAlign: 'right',
+                            }}
+                          >
+                            {formatNumber(row.videosPosted)}
+                          </td>
+                          <td
+                            style={{
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                              textAlign: 'right',
+                            }}
+                          >
+                            {formatNumber(row.viewsGenerated)}
+                          </td>
+                          <td
+                            style={{
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                              textAlign: 'right',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {formatCurrency(row.payoutUsd)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Details filters */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                  marginBottom: 18,
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  {/* Month */}
+                  <div
+                    style={{
+                      fontSize: 12,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    <span style={{ opacity: 0.7 }}>Month</span>
+                    <select
+                      value={detailsMonth}
+                      onChange={(e) => setDetailsMonth(e.target.value)}
+                      style={{
+                        fontSize: 12,
+                        padding: '6px 8px',
+                        borderRadius: 999,
+                        border: '1px solid rgba(255,255,255,0.16)',
+                        background: 'rgba(0,0,0,0.6)',
+                        color: 'rgba(255,255,255,0.9)',
+                      }}
+                    >
+                      {detailsMonthOptions.map((opt) =>
+                        opt === 'all' ? (
+                          <option key={opt} value={opt}>
+                            All months
+                          </option>
+                        ) : (
+                          <option key={opt} value={opt}>
+                            {formatMonthLabel(opt)}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Week of */}
+                  <div
+                    style={{
+                      fontSize: 12,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    <span style={{ opacity: 0.7 }}>Week of</span>
+                    <select
+                      value={detailsWeekOf}
+                      onChange={(e) => setDetailsWeekOf(e.target.value)}
+                      style={{
+                        fontSize: 12,
+                        padding: '6px 8px',
+                        borderRadius: 999,
+                        border: '1px solid rgba(255,255,255,0.16)',
+                        background: 'rgba(0,0,0,0.6)',
+                        color: 'rgba(255,255,255,0.9)',
+                        minWidth: 160,
+                      }}
+                    >
+                      {detailsWeekOfOptions.map((opt) =>
+                        opt === 'all' ? (
+                          <option key={opt} value={opt}>
+                            All weeks
+                          </option>
+                        ) : (
+                          <option key={opt} value={opt}>
+                            {formatDate(opt)}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Clipper */}
+                  <div
+                    style={{
+                      fontSize: 12,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    <span style={{ opacity: 0.7 }}>Clipper</span>
+                    <select
+                      value={detailsClipper}
+                      onChange={(e) => setDetailsClipper(e.target.value)}
+                      style={{
+                        fontSize: 12,
+                        padding: '6px 8px',
+                        borderRadius: 999,
+                        border: '1px solid rgba(255,255,255,0.16)',
+                        background: 'rgba(0,0,0,0.6)',
+                        color: 'rgba(255,255,255,0.9)',
+                        minWidth: 160,
+                      }}
+                    >
+                      {detailsClipperOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt === 'all' ? 'All clippers' : opt}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ minHeight: 24, fontSize: 12 }}>
+                  {showDetailsLoading && (
+                    <span style={{ opacity: 0.8 }}>Loading details…</span>
+                  )}
+                  {!showDetailsLoading && detailsError && (
+                    <span style={{ color: '#fed7aa' }}>{detailsError}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Details KPIs */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: 16,
+                  marginBottom: 18,
+                }}
+              >
+                <div
+                  style={{
+                    borderRadius: 16,
+                    padding: 14,
+                    background:
+                      'radial-gradient(circle at top left, rgba(96,165,250,0.20), rgba(15,23,42,1))',
+                    border: '1px solid rgba(96,165,250,0.5)',
+                  }}
+                >
+                  <div
+                    style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}
+                  >
+                    Weekly views (filtered)
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 600 }}>
+                    {formatNumber(detailsWeeklyViews)}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    borderRadius: 16,
+                    padding: 14,
+                    background:
+                      'radial-gradient(circle at top left, rgba(250,204,21,0.18), rgba(15,23,42,1))',
+                    border: '1px solid rgba(250,204,21,0.4)',
+                  }}
+                >
+                  <div
+                    style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}
+                  >
+                    Total views (lifetime)
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 600 }}>
+                    {formatNumber(detailsTotalViews)}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    borderRadius: 16,
+                    padding: 14,
+                    background:
+                      'radial-gradient(circle at top left, rgba(34,197,94,0.20), rgba(15,23,42,1))',
+                    border: '1px solid rgba(34,197,94,0.5)',
+                  }}
+                >
+                  <div
+                    style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}
+                  >
+                    Videos posted (filtered)
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 600 }}>
+                    {formatNumber(detailsVideosPosted)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Details table */}
+              <div
+                style={{
+                  overflowX: 'auto',
+                  marginTop: 4,
+                }}
+              >
+                {filteredDetailsRows.length === 0 && !showDetailsLoading ? (
+                  <div style={{ padding: 12, fontSize: 14, opacity: 0.8 }}>
+                    No rows match the selected filters.
+                  </div>
+                ) : (
+                  <table
+                    style={{
+                      width: '100%',
+                      borderCollapse: 'collapse',
+                      fontSize: 13,
+                    }}
+                  >
+                    <thead>
+                      <tr>
+                        <th
+                          style={{
+                            textAlign: 'left',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Clipper
+                        </th>
+                        <th
+                          style={{
+                            textAlign: 'left',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Account
+                        </th>
+                        <th
+                          style={{
+                            textAlign: 'left',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Platform
+                        </th>
+                        <th
+                          style={{
+                            textAlign: 'left',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Week of
+                        </th>
+                        <th
+                          style={{
+                            textAlign: 'left',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Month
+                        </th>
+                        <th
+                          style={{
+                            textAlign: 'right',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Videos posted
+                        </th>
+                        <th
+                          style={{
+                            textAlign: 'right',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Weekly views
+                        </th>
+                        <th
+                          style={{
+                            textAlign: 'right',
+                            padding: '10px 6px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Total views
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredDetailsRows.map((row) => (
+                        <tr key={row.id}>
+                          <td
+                            style={{
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                            }}
+                          >
+                            {row.name}
+                          </td>
+                          <td
+                            style={{
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                              opacity: 0.9,
+                            }}
+                          >
+                            {row.account}
+                          </td>
+                          <td
+                            style={{
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                              opacity: 0.85,
+                            }}
+                          >
+                            {row.platform}
+                          </td>
+                          <td
+                            style={{
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                              opacity: 0.85,
+                            }}
+                          >
+                            {formatDate(row.weekOf)}
+                          </td>
+                          <td
+                            style={{
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                              opacity: 0.85,
+                            }}
+                          >
+                            {formatMonthLabel(row.month)}
+                          </td>
+                          <td
+                            style={{
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                              textAlign: 'right',
+                            }}
+                          >
+                            {formatNumber(row.videosPosted)}
+                          </td>
+                          <td
+                            style={{
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                              textAlign: 'right',
+                            }}
+                          >
+                            {formatNumber(row.weeklyViews)}
+                          </td>
+                          <td
+                            style={{
+                              padding: '10px 6px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                              textAlign: 'right',
+                            }}
+                          >
+                            {formatNumber(row.totalViews)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
     </div>
   );
 }
-
