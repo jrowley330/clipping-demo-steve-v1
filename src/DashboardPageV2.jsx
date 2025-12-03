@@ -32,14 +32,35 @@ const formatMonthLabel = (monthStr) => {
 
 const formatDate = (value) => {
   if (!value) return '—';
+
+  // If it's a plain 'YYYY-MM-DD' string, parse manually as local date
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [yearStr, monthStr, dayStr] = value.split('-');
+    const year = Number(yearStr);
+    const month = Number(monthStr); // 1–12
+    const day = Number(dayStr);
+
+    const d = new Date(year, month - 1, day); // local time, no UTC shift
+    if (Number.isNaN(d.getTime())) return value;
+
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+    });
+  }
+
+  // Fallback for other formats (Date objects, timestamps, etc.)
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return String(value);
+
   return d.toLocaleDateString('en-US', {
     month: 'short',
     day: '2-digit',
     year: 'numeric',
   });
 };
+
 
 const unwrapValue = (v) => {
   // BigQuery sometimes returns { value: '2025-11-01' } or similar
