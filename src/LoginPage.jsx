@@ -24,7 +24,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (error) setError(error.message);
-    else navigate('/dashboard');
+    else navigate('/dashboard-v2');
   };
 
   return (
