@@ -19,6 +19,10 @@ export default function ClippersPage() {
     navigate('/payouts');
   };
 
+  const goClippers = () => {
+    navigate('/clippers');
+  };
+
   const handleGoDashV1 = () => {
     navigate('/dashboard');
   };
