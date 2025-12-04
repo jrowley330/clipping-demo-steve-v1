@@ -162,6 +162,11 @@ export default function PayoutsPage() {
     navigate('/dashboard');     // your existing Power BI dashboards page
   };
 
+  const handleGoClippers = () => {
+  navigate('/clippers');
+  };
+
+
   // ---- Fetch demo payouts ----
 
   useEffect(() => {
@@ -390,6 +395,25 @@ export default function PayoutsPage() {
                 }}
               >
                 Payouts
+              </button>
+
+              {/* Clippers */}
+              <button
+                onClick={handleGoClippers}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginTop: 2,
+                }}
+              >
+                Clippers
               </button>
 
               {/* Settings (placeholder) */}
