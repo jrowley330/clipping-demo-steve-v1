@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 
 export default function ClippersPage() {
   const navigate = useNavigate();
-
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const handleLogout = async () => {
@@ -13,16 +12,16 @@ export default function ClippersPage() {
   };
 
   const handleGoDashV2 = () => {
-    navigate('/dashboard-v2'); // BigQuery dashboards
+    navigate('/dashboard-v2');
   };
 
   const handleGoPayouts = () => {
-    navigate('/payouts'); // payouts page
+    navigate('/payouts');
   };
 
-  // ------------------------------------------------------------------
-  //                  FULLSCREEN LAYOUT + BLACK GUTTER
-  // ------------------------------------------------------------------
+  const handleGoDashV1 = () => {
+    navigate('/dashboard');
+  };
 
   return (
     <div
@@ -136,26 +135,6 @@ export default function ClippersPage() {
                 Dashboards V2
               </button>
 
-              {/* Clippers – active page */}
-              <button
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '8px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                  background:
-                    'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
-                  color: '#020617',
-                  fontWeight: 600,
-                  marginBottom: 2,
-                }}
-              >
-                Clippers
-              </button>
-
               {/* Payouts */}
               <button
                 onClick={handleGoPayouts}
@@ -169,12 +148,34 @@ export default function ClippersPage() {
                   fontSize: 12,
                   background: 'transparent',
                   color: 'rgba(255,255,255,0.7)',
+                  marginTop: 2,
                 }}
               >
                 Payouts
               </button>
 
-              {/* Settings placeholder */}
+              {/* Clippers – active page (3rd) */}
+              <button
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '8px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  background:
+                    'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
+                  color: '#020617',
+                  fontWeight: 600,
+                  marginTop: 2,
+                  marginBottom: 2,
+                }}
+              >
+                Clippers
+              </button>
+
+              {/* Settings placeholder under Clippers */}
               <button
                 style={{
                   border: 'none',
@@ -191,40 +192,61 @@ export default function ClippersPage() {
                 Settings
               </button>
 
-              {/* Push logout to bottom */}
-              <div style={{ flex: 1 }} />
+              {/* push bottom cluster down */}
+              <div style={{ flexGrow: 1 }} />
 
+              {/* Dashboards V1 at bottom */}
+              <button
+                onClick={handleGoDashV1}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginBottom: 4,
+                }}
+              >
+                Dashboards V1
+              </button>
+
+              {/* Logout – same style as other pages */}
               <button
                 onClick={handleLogout}
                 style={{
+                  border: 'none',
+                  outline: 'none',
                   borderRadius: 999,
-                  padding: '6px 10px',
-                  border: '1px solid rgba(248,250,252,0.25)',
-                  background: 'rgba(15,23,42,0.9)',
-                  color: '#e5e7eb',
-                  fontSize: 11,
+                  padding: '7px 10px',
+                  textAlign: 'left',
                   cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'rgba(248,250,252,0.06)',
+                  color: 'rgba(255,255,255,0.85)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6,
+                  marginBottom: 6,
                 }}
               >
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: 16,
-                    height: 16,
-                    borderRadius: 999,
-                    border: '1px solid rgba(248,250,252,0.4)',
-                    textAlign: 'center',
-                    lineHeight: '15px',
-                    fontSize: 10,
-                  }}
-                >
-                  ⬤
-                </span>
-                <span>Log out</span>
+                <span style={{ fontSize: 12 }}>⏻</span>
+                Logout
               </button>
+
+              <div
+                style={{
+                  fontSize: 11,
+                  opacity: 0.55,
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                  paddingTop: 8,
+                }}
+              >
+                Clipper accounts hub
+              </div>
             </>
           )}
         </div>
@@ -302,4 +324,3 @@ export default function ClippersPage() {
     </div>
   );
 }
-
