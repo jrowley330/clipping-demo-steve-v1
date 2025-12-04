@@ -110,6 +110,11 @@ export default function DashboardsPageV2() {
     navigate('/payouts');
   };
 
+  const goClippers = () => {
+    navigate('/clippers');
+  };
+
+
   // FETCH SUMMARY
   useEffect(() => {
     const fetchSummary = async () => {
@@ -452,6 +457,26 @@ export default function DashboardsPageV2() {
                 }}
               >
                 Payouts
+              </button>
+
+
+              {/* Clippers */}
+              <button
+                onClick={goClippers}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginTop: 2,
+                }}
+              >
+                Clippers
               </button>
 
               {/* Settings */}
