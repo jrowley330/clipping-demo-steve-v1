@@ -1,10 +1,25 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
+
+const API_BASE_URL =
+  'https://clipper-payouts-api-810712855216.us-central1.run.app';
+
+const unwrapValue = (v) => {
+  // BigQuery sometimes returns { value: '2025-11-01' } or similar
+  if (v && typeof v === 'object' && 'value' in v) {
+    return v.value;
+  }
+  return v;
+};
 
 export default function ClippersPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const [clippers, setClippers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -22,6 +37,66 @@ export default function ClippersPage() {
   const handleGoDashV1 = () => {
     navigate('/dashboard');
   };
+
+  // -------------------------------------------------------
+  // FETCH CLIPPERS FROM API
+  // -------------------------------------------------------
+  useEffect(() => {
+    const fetchClippers = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        const res = await fetch(`${API_BASE_URL}/clippers`);
+        if (!res.ok) {
+          throw new Error(`Clippers API ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        const normalized = (Array.isArray(data) ? data : []).map((row, i) => {
+          const id = row.id || `clipper_${i}`;
+          return {
+            id,
+            clipperName:
+              unwrapValue(row.clipper_name ?? row.clipperName) ||
+              `Clipper ${i + 1}`,
+            clientId: unwrapValue(row.client_id ?? row.clientId) || '',
+            tiktokUsername: unwrapValue(
+              row.tiktok_username ?? row.tiktokUsername
+            ),
+            instagramUsername: unwrapValue(
+              row.instagram_username ?? row.instagramUsername
+            ),
+            youtubeUsername: unwrapValue(
+              row.youtube_username ?? row.youtubeUsername
+            ),
+            isActive:
+              typeof row.is_active === 'boolean'
+                ? row.is_active
+                : !!row.isActive,
+            paymentProcessor: unwrapValue(
+              row.payment_processor ?? row.paymentProcessor
+            ),
+            processorKey: unwrapValue(
+              row.processor_key ?? row.processorKey
+            ),
+            createdAt: unwrapValue(row.created_at ?? row.createdAt),
+            updatedAt: unwrapValue(row.updated_at ?? row.updatedAt),
+          };
+        });
+
+        setClippers(normalized);
+      } catch (err) {
+        console.error('Error loading clippers:', err);
+        setError(err.message || 'Failed to load clippers');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClippers();
+  }, []);
 
   return (
     <div
@@ -294,7 +369,7 @@ export default function ClippersPage() {
           </button>
         </div>
 
-        {/* Placeholder body – we'll replace this with real rows + dropdowns */}
+        {/* Clipper list */}
         <div
           style={{
             borderRadius: 18,
@@ -303,22 +378,134 @@ export default function ClippersPage() {
               'radial-gradient(circle at top left, rgba(148,163,184,0.25), rgba(15,23,42,1))',
             padding: 18,
             fontSize: 13,
-            opacity: 0.9,
+            opacity: 0.95,
           }}
         >
-          <p style={{ margin: 0, marginBottom: 6, opacity: 0.9 }}>
-            This is where each <strong>clipper</strong> will show up as a row.
-          </p>
-          <p style={{ margin: 0, opacity: 0.7 }}>
-            Next steps:
-            <br />
-            – Pull clipper records from <code>DEMO.CLIPPER_ACCOUNTS</code>
-            <br />
-            – Show per-clipper dropdown with TikTok / Instagram usernames,
-            payment processor, key, and active toggle
-            <br />– Add &quot;Edit&quot; and &quot;Save&quot; flows to sync
-            changes back to BigQuery
-          </p>
+          {loading ? (
+            <div style={{ opacity: 0.85 }}>Loading clippers…</div>
+          ) : error ? (
+            <div style={{ color: '#fecaca' }}>
+              Error loading clippers: {error}
+            </div>
+          ) : clippers.length === 0 ? (
+            <div style={{ opacity: 0.8 }}>
+              No clippers configured yet. Use <strong>+ Add clipper</strong> to
+              create your first one.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {clippers.map((clipper) => (
+                <div
+                  key={clipper.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 12px',
+                    borderRadius: 12,
+                    background: 'rgba(15,23,42,0.92)',
+                    border: '1px solid rgba(148,163,184,0.5)',
+                    boxShadow: '0 14px 30px rgba(15,23,42,0.9)',
+                  }}
+                >
+                  {/* Left: main info */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 500,
+                        letterSpacing: 0.1,
+                      }}
+                    >
+                      {clipper.clipperName}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        opacity: 0.75,
+                      }}
+                    >
+                      {clipper.clientId && (
+                        <>
+                          Client ID: <code>{clipper.clientId}</code> ·{' '}
+                        </>
+                      )}
+                      TikTok:{' '}
+                      <span style={{ opacity: 0.9 }}>
+                        {clipper.tiktokUsername || <em>none</em>}
+                      </span>{' '}
+                      · Instagram:{' '}
+                      <span style={{ opacity: 0.9 }}>
+                        {clipper.instagramUsername || <em>none</em>}
+                      </span>{' '}
+                      · YouTube:{' '}
+                      <span style={{ opacity: 0.9 }}>
+                        {clipper.youtubeUsername || <em>none</em>}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, opacity: 0.7 }}>
+                      Payment:{' '}
+                      <strong>
+                        {clipper.paymentProcessor || <em>none</em>}
+                      </strong>{' '}
+                      {clipper.processorKey && (
+                        <>
+                          · Key: <code>{clipper.processorKey}</code>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: status pill */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-end',
+                      gap: 4,
+                    }}
+                  >
+                    <span
+                      style={{
+                        borderRadius: 999,
+                        padding: '4px 10px',
+                        fontSize: 11,
+                        fontWeight: 500,
+                        background: clipper.isActive
+                          ? 'rgba(34,197,94,0.2)'
+                          : 'rgba(148,163,184,0.2)',
+                        color: clipper.isActive
+                          ? 'rgb(74,222,128)'
+                          : 'rgba(148,163,184,0.95)',
+                        border: clipper.isActive
+                          ? '1px solid rgba(74,222,128,0.7)'
+                          : '1px solid rgba(148,163,184,0.7)',
+                      }}
+                    >
+                      {clipper.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                    {clipper.createdAt && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          opacity: 0.6,
+                        }}
+                      >
+                        Created:{' '}
+                        {String(clipper.createdAt).slice(0, 10) /* YYYY-MM-DD */}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
