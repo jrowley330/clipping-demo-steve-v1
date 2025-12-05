@@ -90,7 +90,6 @@ export default function ClippersPage() {
             clipperName:
               unwrapValue(row.clipper_name ?? row.clipperName) ||
               `Clipper ${i + 1}`,
-            // keep clientId internally if we ever need it; not displayed
             clientId: unwrapValue(row.client_id ?? row.clientId) || '',
             tiktokUsername: unwrapValue(
               row.tiktok_username ?? row.tiktokUsername
@@ -159,7 +158,6 @@ export default function ClippersPage() {
       setSavingEdit(true);
 
       // FRONTEND ONLY for now: update local state.
-      // Later, we will call a PUT /clippers/:id endpoint here.
       setClippers((prev) =>
         prev.map((c) =>
           c.id === editingId
@@ -218,7 +216,6 @@ export default function ClippersPage() {
 
   const submitAdd = async () => {
     if (!addDraft.clipperName.trim()) {
-      // extremely minimal validation
       alert('Please enter a clipper name.');
       return;
     }
@@ -240,8 +237,6 @@ export default function ClippersPage() {
         updatedAt: new Date().toISOString(),
       };
 
-      // FRONTEND ONLY: push into local clippers list.
-      // Later we'll POST to /clippers and refetch or upsert.
       setClippers((prev) => [...prev, newClipper]);
 
       setAddOpen(false);
@@ -717,6 +712,9 @@ export default function ClippersPage() {
                               fontSize: 11,
                               textTransform: 'uppercase',
                               letterSpacing: 0.04,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
                           >
                             Clipper name
@@ -731,8 +729,10 @@ export default function ClippersPage() {
                                   e.target.value
                                 )
                               }
+                              placeholder=""
                               style={{
                                 width: '100%',
+                                boxSizing: 'border-box',
                                 padding: '6px 8px',
                                 borderRadius: 8,
                                 border: '1px solid rgba(148,163,184,0.8)',
@@ -775,6 +775,9 @@ export default function ClippersPage() {
                                 fontSize: 11,
                                 textTransform: 'uppercase',
                                 letterSpacing: 0.04,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
                               }}
                             >
                               TikTok username
@@ -789,9 +792,10 @@ export default function ClippersPage() {
                                     e.target.value
                                   )
                                 }
-                                placeholder="@example"
+                                placeholder=""
                                 style={{
                                   width: '100%',
+                                  boxSizing: 'border-box',
                                   padding: '6px 8px',
                                   borderRadius: 8,
                                   border:
@@ -828,6 +832,9 @@ export default function ClippersPage() {
                                 fontSize: 11,
                                 textTransform: 'uppercase',
                                 letterSpacing: 0.04,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
                               }}
                             >
                               Instagram username
@@ -842,9 +849,10 @@ export default function ClippersPage() {
                                     e.target.value
                                   )
                                 }
-                                placeholder="@example"
+                                placeholder=""
                                 style={{
                                   width: '100%',
+                                  boxSizing: 'border-box',
                                   padding: '6px 8px',
                                   borderRadius: 8,
                                   border:
@@ -883,9 +891,12 @@ export default function ClippersPage() {
                                 fontSize: 11,
                                 textTransform: 'uppercase',
                                 letterSpacing: 0.04,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
                               }}
                             >
-                              YouTube username / channel ID
+                              YouTube channel ID
                             </div>
                             {isEditing ? (
                               <input
@@ -897,9 +908,10 @@ export default function ClippersPage() {
                                     e.target.value
                                   )
                                 }
-                                placeholder="channel ID or @handle"
+                                placeholder=""
                                 style={{
                                   width: '100%',
+                                  boxSizing: 'border-box',
                                   padding: '6px 8px',
                                   borderRadius: 8,
                                   border:
@@ -951,6 +963,9 @@ export default function ClippersPage() {
                                 fontSize: 11,
                                 textTransform: 'uppercase',
                                 letterSpacing: 0.04,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
                               }}
                             >
                               Payment processor
@@ -965,9 +980,10 @@ export default function ClippersPage() {
                                     e.target.value
                                   )
                                 }
-                                placeholder="stripe / paypal / etc."
+                                placeholder=""
                                 style={{
                                   width: '100%',
+                                  boxSizing: 'border-box',
                                   padding: '6px 8px',
                                   borderRadius: 8,
                                   border:
@@ -1009,6 +1025,9 @@ export default function ClippersPage() {
                                 fontSize: 11,
                                 textTransform: 'uppercase',
                                 letterSpacing: 0.04,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
                               }}
                             >
                               Processor key / customer ID
@@ -1023,9 +1042,10 @@ export default function ClippersPage() {
                                     e.target.value
                                   )
                                 }
-                                placeholder="cus_123 / paypal_email / etc."
+                                placeholder=""
                                 style={{
                                   width: '100%',
+                                  boxSizing: 'border-box',
                                   padding: '6px 8px',
                                   borderRadius: 8,
                                   border:
@@ -1068,6 +1088,9 @@ export default function ClippersPage() {
                                 fontSize: 11,
                                 textTransform: 'uppercase',
                                 letterSpacing: 0.04,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
                               }}
                             >
                               Status
@@ -1337,6 +1360,9 @@ export default function ClippersPage() {
                     fontSize: 11,
                     textTransform: 'uppercase',
                     letterSpacing: 0.04,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
                   }}
                 >
                   Clipper name
@@ -1347,9 +1373,10 @@ export default function ClippersPage() {
                   onChange={(e) =>
                     updateAddDraftField('clipperName', e.target.value)
                   }
-                  placeholder="Joey’s Clipper 1"
+                  placeholder=""
                   style={{
                     width: '100%',
+                    boxSizing: 'border-box',
                     padding: '7px 9px',
                     borderRadius: 9,
                     border: '1px solid rgba(148,163,184,0.85)',
@@ -1378,6 +1405,9 @@ export default function ClippersPage() {
                       fontSize: 11,
                       textTransform: 'uppercase',
                       letterSpacing: 0.04,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
                   >
                     TikTok username
@@ -1388,9 +1418,10 @@ export default function ClippersPage() {
                     onChange={(e) =>
                       updateAddDraftField('tiktokUsername', e.target.value)
                     }
-                    placeholder="@tiktok"
+                    placeholder=""
                     style={{
                       width: '100%',
+                      boxSizing: 'border-box',
                       padding: '7px 9px',
                       borderRadius: 9,
                       border: '1px solid rgba(148,163,184,0.85)',
@@ -1411,6 +1442,9 @@ export default function ClippersPage() {
                       fontSize: 11,
                       textTransform: 'uppercase',
                       letterSpacing: 0.04,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
                   >
                     Instagram username
@@ -1424,9 +1458,10 @@ export default function ClippersPage() {
                         e.target.value
                       )
                     }
-                    placeholder="@instagram"
+                    placeholder=""
                     style={{
                       width: '100%',
+                      boxSizing: 'border-box',
                       padding: '7px 9px',
                       borderRadius: 9,
                       border: '1px solid rgba(148,163,184,0.85)',
@@ -1447,9 +1482,12 @@ export default function ClippersPage() {
                       fontSize: 11,
                       textTransform: 'uppercase',
                       letterSpacing: 0.04,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
                   >
-                    YouTube username / channel ID
+                    YouTube channel ID
                   </div>
                   <input
                     type="text"
@@ -1457,9 +1495,10 @@ export default function ClippersPage() {
                     onChange={(e) =>
                       updateAddDraftField('youtubeUsername', e.target.value)
                     }
-                    placeholder="channel ID or @handle"
+                    placeholder=""
                     style={{
                       width: '100%',
+                      boxSizing: 'border-box',
                       padding: '7px 9px',
                       borderRadius: 9,
                       border: '1px solid rgba(148,163,184,0.85)',
@@ -1494,6 +1533,9 @@ export default function ClippersPage() {
                       fontSize: 11,
                       textTransform: 'uppercase',
                       letterSpacing: 0.04,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
                   >
                     Payment processor
@@ -1504,9 +1546,10 @@ export default function ClippersPage() {
                     onChange={(e) =>
                       updateAddDraftField('paymentProcessor', e.target.value)
                     }
-                    placeholder="stripe / paypal / etc."
+                    placeholder=""
                     style={{
                       width: '100%',
+                      boxSizing: 'border-box',
                       padding: '7px 9px',
                       borderRadius: 9,
                       border: '1px solid rgba(148,163,184,0.85)',
@@ -1530,6 +1573,9 @@ export default function ClippersPage() {
                       fontSize: 11,
                       textTransform: 'uppercase',
                       letterSpacing: 0.04,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
                   >
                     Processor key / customer ID
@@ -1540,9 +1586,10 @@ export default function ClippersPage() {
                     onChange={(e) =>
                       updateAddDraftField('processorKey', e.target.value)
                     }
-                    placeholder="cus_123 / paypal email / etc."
+                    placeholder=""
                     style={{
                       width: '100%',
+                      boxSizing: 'border-box',
                       padding: '7px 9px',
                       borderRadius: 9,
                       border: '1px solid rgba(148,163,184,0.85)',
@@ -1568,6 +1615,9 @@ export default function ClippersPage() {
                       fontSize: 11,
                       textTransform: 'uppercase',
                       letterSpacing: 0.04,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
                   >
                     Status
