@@ -6,7 +6,6 @@ const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
 const unwrapValue = (v) => {
-  // BigQuery sometimes returns { value: '2025-11-01' } or similar
   if (v && typeof v === 'object' && 'value' in v) {
     return v.value;
   }
@@ -20,6 +19,9 @@ export default function ClippersPage() {
   const [clippers, setClippers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // which clipper is expanded (showing dropdown)
+  const [expandedId, setExpandedId] = useState(null);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -57,7 +59,7 @@ export default function ClippersPage() {
         const normalized = (Array.isArray(data) ? data : []).map((row, i) => {
           const id = row.id || `clipper_${i}`;
           return {
-            id,
+            id, // internal only (we don't show it in UI)
             clipperName:
               unwrapValue(row.clipper_name ?? row.clipperName) ||
               `Clipper ${i + 1}`,
@@ -78,9 +80,7 @@ export default function ClippersPage() {
             paymentProcessor: unwrapValue(
               row.payment_processor ?? row.paymentProcessor
             ),
-            processorKey: unwrapValue(
-              row.processor_key ?? row.processorKey
-            ),
+            processorKey: unwrapValue(row.processor_key ?? row.processorKey),
             createdAt: unwrapValue(row.created_at ?? row.createdAt),
             updatedAt: unwrapValue(row.updated_at ?? row.updatedAt),
           };
@@ -97,6 +97,10 @@ export default function ClippersPage() {
 
     fetchClippers();
   }, []);
+
+  const toggleExpanded = (id) => {
+    setExpandedId((current) => (current === id ? null : id));
+  };
 
   return (
     <div
@@ -369,7 +373,7 @@ export default function ClippersPage() {
           </button>
         </div>
 
-        {/* Clipper list */}
+        {/* Clipper list with dropdowns */}
         <div
           style={{
             borderRadius: 18,
@@ -393,117 +397,345 @@ export default function ClippersPage() {
               create your first one.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {clippers.map((clipper) => (
-                <div
-                  key={clipper.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 12px',
-                    borderRadius: 12,
-                    background: 'rgba(15,23,42,0.92)',
-                    border: '1px solid rgba(148,163,184,0.5)',
-                    boxShadow: '0 14px 30px rgba(15,23,42,0.9)',
-                  }}
-                >
-                  {/* Left: main info */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {clippers.map((clipper) => {
+                const isExpanded = expandedId === clipper.id;
+                return (
                   <div
+                    key={clipper.id}
                     style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 4,
+                      padding: '10px 12px',
+                      borderRadius: 12,
+                      background: 'rgba(15,23,42,0.92)',
+                      border: '1px solid rgba(148,163,184,0.5)',
+                      boxShadow: '0 14px 30px rgba(15,23,42,0.9)',
                     }}
                   >
+                    {/* Row header: name + status + dropdown arrow */}
                     <div
                       style={{
-                        fontSize: 14,
-                        fontWeight: 500,
-                        letterSpacing: 0.1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 10,
                       }}
                     >
-                      {clipper.clipperName}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        opacity: 0.75,
-                      }}
-                    >
-                      {clipper.clientId && (
-                        <>
-                          Client ID: <code>{clipper.clientId}</code> ·{' '}
-                        </>
-                      )}
-                      TikTok:{' '}
-                      <span style={{ opacity: 0.9 }}>
-                        {clipper.tiktokUsername || <em>none</em>}
-                      </span>{' '}
-                      · Instagram:{' '}
-                      <span style={{ opacity: 0.9 }}>
-                        {clipper.instagramUsername || <em>none</em>}
-                      </span>{' '}
-                      · YouTube:{' '}
-                      <span style={{ opacity: 0.9 }}>
-                        {clipper.youtubeUsername || <em>none</em>}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 11, opacity: 0.7 }}>
-                      Payment:{' '}
-                      <strong>
-                        {clipper.paymentProcessor || <em>none</em>}
-                      </strong>{' '}
-                      {clipper.processorKey && (
-                        <>
-                          · Key: <code>{clipper.processorKey}</code>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right: status pill */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-end',
-                      gap: 4,
-                    }}
-                  >
-                    <span
-                      style={{
-                        borderRadius: 999,
-                        padding: '4px 10px',
-                        fontSize: 11,
-                        fontWeight: 500,
-                        background: clipper.isActive
-                          ? 'rgba(34,197,94,0.2)'
-                          : 'rgba(148,163,184,0.2)',
-                        color: clipper.isActive
-                          ? 'rgb(74,222,128)'
-                          : 'rgba(148,163,184,0.95)',
-                        border: clipper.isActive
-                          ? '1px solid rgba(74,222,128,0.7)'
-                          : '1px solid rgba(148,163,184,0.7)',
-                      }}
-                    >
-                      {clipper.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                    {clipper.createdAt && (
-                      <span
+                      {/* Left side: arrow + clipper name + quick summary */}
+                      <button
+                        onClick={() => toggleExpanded(clipper.id)}
                         style={{
-                          fontSize: 10,
-                          opacity: 0.6,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          margin: 0,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          color: 'inherit',
+                          flex: 1,
                         }}
                       >
-                        Created:{' '}
-                        {String(clipper.createdAt).slice(0, 10) /* YYYY-MM-DD */}
-                      </span>
+                        <span
+                          style={{
+                            fontSize: 16,
+                            opacity: 0.9,
+                            transform: isExpanded ? 'rotate(90deg)' : 'none',
+                            transition: 'transform 120ms ease',
+                          }}
+                        >
+                          ▶
+                        </span>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 3,
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 500,
+                              letterSpacing: 0.1,
+                            }}
+                          >
+                            {clipper.clipperName}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              opacity: 0.75,
+                            }}
+                          >
+                            {clipper.clientId && (
+                              <>
+                                Client ID: <code>{clipper.clientId}</code> ·{' '}
+                              </>
+                            )}
+                            TikTok:{' '}
+                            <span style={{ opacity: 0.9 }}>
+                              {clipper.tiktokUsername || <em>none</em>}
+                            </span>{' '}
+                            · Instagram:{' '}
+                            <span style={{ opacity: 0.9 }}>
+                              {clipper.instagramUsername || <em>none</em>}
+                            </span>{' '}
+                            · YouTube:{' '}
+                            <span style={{ opacity: 0.9 }}>
+                              {clipper.youtubeUsername || <em>none</em>}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Right side: status pill */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-end',
+                          gap: 4,
+                        }}
+                      >
+                        <span
+                          style={{
+                            borderRadius: 999,
+                            padding: '4px 10px',
+                            fontSize: 11,
+                            fontWeight: 500,
+                            background: clipper.isActive
+                              ? 'rgba(34,197,94,0.2)'
+                              : 'rgba(148,163,184,0.2)',
+                            color: clipper.isActive
+                              ? 'rgb(74,222,128)'
+                              : 'rgba(148,163,184,0.95)',
+                            border: clipper.isActive
+                              ? '1px solid rgba(74,222,128,0.7)'
+                              : '1px solid rgba(148,163,184,0.7)',
+                          }}
+                        >
+                          {clipper.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        {clipper.createdAt && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              opacity: 0.6,
+                            }}
+                          >
+                            Created:{' '}
+                            {String(clipper.createdAt).slice(0, 10)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expanded section */}
+                    {isExpanded && (
+                      <div
+                        style={{
+                          marginTop: 10,
+                          paddingTop: 10,
+                          borderTop: '1px solid rgba(148,163,184,0.4)',
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                          gap: 12,
+                          fontSize: 12,
+                        }}
+                      >
+                        {/* TikTok */}
+                        <div>
+                          <div
+                            style={{
+                              opacity: 0.65,
+                              marginBottom: 3,
+                              fontSize: 11,
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.04,
+                            }}
+                          >
+                            TikTok username
+                          </div>
+                          <div
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: 8,
+                              background: 'rgba(15,23,42,0.9)',
+                              border: '1px solid rgba(51,65,85,0.9)',
+                              fontFamily: 'monospace',
+                              fontSize: 12,
+                              opacity: clipper.tiktokUsername ? 0.95 : 0.6,
+                            }}
+                          >
+                            {clipper.tiktokUsername || 'none'}
+                          </div>
+                        </div>
+
+                        {/* Instagram */}
+                        <div>
+                          <div
+                            style={{
+                              opacity: 0.65,
+                              marginBottom: 3,
+                              fontSize: 11,
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.04,
+                            }}
+                          >
+                            Instagram username
+                          </div>
+                          <div
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: 8,
+                              background: 'rgba(15,23,42,0.9)',
+                              border: '1px solid rgba(51,65,85,0.9)',
+                              fontFamily: 'monospace',
+                              fontSize: 12,
+                              opacity: clipper.instagramUsername ? 0.95 : 0.6,
+                            }}
+                          >
+                            {clipper.instagramUsername || 'none'}
+                          </div>
+                        </div>
+
+                        {/* YouTube */}
+                        <div>
+                          <div
+                            style={{
+                              opacity: 0.65,
+                              marginBottom: 3,
+                              fontSize: 11,
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.04,
+                            }}
+                          >
+                            YouTube username / channel ID
+                          </div>
+                          <div
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: 8,
+                              background: 'rgba(15,23,42,0.9)',
+                              border: '1px solid rgba(51,65,85,0.9)',
+                              fontFamily: 'monospace',
+                              fontSize: 12,
+                              opacity: clipper.youtubeUsername ? 0.95 : 0.6,
+                            }}
+                          >
+                            {clipper.youtubeUsername || 'none'}
+                          </div>
+                        </div>
+
+                        {/* Payment processor */}
+                        <div>
+                          <div
+                            style={{
+                              opacity: 0.65,
+                              marginBottom: 3,
+                              fontSize: 11,
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.04,
+                            }}
+                          >
+                            Payment processor
+                          </div>
+                          <div
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: 8,
+                              background: 'rgba(15,23,42,0.9)',
+                              border: '1px solid rgba(51,65,85,0.9)',
+                              fontSize: 12,
+                              opacity: clipper.paymentProcessor ? 0.95 : 0.6,
+                            }}
+                          >
+                            {clipper.paymentProcessor || 'none'}
+                          </div>
+                        </div>
+
+                        {/* Processor key */}
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <div
+                            style={{
+                              opacity: 0.65,
+                              marginBottom: 3,
+                              fontSize: 11,
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.04,
+                            }}
+                          >
+                            Processor key / customer ID
+                          </div>
+                          <div
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: 8,
+                              background: 'rgba(15,23,42,0.9)',
+                              border: '1px solid rgba(51,65,85,0.9)',
+                              fontFamily: 'monospace',
+                              fontSize: 12,
+                              opacity: clipper.processorKey ? 0.95 : 0.6,
+                              wordBreak: 'break-all',
+                            }}
+                          >
+                            {clipper.processorKey || 'none'}
+                          </div>
+                        </div>
+
+                        {/* Active status summary */}
+                        <div>
+                          <div
+                            style={{
+                              opacity: 0.65,
+                              marginBottom: 3,
+                              fontSize: 11,
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.04,
+                            }}
+                          >
+                            Status
+                          </div>
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '6px 10px',
+                              borderRadius: 999,
+                              background: clipper.isActive
+                                ? 'rgba(34,197,94,0.2)'
+                                : 'rgba(148,163,184,0.2)',
+                              border: clipper.isActive
+                                ? '1px solid rgba(74,222,128,0.7)'
+                                : '1px solid rgba(148,163,184,0.7)',
+                              fontSize: 11,
+                              fontWeight: 500,
+                              color: clipper.isActive
+                                ? 'rgb(74,222,128)'
+                                : 'rgba(148,163,184,0.95)',
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: 999,
+                                background: clipper.isActive
+                                  ? 'rgb(74,222,128)'
+                                  : 'rgba(148,163,184,0.9)',
+                              }}
+                            />
+                            {clipper.isActive ? 'Active' : 'Inactive'}
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
