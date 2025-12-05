@@ -12,6 +12,14 @@ const unwrapValue = (v) => {
   return v;
 };
 
+// simple UUID fallback if crypto.randomUUID isn't available
+const makeId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'clipper_' + Math.random().toString(36).slice(2);
+};
+
 export default function ClippersPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -20,8 +28,27 @@ export default function ClippersPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // which clipper is expanded (showing dropdown)
+  // which clipper is expanded
   const [expandedId, setExpandedId] = useState(null);
+
+  // which clipper is being edited + its draft
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+
+  // add clipper modal
+  const [addOpen, setAddOpen] = useState(false);
+  const [addDraft, setAddDraft] = useState({
+    clipperName: '',
+    tiktokUsername: '',
+    instagramUsername: '',
+    youtubeUsername: '',
+    paymentProcessor: '',
+    processorKey: '',
+    isActive: true,
+  });
+
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [savingAdd, setSavingAdd] = useState(false);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -59,28 +86,30 @@ export default function ClippersPage() {
         const normalized = (Array.isArray(data) ? data : []).map((row, i) => {
           const id = row.id || `clipper_${i}`;
           return {
-            id, // internal only (we don't show it in UI)
+            id, // internal only
             clipperName:
               unwrapValue(row.clipper_name ?? row.clipperName) ||
               `Clipper ${i + 1}`,
+            // keep clientId internally if we ever need it; not displayed
             clientId: unwrapValue(row.client_id ?? row.clientId) || '',
             tiktokUsername: unwrapValue(
               row.tiktok_username ?? row.tiktokUsername
-            ),
+            ) || '',
             instagramUsername: unwrapValue(
               row.instagram_username ?? row.instagramUsername
-            ),
+            ) || '',
             youtubeUsername: unwrapValue(
               row.youtube_username ?? row.youtubeUsername
-            ),
+            ) || '',
             isActive:
               typeof row.is_active === 'boolean'
                 ? row.is_active
                 : !!row.isActive,
             paymentProcessor: unwrapValue(
               row.payment_processor ?? row.paymentProcessor
-            ),
-            processorKey: unwrapValue(row.processor_key ?? row.processorKey),
+            ) || '',
+            processorKey:
+              unwrapValue(row.processor_key ?? row.processorKey) || '',
             createdAt: unwrapValue(row.created_at ?? row.createdAt),
             updatedAt: unwrapValue(row.updated_at ?? row.updatedAt),
           };
@@ -100,6 +129,136 @@ export default function ClippersPage() {
 
   const toggleExpanded = (id) => {
     setExpandedId((current) => (current === id ? null : id));
+  };
+
+  // -------------------------------------------------------
+  // EDIT / SAVE / CANCEL (local state only for now)
+  // -------------------------------------------------------
+  const startEdit = (clipper) => {
+    setEditingId(clipper.id);
+    setExpandedId(clipper.id); // auto-expand when editing
+    setEditDraft({
+      clipperName: clipper.clipperName || '',
+      tiktokUsername: clipper.tiktokUsername || '',
+      instagramUsername: clipper.instagramUsername || '',
+      youtubeUsername: clipper.youtubeUsername || '',
+      paymentProcessor: clipper.paymentProcessor || '',
+      processorKey: clipper.processorKey || '',
+      isActive: !!clipper.isActive,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft(null);
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editDraft) return;
+    try {
+      setSavingEdit(true);
+
+      // FRONTEND ONLY for now: update local state.
+      // Later, we will call a PUT /clippers/:id endpoint here.
+      setClippers((prev) =>
+        prev.map((c) =>
+          c.id === editingId
+            ? {
+                ...c,
+                clipperName: editDraft.clipperName.trim() || c.clipperName,
+                tiktokUsername: editDraft.tiktokUsername.trim(),
+                instagramUsername: editDraft.instagramUsername.trim(),
+                youtubeUsername: editDraft.youtubeUsername.trim(),
+                paymentProcessor: editDraft.paymentProcessor.trim(),
+                processorKey: editDraft.processorKey.trim(),
+                isActive: !!editDraft.isActive,
+                updatedAt: new Date().toISOString(),
+              }
+            : c
+        )
+      );
+
+      setEditingId(null);
+      setEditDraft(null);
+    } catch (err) {
+      console.error('Error saving edit (frontend only right now):', err);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const updateEditDraftField = (field, value) => {
+    setEditDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  // -------------------------------------------------------
+  // ADD CLIPPER (local state only for now)
+  // -------------------------------------------------------
+  const openAdd = () => {
+    setAddOpen(true);
+    setAddDraft({
+      clipperName: '',
+      tiktokUsername: '',
+      instagramUsername: '',
+      youtubeUsername: '',
+      paymentProcessor: '',
+      processorKey: '',
+      isActive: true,
+    });
+  };
+
+  const closeAdd = () => {
+    if (savingAdd) return;
+    setAddOpen(false);
+  };
+
+  const updateAddDraftField = (field, value) => {
+    setAddDraft((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const submitAdd = async () => {
+    if (!addDraft.clipperName.trim()) {
+      // extremely minimal validation
+      alert('Please enter a clipper name.');
+      return;
+    }
+
+    try {
+      setSavingAdd(true);
+
+      const newClipper = {
+        id: makeId(),
+        clipperName: addDraft.clipperName.trim(),
+        clientId: '',
+        tiktokUsername: addDraft.tiktokUsername.trim(),
+        instagramUsername: addDraft.instagramUsername.trim(),
+        youtubeUsername: addDraft.youtubeUsername.trim(),
+        isActive: !!addDraft.isActive,
+        paymentProcessor: addDraft.paymentProcessor.trim(),
+        processorKey: addDraft.processorKey.trim(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // FRONTEND ONLY: push into local clippers list.
+      // Later we'll POST to /clippers and refetch or upsert.
+      setClippers((prev) => [...prev, newClipper]);
+
+      setAddOpen(false);
+      setAddDraft({
+        clipperName: '',
+        tiktokUsername: '',
+        instagramUsername: '',
+        youtubeUsername: '',
+        paymentProcessor: '',
+        processorKey: '',
+        isActive: true,
+      });
+    } catch (err) {
+      console.error('Error adding clipper (frontend only):', err);
+    } finally {
+      setSavingAdd(false);
+    }
   };
 
   return (
@@ -358,6 +517,7 @@ export default function ClippersPage() {
           </div>
 
           <button
+            onClick={openAdd}
             style={{
               borderRadius: 999,
               padding: '8px 14px',
@@ -400,6 +560,9 @@ export default function ClippersPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {clippers.map((clipper) => {
                 const isExpanded = expandedId === clipper.id;
+                const isEditing = editingId === clipper.id;
+                const draft = isEditing ? editDraft : null;
+
                 return (
                   <div
                     key={clipper.id}
@@ -469,11 +632,6 @@ export default function ClippersPage() {
                               opacity: 0.75,
                             }}
                           >
-                            {clipper.clientId && (
-                              <>
-                                Client ID: <code>{clipper.clientId}</code> ·{' '}
-                              </>
-                            )}
                             TikTok:{' '}
                             <span style={{ opacity: 0.9 }}>
                               {clipper.tiktokUsername || <em>none</em>}
@@ -538,198 +696,546 @@ export default function ClippersPage() {
                         style={{
                           marginTop: 10,
                           paddingTop: 10,
-                          borderTop: '1px solid rgba(148,163,184,0.4)',
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                          borderTop: '1px solid rgba(148,163,184,0.35)',
+                          display: 'flex',
+                          flexDirection: 'column',
                           gap: 12,
                           fontSize: 12,
                         }}
                       >
-                        {/* TikTok */}
-                        <div>
+                        {/* Row 0: clipper name inline editable */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 4,
+                          }}
+                        >
                           <div
                             style={{
                               opacity: 0.65,
-                              marginBottom: 3,
                               fontSize: 11,
                               textTransform: 'uppercase',
                               letterSpacing: 0.04,
                             }}
                           >
-                            TikTok username
+                            Clipper name
                           </div>
-                          <div
-                            style={{
-                              padding: '6px 8px',
-                              borderRadius: 8,
-                              background: 'rgba(15,23,42,0.9)',
-                              border: '1px solid rgba(51,65,85,0.9)',
-                              fontFamily: 'monospace',
-                              fontSize: 12,
-                              opacity: clipper.tiktokUsername ? 0.95 : 0.6,
-                            }}
-                          >
-                            {clipper.tiktokUsername || 'none'}
-                          </div>
-                        </div>
-
-                        {/* Instagram */}
-                        <div>
-                          <div
-                            style={{
-                              opacity: 0.65,
-                              marginBottom: 3,
-                              fontSize: 11,
-                              textTransform: 'uppercase',
-                              letterSpacing: 0.04,
-                            }}
-                          >
-                            Instagram username
-                          </div>
-                          <div
-                            style={{
-                              padding: '6px 8px',
-                              borderRadius: 8,
-                              background: 'rgba(15,23,42,0.9)',
-                              border: '1px solid rgba(51,65,85,0.9)',
-                              fontFamily: 'monospace',
-                              fontSize: 12,
-                              opacity: clipper.instagramUsername ? 0.95 : 0.6,
-                            }}
-                          >
-                            {clipper.instagramUsername || 'none'}
-                          </div>
-                        </div>
-
-                        {/* YouTube */}
-                        <div>
-                          <div
-                            style={{
-                              opacity: 0.65,
-                              marginBottom: 3,
-                              fontSize: 11,
-                              textTransform: 'uppercase',
-                              letterSpacing: 0.04,
-                            }}
-                          >
-                            YouTube username / channel ID
-                          </div>
-                          <div
-                            style={{
-                              padding: '6px 8px',
-                              borderRadius: 8,
-                              background: 'rgba(15,23,42,0.9)',
-                              border: '1px solid rgba(51,65,85,0.9)',
-                              fontFamily: 'monospace',
-                              fontSize: 12,
-                              opacity: clipper.youtubeUsername ? 0.95 : 0.6,
-                            }}
-                          >
-                            {clipper.youtubeUsername || 'none'}
-                          </div>
-                        </div>
-
-                        {/* Payment processor */}
-                        <div>
-                          <div
-                            style={{
-                              opacity: 0.65,
-                              marginBottom: 3,
-                              fontSize: 11,
-                              textTransform: 'uppercase',
-                              letterSpacing: 0.04,
-                            }}
-                          >
-                            Payment processor
-                          </div>
-                          <div
-                            style={{
-                              padding: '6px 8px',
-                              borderRadius: 8,
-                              background: 'rgba(15,23,42,0.9)',
-                              border: '1px solid rgba(51,65,85,0.9)',
-                              fontSize: 12,
-                              opacity: clipper.paymentProcessor ? 0.95 : 0.6,
-                            }}
-                          >
-                            {clipper.paymentProcessor || 'none'}
-                          </div>
-                        </div>
-
-                        {/* Processor key */}
-                        <div style={{ gridColumn: 'span 2' }}>
-                          <div
-                            style={{
-                              opacity: 0.65,
-                              marginBottom: 3,
-                              fontSize: 11,
-                              textTransform: 'uppercase',
-                              letterSpacing: 0.04,
-                            }}
-                          >
-                            Processor key / customer ID
-                          </div>
-                          <div
-                            style={{
-                              padding: '6px 8px',
-                              borderRadius: 8,
-                              background: 'rgba(15,23,42,0.9)',
-                              border: '1px solid rgba(51,65,85,0.9)',
-                              fontFamily: 'monospace',
-                              fontSize: 12,
-                              opacity: clipper.processorKey ? 0.95 : 0.6,
-                              wordBreak: 'break-all',
-                            }}
-                          >
-                            {clipper.processorKey || 'none'}
-                          </div>
-                        </div>
-
-                        {/* Active status summary */}
-                        <div>
-                          <div
-                            style={{
-                              opacity: 0.65,
-                              marginBottom: 3,
-                              fontSize: 11,
-                              textTransform: 'uppercase',
-                              letterSpacing: 0.04,
-                            }}
-                          >
-                            Status
-                          </div>
-                          <div
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              padding: '6px 10px',
-                              borderRadius: 999,
-                              background: clipper.isActive
-                                ? 'rgba(34,197,94,0.2)'
-                                : 'rgba(148,163,184,0.2)',
-                              border: clipper.isActive
-                                ? '1px solid rgba(74,222,128,0.7)'
-                                : '1px solid rgba(148,163,184,0.7)',
-                              fontSize: 11,
-                              fontWeight: 500,
-                              color: clipper.isActive
-                                ? 'rgb(74,222,128)'
-                                : 'rgba(148,163,184,0.95)',
-                            }}
-                          >
-                            <span
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={draft?.clipperName ?? ''}
+                              onChange={(e) =>
+                                updateEditDraftField(
+                                  'clipperName',
+                                  e.target.value
+                                )
+                              }
                               style={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: 999,
-                                background: clipper.isActive
-                                  ? 'rgb(74,222,128)'
-                                  : 'rgba(148,163,184,0.9)',
+                                width: '100%',
+                                padding: '6px 8px',
+                                borderRadius: 8,
+                                border: '1px solid rgba(148,163,184,0.8)',
+                                background: 'rgba(15,23,42,0.9)',
+                                color: '#e5e7eb',
+                                fontSize: 13,
                               }}
                             />
-                            {clipper.isActive ? 'Active' : 'Inactive'}
+                          ) : (
+                            <div
+                              style={{
+                                padding: '6px 8px',
+                                borderRadius: 8,
+                                background: 'rgba(15,23,42,0.9)',
+                                border: '1px solid rgba(51,65,85,0.9)',
+                                fontSize: 13,
+                                opacity: 0.95,
+                              }}
+                            >
+                              {clipper.clipperName}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Row 1: accounts */}
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns:
+                              'repeat(auto-fit, minmax(180px, 1fr))',
+                            gap: 12,
+                          }}
+                        >
+                          {/* TikTok */}
+                          <div>
+                            <div
+                              style={{
+                                opacity: 0.65,
+                                marginBottom: 3,
+                                fontSize: 11,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.04,
+                              }}
+                            >
+                              TikTok username
+                            </div>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={draft?.tiktokUsername ?? ''}
+                                onChange={(e) =>
+                                  updateEditDraftField(
+                                    'tiktokUsername',
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="@example"
+                                style={{
+                                  width: '100%',
+                                  padding: '6px 8px',
+                                  borderRadius: 8,
+                                  border:
+                                    '1px solid rgba(148,163,184,0.85)',
+                                  background: 'rgba(15,23,42,0.9)',
+                                  color: '#e5e7eb',
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  padding: '6px 8px',
+                                  borderRadius: 8,
+                                  background: 'rgba(15,23,42,0.9)',
+                                  border: '1px solid rgba(51,65,85,0.9)',
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                  opacity: clipper.tiktokUsername ? 0.95 : 0.6,
+                                }}
+                              >
+                                {clipper.tiktokUsername || 'none'}
+                              </div>
+                            )}
                           </div>
+
+                          {/* Instagram */}
+                          <div>
+                            <div
+                              style={{
+                                opacity: 0.65,
+                                marginBottom: 3,
+                                fontSize: 11,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.04,
+                              }}
+                            >
+                              Instagram username
+                            </div>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={draft?.instagramUsername ?? ''}
+                                onChange={(e) =>
+                                  updateEditDraftField(
+                                    'instagramUsername',
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="@example"
+                                style={{
+                                  width: '100%',
+                                  padding: '6px 8px',
+                                  borderRadius: 8,
+                                  border:
+                                    '1px solid rgba(148,163,184,0.85)',
+                                  background: 'rgba(15,23,42,0.9)',
+                                  color: '#e5e7eb',
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  padding: '6px 8px',
+                                  borderRadius: 8,
+                                  background: 'rgba(15,23,42,0.9)',
+                                  border: '1px solid rgba(51,65,85,0.9)',
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                  opacity: clipper.instagramUsername
+                                    ? 0.95
+                                    : 0.6,
+                                }}
+                              >
+                                {clipper.instagramUsername || 'none'}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* YouTube */}
+                          <div>
+                            <div
+                              style={{
+                                opacity: 0.65,
+                                marginBottom: 3,
+                                fontSize: 11,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.04,
+                              }}
+                            >
+                              YouTube username / channel ID
+                            </div>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={draft?.youtubeUsername ?? ''}
+                                onChange={(e) =>
+                                  updateEditDraftField(
+                                    'youtubeUsername',
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="channel ID or @handle"
+                                style={{
+                                  width: '100%',
+                                  padding: '6px 8px',
+                                  borderRadius: 8,
+                                  border:
+                                    '1px solid rgba(148,163,184,0.85)',
+                                  background: 'rgba(15,23,42,0.9)',
+                                  color: '#e5e7eb',
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  padding: '6px 8px',
+                                  borderRadius: 8,
+                                  background: 'rgba(15,23,42,0.9)',
+                                  border: '1px solid rgba(51,65,85,0.9)',
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                  opacity: clipper.youtubeUsername ? 0.95 : 0.6,
+                                }}
+                              >
+                                {clipper.youtubeUsername || 'none'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Row 2: payment + key + status */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 12,
+                            alignItems: 'flex-start',
+                          }}
+                        >
+                          {/* Payment processor */}
+                          <div
+                            style={{
+                              flex: '1 1 180px',
+                              minWidth: 0,
+                            }}
+                          >
+                            <div
+                              style={{
+                                opacity: 0.65,
+                                marginBottom: 3,
+                                fontSize: 11,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.04,
+                              }}
+                            >
+                              Payment processor
+                            </div>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={draft?.paymentProcessor ?? ''}
+                                onChange={(e) =>
+                                  updateEditDraftField(
+                                    'paymentProcessor',
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="stripe / paypal / etc."
+                                style={{
+                                  width: '100%',
+                                  padding: '6px 8px',
+                                  borderRadius: 8,
+                                  border:
+                                    '1px solid rgba(148,163,184,0.85)',
+                                  background: 'rgba(15,23,42,0.9)',
+                                  color: '#e5e7eb',
+                                  fontSize: 12,
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  padding: '6px 8px',
+                                  borderRadius: 8,
+                                  background: 'rgba(15,23,42,0.9)',
+                                  border: '1px solid rgba(51,65,85,0.9)',
+                                  fontSize: 12,
+                                  opacity: clipper.paymentProcessor
+                                    ? 0.95
+                                    : 0.6,
+                                }}
+                              >
+                                {clipper.paymentProcessor || 'none'}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Processor key */}
+                          <div
+                            style={{
+                              flex: '2 1 260px',
+                              minWidth: 0,
+                            }}
+                          >
+                            <div
+                              style={{
+                                opacity: 0.65,
+                                marginBottom: 3,
+                                fontSize: 11,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.04,
+                              }}
+                            >
+                              Processor key / customer ID
+                            </div>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={draft?.processorKey ?? ''}
+                                onChange={(e) =>
+                                  updateEditDraftField(
+                                    'processorKey',
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="cus_123 / paypal_email / etc."
+                                style={{
+                                  width: '100%',
+                                  padding: '6px 8px',
+                                  borderRadius: 8,
+                                  border:
+                                    '1px solid rgba(148,163,184,0.85)',
+                                  background: 'rgba(15,23,42,0.9)',
+                                  color: '#e5e7eb',
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  padding: '6px 8px',
+                                  borderRadius: 8,
+                                  background: 'rgba(15,23,42,0.9)',
+                                  border: '1px solid rgba(51,65,85,0.9)',
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                  opacity: clipper.processorKey ? 0.95 : 0.6,
+                                  wordBreak: 'break-all',
+                                }}
+                              >
+                                {clipper.processorKey || 'none'}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Status */}
+                          <div
+                            style={{
+                              flex: '0 0 auto',
+                              minWidth: 120,
+                            }}
+                          >
+                            <div
+                              style={{
+                                opacity: 0.65,
+                                marginBottom: 3,
+                                fontSize: 11,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.04,
+                              }}
+                            >
+                              Status
+                            </div>
+                            {isEditing ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateEditDraftField(
+                                    'isActive',
+                                    !draft?.isActive
+                                  )
+                                }
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  padding: '6px 10px',
+                                  borderRadius: 999,
+                                  border: '1px solid rgba(148,163,184,0.8)',
+                                  background: draft?.isActive
+                                    ? 'rgba(34,197,94,0.2)'
+                                    : 'rgba(148,163,184,0.2)',
+                                  cursor: 'pointer',
+                                  fontSize: 11,
+                                  fontWeight: 500,
+                                  color: draft?.isActive
+                                    ? 'rgb(74,222,128)'
+                                    : 'rgba(148,163,184,0.95)',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    width: 18,
+                                    height: 10,
+                                    borderRadius: 999,
+                                    background: draft?.isActive
+                                      ? 'rgba(34,197,94,0.3)'
+                                      : 'rgba(148,163,184,0.4)',
+                                    position: 'relative',
+                                    transition:
+                                      'background 120ms ease, box-shadow 120ms ease',
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      position: 'absolute',
+                                      top: '50%',
+                                      transform: 'translateY(-50%)',
+                                      left: draft?.isActive ? 9 : 2,
+                                      width: 6,
+                                      height: 6,
+                                      borderRadius: '999px',
+                                      background: draft?.isActive
+                                        ? 'rgb(74,222,128)'
+                                        : 'rgba(148,163,184,0.95)',
+                                      transition:
+                                        'left 120ms ease, background 120ms ease',
+                                    }}
+                                  />
+                                </span>
+                                {draft?.isActive ? 'Active' : 'Inactive'}
+                              </button>
+                            ) : (
+                              <div
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  padding: '6px 10px',
+                                  borderRadius: 999,
+                                  background: clipper.isActive
+                                    ? 'rgba(34,197,94,0.2)'
+                                    : 'rgba(148,163,184,0.2)',
+                                  border: clipper.isActive
+                                    ? '1px solid rgba(74,222,128,0.7)'
+                                    : '1px solid rgba(148,163,184,0.7)',
+                                  fontSize: 11,
+                                  fontWeight: 500,
+                                  color: clipper.isActive
+                                    ? 'rgb(74,222,128)'
+                                    : 'rgba(148,163,184,0.95)',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: 999,
+                                    background: clipper.isActive
+                                      ? 'rgb(74,222,128)'
+                                      : 'rgba(148,163,184,0.9)',
+                                  }}
+                                />
+                                {clipper.isActive ? 'Active' : 'Inactive'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Row 3: Edit / Save / Cancel buttons */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            gap: 8,
+                            marginTop: 6,
+                          }}
+                        >
+                          {!isEditing ? (
+                            <button
+                              type="button"
+                              onClick={() => startEdit(clipper)}
+                              style={{
+                                borderRadius: 999,
+                                padding: '6px 12px',
+                                border: '1px solid rgba(148,163,184,0.9)',
+                                background: 'rgba(15,23,42,0.95)',
+                                color: '#e5e7eb',
+                                fontSize: 11,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Edit
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={cancelEdit}
+                                disabled={savingEdit}
+                                style={{
+                                  borderRadius: 999,
+                                  padding: '6px 12px',
+                                  border:
+                                    '1px solid rgba(148,163,184,0.65)',
+                                  background: 'rgba(15,23,42,0.95)',
+                                  color: '#e5e7eb',
+                                  fontSize: 11,
+                                  cursor: savingEdit ? 'default' : 'pointer',
+                                  opacity: savingEdit ? 0.6 : 1,
+                                }}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={saveEdit}
+                                disabled={savingEdit}
+                                style={{
+                                  borderRadius: 999,
+                                  padding: '6px 16px',
+                                  border: 'none',
+                                  background:
+                                    'linear-gradient(135deg, rgba(34,197,94,0.95), rgba(52,211,153,0.95))',
+                                  color: '#022c22',
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  cursor: savingEdit ? 'default' : 'pointer',
+                                  boxShadow:
+                                    '0 0 0 1px rgba(22,163,74,0.4), 0 12px 30px rgba(22,163,74,0.55)',
+                                  opacity: savingEdit ? 0.8 : 1,
+                                }}
+                              >
+                                {savingEdit ? 'Saving…' : 'Save'}
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     )}
@@ -740,6 +1246,442 @@ export default function ClippersPage() {
           )}
         </div>
       </div>
+
+      {/* ADD CLIPPER MODAL */}
+      {addOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 40,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(15,23,42,0.7)',
+            backdropFilter: 'blur(6px)',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 520,
+              borderRadius: 20,
+              padding: 18,
+              background:
+                'radial-gradient(circle at top left, rgba(15,23,42,1), rgba(15,23,42,0.96))',
+              border: '1px solid rgba(148,163,184,0.6)',
+              boxShadow: '0 24px 80px rgba(15,23,42,0.9)',
+              color: '#e5e7eb',
+              fontSize: 13,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 10,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 600,
+                  }}
+                >
+                  Add clipper
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    opacity: 0.7,
+                  }}
+                >
+                  Create a new clipper and map their accounts & payout routing.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeAdd}
+                disabled={savingAdd}
+                style={{
+                  borderRadius: 999,
+                  border: '1px solid rgba(148,163,184,0.7)',
+                  background: 'rgba(15,23,42,0.9)',
+                  color: '#e5e7eb',
+                  fontSize: 11,
+                  padding: '4px 10px',
+                  cursor: savingAdd ? 'default' : 'pointer',
+                  opacity: savingAdd ? 0.6 : 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+                marginTop: 4,
+              }}
+            >
+              {/* Clipper name */}
+              <div>
+                <div
+                  style={{
+                    opacity: 0.7,
+                    marginBottom: 3,
+                    fontSize: 11,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.04,
+                  }}
+                >
+                  Clipper name
+                </div>
+                <input
+                  type="text"
+                  value={addDraft.clipperName}
+                  onChange={(e) =>
+                    updateAddDraftField('clipperName', e.target.value)
+                  }
+                  placeholder="Joey’s Clipper 1"
+                  style={{
+                    width: '100%',
+                    padding: '7px 9px',
+                    borderRadius: 9,
+                    border: '1px solid rgba(148,163,184,0.85)',
+                    background: 'rgba(15,23,42,0.9)',
+                    color: '#e5e7eb',
+                    fontSize: 13,
+                  }}
+                />
+              </div>
+
+              {/* Accounts row */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    'repeat(auto-fit, minmax(150px, 1fr))',
+                  gap: 10,
+                }}
+              >
+                {/* TikTok */}
+                <div>
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      marginBottom: 3,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.04,
+                    }}
+                  >
+                    TikTok username
+                  </div>
+                  <input
+                    type="text"
+                    value={addDraft.tiktokUsername}
+                    onChange={(e) =>
+                      updateAddDraftField('tiktokUsername', e.target.value)
+                    }
+                    placeholder="@tiktok"
+                    style={{
+                      width: '100%',
+                      padding: '7px 9px',
+                      borderRadius: 9,
+                      border: '1px solid rgba(148,163,184,0.85)',
+                      background: 'rgba(15,23,42,0.9)',
+                      color: '#e5e7eb',
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    }}
+                  />
+                </div>
+
+                {/* Instagram */}
+                <div>
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      marginBottom: 3,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.04,
+                    }}
+                  >
+                    Instagram username
+                  </div>
+                  <input
+                    type="text"
+                    value={addDraft.instagramUsername}
+                    onChange={(e) =>
+                      updateAddDraftField(
+                        'instagramUsername',
+                        e.target.value
+                      )
+                    }
+                    placeholder="@instagram"
+                    style={{
+                      width: '100%',
+                      padding: '7px 9px',
+                      borderRadius: 9,
+                      border: '1px solid rgba(148,163,184,0.85)',
+                      background: 'rgba(15,23,42,0.9)',
+                      color: '#e5e7eb',
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    }}
+                  />
+                </div>
+
+                {/* YouTube */}
+                <div>
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      marginBottom: 3,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.04,
+                    }}
+                  >
+                    YouTube username / channel ID
+                  </div>
+                  <input
+                    type="text"
+                    value={addDraft.youtubeUsername}
+                    onChange={(e) =>
+                      updateAddDraftField('youtubeUsername', e.target.value)
+                    }
+                    placeholder="channel ID or @handle"
+                    style={{
+                      width: '100%',
+                      padding: '7px 9px',
+                      borderRadius: 9,
+                      border: '1px solid rgba(148,163,184,0.85)',
+                      background: 'rgba(15,23,42,0.9)',
+                      color: '#e5e7eb',
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Payment row */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 10,
+                  alignItems: 'flex-start',
+                }}
+              >
+                <div
+                  style={{
+                    flex: '1 1 160px',
+                    minWidth: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      marginBottom: 3,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.04,
+                    }}
+                  >
+                    Payment processor
+                  </div>
+                  <input
+                    type="text"
+                    value={addDraft.paymentProcessor}
+                    onChange={(e) =>
+                      updateAddDraftField('paymentProcessor', e.target.value)
+                    }
+                    placeholder="stripe / paypal / etc."
+                    style={{
+                      width: '100%',
+                      padding: '7px 9px',
+                      borderRadius: 9,
+                      border: '1px solid rgba(148,163,184,0.85)',
+                      background: 'rgba(15,23,42,0.9)',
+                      color: '#e5e7eb',
+                      fontSize: 12,
+                    }}
+                  />
+                </div>
+
+                <div
+                  style={{
+                    flex: '2 1 230px',
+                    minWidth: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      marginBottom: 3,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.04,
+                    }}
+                  >
+                    Processor key / customer ID
+                  </div>
+                  <input
+                    type="text"
+                    value={addDraft.processorKey}
+                    onChange={(e) =>
+                      updateAddDraftField('processorKey', e.target.value)
+                    }
+                    placeholder="cus_123 / paypal email / etc."
+                    style={{
+                      width: '100%',
+                      padding: '7px 9px',
+                      borderRadius: 9,
+                      border: '1px solid rgba(148,163,184,0.85)',
+                      background: 'rgba(15,23,42,0.9)',
+                      color: '#e5e7eb',
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    }}
+                  />
+                </div>
+
+                {/* Active toggle */}
+                <div
+                  style={{
+                    flex: '0 0 auto',
+                    minWidth: 120,
+                  }}
+                >
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      marginBottom: 3,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.04,
+                    }}
+                  >
+                    Status
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateAddDraftField('isActive', !addDraft.isActive)
+                    }
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 10px',
+                      borderRadius: 999,
+                      border: '1px solid rgba(148,163,184,0.8)',
+                      background: addDraft.isActive
+                        ? 'rgba(34,197,94,0.2)'
+                        : 'rgba(148,163,184,0.2)',
+                      cursor: 'pointer',
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: addDraft.isActive
+                        ? 'rgb(74,222,128)'
+                        : 'rgba(148,163,184,0.95)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 18,
+                        height: 10,
+                        borderRadius: 999,
+                        background: addDraft.isActive
+                          ? 'rgba(34,197,94,0.3)'
+                          : 'rgba(148,163,184,0.4)',
+                        position: 'relative',
+                        transition:
+                          'background 120ms ease, box-shadow 120ms ease',
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          left: addDraft.isActive ? 9 : 2,
+                          width: 6,
+                          height: 6,
+                          borderRadius: '999px',
+                          background: addDraft.isActive
+                            ? 'rgb(74,222,128)'
+                            : 'rgba(148,163,184,0.95)',
+                          transition:
+                            'left 120ms ease, background 120ms ease',
+                        }}
+                      />
+                    </span>
+                    {addDraft.isActive ? 'Active' : 'Inactive'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Footer buttons */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: 8,
+                  marginTop: 8,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={closeAdd}
+                  disabled={savingAdd}
+                  style={{
+                    borderRadius: 999,
+                    padding: '6px 12px',
+                    border: '1px solid rgba(148,163,184,0.7)',
+                    background: 'rgba(15,23,42,0.95)',
+                    color: '#e5e7eb',
+                    fontSize: 11,
+                    cursor: savingAdd ? 'default' : 'pointer',
+                    opacity: savingAdd ? 0.6 : 1,
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={submitAdd}
+                  disabled={savingAdd}
+                  style={{
+                    borderRadius: 999,
+                    padding: '6px 16px',
+                    border: 'none',
+                    background:
+                      'linear-gradient(135deg, rgba(59,130,246,0.95), rgba(129,140,248,0.95))',
+                    color: '#e5e7eb',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: savingAdd ? 'default' : 'pointer',
+                    boxShadow:
+                      '0 0 0 1px rgba(59,130,246,0.55), 0 14px 40px rgba(30,64,175,0.7)',
+                    opacity: savingAdd ? 0.85 : 1,
+                  }}
+                >
+                  {savingAdd ? 'Creating…' : 'Create clipper'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
