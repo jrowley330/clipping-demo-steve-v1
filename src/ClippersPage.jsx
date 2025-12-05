@@ -153,37 +153,54 @@ export default function ClippersPage() {
   };
 
   const saveEdit = async () => {
-    if (!editingId || !editDraft) return;
-    try {
-      setSavingEdit(true);
+  if (!editingId || !editDraft) return;
+  try {
+    setSavingEdit(true);
 
-      // FRONTEND ONLY for now: update local state.
-      setClippers((prev) =>
-        prev.map((c) =>
-          c.id === editingId
-            ? {
-                ...c,
-                clipperName: editDraft.clipperName.trim() || c.clipperName,
-                tiktokUsername: editDraft.tiktokUsername.trim(),
-                instagramUsername: editDraft.instagramUsername.trim(),
-                youtubeUsername: editDraft.youtubeUsername.trim(),
-                paymentProcessor: editDraft.paymentProcessor.trim(),
-                processorKey: editDraft.processorKey.trim(),
-                isActive: !!editDraft.isActive,
-                updatedAt: new Date().toISOString(),
-              }
-            : c
-        )
-      );
+    const payload = {
+      clipperName: editDraft.clipperName.trim(),
+      clientId: '', // you removed client ID logic
+      tiktokUsername: editDraft.tiktokUsername.trim(),
+      instagramUsername: editDraft.instagramUsername.trim(),
+      youtubeUsername: editDraft.youtubeUsername.trim(),
+      isActive: !!editDraft.isActive,
+      paymentProcessor: editDraft.paymentProcessor.trim(),
+      processorKey: editDraft.processorKey.trim(),
+    };
 
-      setEditingId(null);
-      setEditDraft(null);
-    } catch (err) {
-      console.error('Error saving edit (frontend only right now):', err);
-    } finally {
-      setSavingEdit(false);
+    const res = await fetch(`${API_BASE_URL}/clippers/${editingId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Update failed: ${res.status}`);
     }
-  };
+
+    // Update locally on success
+    setClippers((prev) =>
+      prev.map((c) =>
+        c.id === editingId
+          ? {
+              ...c,
+              ...payload,
+              updatedAt: new Date().toISOString(),
+            }
+          : c
+      )
+    );
+
+    setEditingId(null);
+    setEditDraft(null);
+  } catch (err) {
+    console.error('PUT failed:', err);
+    alert('Failed to save changes');
+  } finally {
+    setSavingEdit(false);
+  }
+};
+
 
   const updateEditDraftField = (field, value) => {
     setEditDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
@@ -214,47 +231,71 @@ export default function ClippersPage() {
     setAddDraft((prev) => ({ ...prev, [field]: value }));
   };
 
+
+  
   const submitAdd = async () => {
-    if (!addDraft.clipperName.trim()) {
-      alert('Please enter a clipper name.');
-      return;
+  if (!addDraft.clipperName.trim()) {
+    alert('Please enter a clipper name.');
+    return;
+  }
+
+  try {
+    setSavingAdd(true);
+
+    const newId = crypto.randomUUID();
+
+    const payload = {
+      id: newId,
+      clipperName: addDraft.clipperName.trim(),
+      clientId: '',
+      tiktokUsername: addDraft.tiktokUsername.trim(),
+      instagramUsername: addDraft.instagramUsername.trim(),
+      youtubeUsername: addDraft.youtubeUsername.trim(),
+      isActive: !!addDraft.isActive,
+      paymentProcessor: addDraft.paymentProcessor.trim(),
+      processorKey: addDraft.processorKey.trim(),
+    };
+
+    const res = await fetch(`${API_BASE_URL}/clippers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Create failed: ${res.status}`);
     }
 
-    try {
-      setSavingAdd(true);
-
-      const newClipper = {
-        id: makeId(),
-        clipperName: addDraft.clipperName.trim(),
-        clientId: '',
-        tiktokUsername: addDraft.tiktokUsername.trim(),
-        instagramUsername: addDraft.instagramUsername.trim(),
-        youtubeUsername: addDraft.youtubeUsername.trim(),
-        isActive: !!addDraft.isActive,
-        paymentProcessor: addDraft.paymentProcessor.trim(),
-        processorKey: addDraft.processorKey.trim(),
+    // Update UI locally after success
+    setClippers((prev) => [
+      ...prev,
+      {
+        ...payload,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      };
+      },
+    ]);
 
-      setClippers((prev) => [...prev, newClipper]);
+    setAddOpen(false);
+    setAddDraft({
+      clipperName: '',
+      tiktokUsername: '',
+      instagramUsername: '',
+      youtubeUsername: '',
+      paymentProcessor: '',
+      processorKey: '',
+      isActive: true,
+    });
+  } catch (err) {
+    console.error('POST failed:', err);
+    alert('Failed to create clipper');
+  } finally {
+    setSavingAdd(false);
+  }
+};
 
-      setAddOpen(false);
-      setAddDraft({
-        clipperName: '',
-        tiktokUsername: '',
-        instagramUsername: '',
-        youtubeUsername: '',
-        paymentProcessor: '',
-        processorKey: '',
-        isActive: true,
-      });
-    } catch (err) {
-      console.error('Error adding clipper (frontend only):', err);
-    } finally {
-      setSavingAdd(false);
-    }
-  };
+
+  
 
   return (
     <div
