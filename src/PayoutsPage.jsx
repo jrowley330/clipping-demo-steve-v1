@@ -546,7 +546,7 @@ export default function PayoutsPage() {
         STEVEWILLDOIT
       </div>
 
-      {/* SIDEBAR (same pattern as other pages, Payouts active) */}
+ {/* SIDEBAR */}
       <div
         style={{
           width: sidebarOpen ? 190 : 54,
@@ -569,18 +569,17 @@ export default function PayoutsPage() {
             gap: 10,
           }}
         >
-          {/* Collapse button */}
           <button
             onClick={() => setSidebarOpen((v) => !v)}
             style={{
               alignSelf: sidebarOpen ? 'flex-end' : 'center',
               borderRadius: 999,
               border: '1px solid rgba(255,255,255,0.18)',
-              background: 'rgba(15,23,42,0.95)',
-              color: '#e5e7eb',
-              fontSize: 11,
-              padding: '3px 8px',
+              background: 'rgba(255,255,255,0.06)',
+              color: '#fff',
               cursor: 'pointer',
+              fontSize: 11,
+              padding: '4px 7px',
             }}
           >
             {sidebarOpen ? '◀' : '▶'}
@@ -601,27 +600,9 @@ export default function PayoutsPage() {
                 Navigation
               </div>
 
-              {/* Dashboards V2 */}
+              {/* Dashboards V2 (current) */}
               <button
-                onClick={handleGoDashV2}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.7)',
-                }}
-              >
-                Dashboards V2
-              </button>
-
-              {/* Payouts – active page (2nd) */}
-              <button
-                onClick={handleGoPayouts}
+                onClick={goDashV2}
                 style={{
                   border: 'none',
                   outline: 'none',
@@ -634,16 +615,34 @@ export default function PayoutsPage() {
                     'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
                   color: '#020617',
                   fontWeight: 600,
-                  marginTop: 2,
                   marginBottom: 2,
+                }}
+              >
+                Dashboards V2
+              </button>
+
+              {/* Payouts */}
+              <button
+                onClick={goPayouts}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
                 }}
               >
                 Payouts
               </button>
 
+
               {/* Clippers */}
               <button
-                onClick={handleGoClippers}
+                onClick={goClippers}
                 style={{
                   border: 'none',
                   outline: 'none',
@@ -660,7 +659,7 @@ export default function PayoutsPage() {
                 Clippers
               </button>
 
-              {/* Settings placeholder */}
+              {/* Settings */}
               <button
                 style={{
                   border: 'none',
@@ -671,19 +670,17 @@ export default function PayoutsPage() {
                   cursor: 'pointer',
                   fontSize: 12,
                   background: 'transparent',
-                  color: 'rgba(255,255,255,0.35)',
-                  marginTop: 2,
+                  color: 'rgba(255,255,255,0.55)',
                 }}
               >
                 Settings
               </button>
 
-              {/* Spacer */}
-              <div style={{ flex: 1 }} />
+              <div style={{ flexGrow: 1 }} />
 
-              {/* Dashboards V1 (bottom link) */}
+              {/* Dashboards V1 at bottom */}
               <button
-                onClick={handleGoDashV1}
+                onClick={goDashV1}
                 style={{
                   border: 'none',
                   outline: 'none',
@@ -723,15 +720,12 @@ export default function PayoutsPage() {
                 Logout
               </button>
 
-              
-                {/* Label at the bottom of sidebar*/}
               <div
                 style={{
                   fontSize: 11,
                   opacity: 0.55,
                   borderTop: '1px solid rgba(255,255,255,0.08)',
                   paddingTop: 8,
-                  marginTop: 4,
                 }}
               >
                 Clipper payouts hub
