@@ -702,44 +702,44 @@ export default function PayoutsPage() {
 
               {/* Logout */}
               <button
-                  onClick={handleLogout}
+                onClick={handleLogout}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  padding: '6px 14px',
+                  borderRadius: '30px',
+                  color: '#fff',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.10)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                }}
+              >
+                <span
                   style={{
-                    width: '135px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    padding: '8px 14px',
-                    borderRadius: '999px',
-                    color: '#fff',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
+                    width: '12px',
+                    height: '12px',
+                    display: 'inline-block',
+                    maskImage: 'url("https://api.iconify.design/mdi/power.svg")',
+                    WebkitMaskImage: 'url("https://api.iconify.design/mdi/power.svg")',
+                    backgroundColor: '#fff',
+                    maskSize: 'contain',
+                    WebkitMaskSize: 'contain',
+                    maskRepeat: 'no-repeat',
+                    WebkitMaskRepeat: 'no-repeat',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                  }}
-                >
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      width: '14px',
-                      height: '14px',
-                      maskImage: 'url("https://api.iconify.design/mdi/power.svg")',
-                      WebkitMaskImage: 'url("https://api.iconify.design/mdi/power.svg")',
-                      maskSize: 'contain',
-                      WebkitMaskSize: 'contain',
-                      maskRepeat: 'no-repeat',
-                      WebkitMaskRepeat: 'no-repeat',
-                      backgroundColor: '#fff',
-                    }}
-                  />
-                  Logout
-                </button>
+                />
+                Logout
+              </button>
+
               
                 {/* Label at the bottom of sidebar*/}
               <div
