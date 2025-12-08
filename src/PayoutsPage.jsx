@@ -704,39 +704,22 @@ export default function PayoutsPage() {
               <button
                 onClick={handleLogout}
                 style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 999,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'rgba(248,250,252,0.06)',
+                  color: 'rgba(255,255,255,0.85)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  padding: '6px 14px',
-                  borderRadius: '30px',
-                  color: '#fff',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.10)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                  gap: 6,
+                  marginBottom: 6,
                 }}
               >
-                <span
-                  style={{
-                    width: '12px',
-                    height: '12px',
-                    display: 'inline-block',
-                    maskImage: 'url("https://api.iconify.design/mdi/power.svg")',
-                    WebkitMaskImage: 'url("https://api.iconify.design/mdi/power.svg")',
-                    backgroundColor: '#fff',
-                    maskSize: 'contain',
-                    WebkitMaskSize: 'contain',
-                    maskRepeat: 'no-repeat',
-                    WebkitMaskRepeat: 'no-repeat',
-                  }}
-                />
+                <span style={{ fontSize: 12 }}>⏻</span>
                 Logout
               </button>
 
