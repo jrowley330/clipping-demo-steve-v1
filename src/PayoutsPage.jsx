@@ -1,3 +1,4 @@
+// PayoutsPage.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
@@ -5,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
-// ---- Helpers -------------------------------------------------
+// ---------- helpers ----------
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -48,10 +49,11 @@ const CURRENT_MONTH_LABEL = new Date().toLocaleString('en-US', {
   month: 'long',
 });
 
-// ---- Main component -------------------------------------------
+// ---------- component ----------
 
-function PayoutsPage() {
+export default function PayoutsPage() {
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const [activeTab, setActiveTab] = useState('upcoming'); // 'upcoming' | 'due' | 'history'
 
@@ -66,11 +68,10 @@ function PayoutsPage() {
   const [historyClipper, setHistoryClipper] = useState('all');
   const [historyMonth, setHistoryMonth] = useState('all');
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalClipper, setModalClipper] = useState(null);
 
-  // ---- Navigation ------------------------------------------------
+  // ---------- navigation handlers (match other pages) ----------
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -81,6 +82,10 @@ function PayoutsPage() {
     navigate('/dashboard-v2');
   };
 
+  const handleGoPayouts = () => {
+    navigate('/payouts');
+  };
+
   const handleGoDashV1 = () => {
     navigate('/dashboard');
   };
@@ -89,7 +94,7 @@ function PayoutsPage() {
     navigate('/clippers');
   };
 
-  // ---- Fetch monthly balances ------------------------------------
+  // ---------- fetch monthly balances ----------
 
   useEffect(() => {
     const fetchBalances = async () => {
@@ -102,7 +107,7 @@ function PayoutsPage() {
         setMonthlyBalances(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error('Error fetching monthly balances:', err);
-        setBalancesError(err.message || 'Failed to load balances');
+        setBalancesError(err.message || 'Failed to load monthly balances');
       } finally {
         setBalancesLoading(false);
       }
@@ -110,7 +115,7 @@ function PayoutsPage() {
     fetchBalances();
   }, []);
 
-  // ---- Fetch payout history --------------------------------------
+  // ---------- fetch payout history ----------
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -131,7 +136,7 @@ function PayoutsPage() {
     fetchHistory();
   }, []);
 
-  // ---- Derived datasets ------------------------------------------
+  // ---------- derived datasets ----------
 
   const upcomingRows = useMemo(
     () =>
@@ -164,7 +169,14 @@ function PayoutsPage() {
 
   const upcomingCount = upcomingRows.length;
 
-  // history filter options
+  const overdueTotal = useMemo(
+    () =>
+      dueRows.reduce((sum, row) => sum + Number(row.outstanding_usd || 0), 0),
+    [dueRows]
+  );
+  const overdueCount = dueRows.length;
+
+  // history filters
   const historyClipperOptions = useMemo(() => {
     const names = Array.from(
       new Set(historyRows.map((h) => h.clipper_name).filter(Boolean))
@@ -179,14 +191,7 @@ function PayoutsPage() {
           .map((h) => h.earnings_month_label)
           .filter((m) => m && typeof m === 'string')
       )
-    ).sort((a, b) => {
-      // naive but fine: compare by parsed date
-      const parse = (label) => {
-        const d = new Date(label);
-        return d.getTime() || 0;
-      };
-      return parse(a) - parse(b);
-    });
+    );
     return ['all', ...months];
   }, [historyRows]);
 
@@ -218,7 +223,7 @@ function PayoutsPage() {
     [filteredHistory]
   );
 
-  // ---- Modal handlers (still demo; later we'll call Stripe/PayPal) ----
+  // ---------- modal handlers (still demo, Stripe later) ----------
 
   const handlePayClick = (row) => {
     setModalClipper(row);
@@ -230,7 +235,7 @@ function PayoutsPage() {
     setModalClipper(null);
   };
 
-  // ---- Render helpers --------------------------------------------
+  // ---------- table render for Upcoming / Due ----------
 
   const renderUpcomingOrDueTable = (rows) => {
     if (balancesLoading) {
@@ -266,11 +271,11 @@ function PayoutsPage() {
     return (
       <div
         style={{
-          borderRadius: 24,
+          borderRadius: 18,
           overflow: 'hidden',
-          background:
-            'radial-gradient(circle at top left, rgba(148,163,184,0.12), transparent 60%)',
-          border: '1px solid rgba(148,163,184,0.2)',
+          background: 'rgba(15,23,42,0.95)',
+          border: '1px solid rgba(148,163,184,0.35)',
+          boxShadow: '0 18px 45px rgba(0,0,0,0.9)',
         }}
       >
         <table
@@ -286,7 +291,7 @@ function PayoutsPage() {
                 style={{
                   textAlign: 'left',
                   padding: '10px 16px',
-                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  borderBottom: '1px solid rgba(255,255,255,0.08)',
                   fontWeight: 500,
                   opacity: 0.7,
                 }}
@@ -297,7 +302,7 @@ function PayoutsPage() {
                 style={{
                   textAlign: 'right',
                   padding: '10px 8px',
-                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  borderBottom: '1px solid rgba(255,255,255,0.08)',
                   fontWeight: 500,
                   opacity: 0.7,
                 }}
@@ -308,7 +313,7 @@ function PayoutsPage() {
                 style={{
                   textAlign: 'right',
                   padding: '10px 8px',
-                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  borderBottom: '1px solid rgba(255,255,255,0.08)',
                   fontWeight: 500,
                   opacity: 0.7,
                 }}
@@ -319,7 +324,7 @@ function PayoutsPage() {
                 style={{
                   textAlign: 'right',
                   padding: '10px 8px',
-                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  borderBottom: '1px solid rgba(255,255,255,0.08)',
                   fontWeight: 500,
                   opacity: 0.7,
                 }}
@@ -330,7 +335,7 @@ function PayoutsPage() {
                 style={{
                   textAlign: 'right',
                   padding: '10px 8px',
-                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  borderBottom: '1px solid rgba(255,255,255,0.08)',
                   fontWeight: 500,
                   opacity: 0.7,
                 }}
@@ -341,7 +346,7 @@ function PayoutsPage() {
                 style={{
                   textAlign: 'center',
                   padding: '10px 8px',
-                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  borderBottom: '1px solid rgba(255,255,255,0.08)',
                   fontWeight: 500,
                   opacity: 0.7,
                 }}
@@ -352,7 +357,7 @@ function PayoutsPage() {
                 style={{
                   textAlign: 'right',
                   padding: '10px 16px',
-                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  borderBottom: '1px solid rgba(255,255,255,0.08)',
                   fontWeight: 500,
                   opacity: 0.7,
                 }}
@@ -368,7 +373,7 @@ function PayoutsPage() {
                 style={{
                   borderBottom:
                     idx !== rows.length - 1
-                      ? '1px solid rgba(148,163,184,0.15)'
+                      ? '1px solid rgba(148,163,184,0.18)'
                       : 'none',
                 }}
               >
@@ -449,9 +454,9 @@ function PayoutsPage() {
                       fontWeight: 600,
                       border: '1px solid rgba(148,163,184,0.4)',
                       background:
-                        row.payment_processor === 'stripe'
+                        (row.payment_processor || '').toLowerCase() === 'stripe'
                           ? 'rgba(59,130,246,0.18)'
-                          : 'rgba(15,23,42,0.8)',
+                          : 'rgba(15,23,42,0.85)',
                     }}
                   >
                     {(row.payment_processor || 'Unknown').toUpperCase()}
@@ -490,170 +495,250 @@ function PayoutsPage() {
     );
   };
 
-  // ---- Layout ----------------------------------------------------
+  // ---------- layout (match Dashboards / Clippers) ----------
 
   return (
     <div
       style={{
-        minHeight: '100vh',
-        width: '100vw',
-        boxSizing: 'border-box',
+        position: 'fixed',
+        inset: 0,
         background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
+        display: 'flex',
+        overflowX: 'hidden',
+        overflowY: 'auto',
         color: '#fff',
         fontFamily:
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        position: 'relative',
-        display: 'flex',
-        padding: 0,
-        overflowX: 'hidden',
+        padding: '32px',
+        paddingTop: '40px',
+        paddingBottom: '40px',
       }}
     >
-      {/* Sidebar */}
+      {/* WATERMARK */}
       <div
         style={{
-          width: sidebarOpen ? 220 : 72,
-          transition: 'width 0.25s ease',
-          borderRight: '1px solid rgba(148,163,184,0.25)',
-          background:
-            'radial-gradient(circle at top left, #111827 0, #000000 60%)',
-          padding: '16px 14px',
-          boxSizing: 'border-box',
+          position: 'fixed',
+          inset: 0,
+          pointerEvents: 'none',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          opacity: 0.03,
+          fontFamily: 'Impact, Haettenschweiler, Arial Black, sans-serif',
+          fontSize: 140,
+          letterSpacing: 2,
+          textTransform: 'uppercase',
+          color: '#ffffff',
+          transform: 'rotate(-18deg)',
+          textShadow: '0 0 60px rgba(0,0,0,1)',
+        }}
+      >
+        STEVEWILLDOIT
+      </div>
+
+      {/* SIDEBAR (same pattern as other pages, Payouts active) */}
+      <div
+        style={{
+          width: sidebarOpen ? 190 : 54,
+          transition: 'width 180ms ease',
+          marginRight: 22,
+          position: 'relative',
+          zIndex: 2,
         }}
       >
         <div
           style={{
-            fontWeight: 800,
-            letterSpacing: 1,
-            fontSize: 18,
-            marginBottom: 20,
+            borderRadius: 18,
+            background: 'rgba(0,0,0,0.8)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow: '0 18px 45px rgba(0,0,0,0.8)',
+            padding: 10,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
           }}
         >
-          CLIPPER PAY
-        </div>
-
-        <button
-          onClick={() => setSidebarOpen((v) => !v)}
-          style={{
-            marginBottom: 16,
-            padding: '6px 10px',
-            borderRadius: 999,
-            border: '1px solid rgba(148,163,184,0.4)',
-            background: 'transparent',
-            color: '#e5e7eb',
-            fontSize: 11,
-            cursor: 'pointer',
-          }}
-        >
-          {sidebarOpen ? 'Collapse' : 'Expand'}
-        </button>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {/* Dashboards */}
+          {/* Collapse button */}
           <button
-            onClick={handleGoDashV2}
+            onClick={() => setSidebarOpen((v) => !v)}
             style={{
-              padding: '8px 10px',
+              alignSelf: sidebarOpen ? 'flex-end' : 'center',
               borderRadius: 999,
-              border: 'none',
-              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.18)',
+              background: 'rgba(15,23,42,0.95)',
               color: '#e5e7eb',
-              textAlign: 'left',
-              fontSize: 13,
+              fontSize: 11,
+              padding: '3px 8px',
               cursor: 'pointer',
             }}
           >
-            Dashboard v2
+            {sidebarOpen ? '◀' : '▶'}
           </button>
 
-          <button
-            onClick={handleGoDashV1}
-            style={{
-              padding: '8px 10px',
-              borderRadius: 999,
-              border: 'none',
-              background: 'transparent',
-              color: '#e5e7eb',
-              textAlign: 'left',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            Dashboard v1
-          </button>
+          {sidebarOpen && (
+            <>
+              <div
+                style={{
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.1,
+                  opacity: 0.6,
+                  marginTop: 4,
+                  marginBottom: 4,
+                }}
+              >
+                Navigation
+              </div>
 
-          {/* Payouts (active) */}
-          <button
-            style={{
-              padding: '8px 10px',
-              borderRadius: 999,
-              border: 'none',
-              background:
-                'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
-              color: '#020617',
-              fontWeight: 600,
-              fontSize: 13,
-              textAlign: 'left',
-              marginTop: 8,
-            }}
-          >
-            Payouts
-          </button>
+              {/* Dashboards V2 */}
+              <button
+                onClick={handleGoDashV2}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                Dashboards V2
+              </button>
 
-          {/* Clippers */}
-          <button
-            onClick={handleGoClippers}
-            style={{
-              padding: '8px 10px',
-              borderRadius: 999,
-              border: 'none',
-              background: 'transparent',
-              color: '#e5e7eb',
-              textAlign: 'left',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            Clippers
-          </button>
+              {/* Payouts – active page (2nd) */}
+              <button
+                onClick={handleGoPayouts}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '8px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  background:
+                    'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
+                  color: '#020617',
+                  fontWeight: 600,
+                  marginTop: 2,
+                  marginBottom: 2,
+                }}
+              >
+                Payouts
+              </button>
 
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            style={{
-              padding: '8px 10px',
-              borderRadius: 999,
-              border: 'none',
-              background: 'transparent',
-              color: '#fca5a5',
-              textAlign: 'left',
-              fontSize: 13,
-              cursor: 'pointer',
-              marginTop: 16,
-            }}
-          >
-            Log out
-          </button>
+              {/* Clippers */}
+              <button
+                onClick={handleGoClippers}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginTop: 2,
+                }}
+              >
+                Clippers
+              </button>
+
+              {/* Settings placeholder */}
+              <button
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.35)',
+                  marginTop: 2,
+                }}
+              >
+                Settings
+              </button>
+
+              {/* Spacer */}
+              <div style={{ flex: 1 }} />
+
+              {/* Dashboards V1 (bottom link) */}
+              <button
+                onClick={handleGoDashV1}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginBottom: 4,
+                }}
+              >
+                Dashboards V1
+              </button>
+
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 999,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'rgba(248,250,252,0.06)',
+                  color: 'rgba(255,255,255,0.85)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: '#f97316',
+                    boxShadow: '0 0 0 4px rgba(251,146,60,0.35)',
+                  }}
+                />
+                Log out
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Main content */}
+      {/* MAIN CONTENT */}
       <div
         style={{
           flex: 1,
-          padding: '24px 32px',
-          boxSizing: 'border-box',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
+          position: 'relative',
+          zIndex: 3,
         }}
       >
-        {/* Header */}
+        {/* Header / title */}
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 8,
+            alignItems: 'flex-start',
+            marginBottom: 22,
           }}
         >
           <div>
@@ -677,40 +762,52 @@ function PayoutsPage() {
             </div>
           </div>
 
-          {/* Summary pill */}
+          {/* Summary pill with Upcoming + Overdue */}
           <div
             style={{
               padding: '10px 16px',
               borderRadius: 999,
               border: '1px solid rgba(148,163,184,0.4)',
               background:
-                'radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,0.5))',
+                'radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,0.8))',
               fontSize: 13,
               display: 'flex',
-              alignItems: 'center',
-              gap: 8,
+              flexDirection: 'column',
+              gap: 4,
+              alignItems: 'flex-end',
+              minWidth: 260,
             }}
           >
-            <span style={{ opacity: 0.8 }}>
-              {upcomingCount} clippers with upcoming payouts
-            </span>
-            <span>·</span>
-            <span>
-              Upcoming total:{' '}
-              <strong>{formatCurrency(upcomingTotal)}</strong>
-            </span>
+            <div>
+              <span style={{ opacity: 0.8 }}>
+                {upcomingCount} clippers with upcoming payouts
+              </span>
+              <span> · </span>
+              <span>
+                Upcoming total:{' '}
+                <strong>{formatCurrency(upcomingTotal)}</strong>
+              </span>
+            </div>
+
+            {overdueCount > 0 && (
+              <div style={{ fontSize: 12, color: '#fecaca' }}>
+                {overdueCount} clippers with overdue payouts · Overdue total:{' '}
+                <strong>{formatCurrency(overdueTotal)}</strong>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Tabs */}
         <div
           style={{
+            marginBottom: 18,
             display: 'inline-flex',
-            background: 'rgba(15,23,42,0.85)',
             borderRadius: 999,
-            padding: 4,
-            border: '1px solid rgba(148,163,184,0.5)',
-            marginBottom: 12,
+            border: '1px solid rgba(255,255,255,0.12)',
+            background: 'rgba(0,0,0,0.55)',
+            padding: 3,
+            backdropFilter: 'blur(8px)',
           }}
         >
           {[
@@ -726,7 +823,7 @@ function PayoutsPage() {
                 style={{
                   border: 'none',
                   borderRadius: 999,
-                  padding: '6px 14px',
+                  padding: '6px 16px',
                   fontSize: 13,
                   cursor: 'pointer',
                   background: active
@@ -742,134 +839,144 @@ function PayoutsPage() {
           })}
         </div>
 
-        {/* Active tab content */}
-        <div style={{ marginTop: 8 }}>
-          {activeTab === 'upcoming' && renderUpcomingOrDueTable(upcomingRows)}
+        {/* Content card */}
+        {activeTab === 'upcoming' && renderUpcomingOrDueTable(upcomingRows)}
 
-          {activeTab === 'due' && renderUpcomingOrDueTable(dueRows)}
+        {activeTab === 'due' && renderUpcomingOrDueTable(dueRows)}
 
-          {activeTab === 'history' && (
+        {activeTab === 'history' && (
+          <div
+            style={{
+              borderRadius: 18,
+              padding: 16,
+              background: 'rgba(15,23,42,0.96)',
+              border: '1px solid rgba(148,163,184,0.45)',
+              boxShadow: '0 18px 45px rgba(0,0,0,0.9)',
+            }}
+          >
+            {/* Filters row */}
             <div
               style={{
-                borderRadius: 24,
-                padding: 16,
-                background:
-                  'radial-gradient(circle at top left, rgba(30,64,175,0.22), rgba(15,23,42,0.9))',
-                border: '1px solid rgba(148,163,184,0.4)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 12,
+                gap: 12,
+                flexWrap: 'wrap',
               }}
             >
-              {/* Filters */}
               <div
                 style={{
                   display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: 12,
                   gap: 12,
                   flexWrap: 'wrap',
                 }}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: 10,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  {/* Filter by clipper */}
-                  <div>
-                    <div
-                      style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}
-                    >
-                      Filter by clipper
-                    </div>
-                    <select
-                      value={historyClipper}
-                      onChange={(e) => setHistoryClipper(e.target.value)}
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: 999,
-                        border: '1px solid rgba(148,163,184,0.6)',
-                        background: 'rgba(15,23,42,0.9)',
-                        color: '#e5e7eb',
-                        fontSize: 12,
-                      }}
-                    >
-                      {historyClipperOptions.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt === 'all' ? 'All clippers' : opt}
-                        </option>
-                      ))}
-                    </select>
+                {/* Filter by clipper */}
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      opacity: 0.75,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Filter by clipper
                   </div>
-
-                  {/* Filter by month */}
-                  <div>
-                    <div
-                      style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}
-                    >
-                      Filter by month
-                    </div>
-                    <select
-                      value={historyMonth}
-                      onChange={(e) => setHistoryMonth(e.target.value)}
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: 999,
-                        border: '1px solid rgba(148,163,184,0.6)',
-                        background: 'rgba(15,23,42,0.9)',
-                        color: '#e5e7eb',
-                        fontSize: 12,
-                      }}
-                    >
-                      {historyMonthOptions.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt === 'all' ? 'All months' : opt}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <select
+                    value={historyClipper}
+                    onChange={(e) => setHistoryClipper(e.target.value)}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: 999,
+                      border: '1px solid rgba(148,163,184,0.7)',
+                      background: 'rgba(15,23,42,0.95)',
+                      color: '#e5e7eb',
+                      fontSize: 12,
+                    }}
+                  >
+                    {historyClipperOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt === 'all' ? 'All clippers' : opt}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Summary */}
-                <div
-                  style={{
-                    fontSize: 12,
-                    opacity: 0.9,
-                  }}
-                >
-                  Showing {historySummary.count} payments · Total:{' '}
-                  <strong>{formatCurrency(historySummary.total)}</strong>
+                {/* Filter by month */}
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      opacity: 0.75,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Filter by month
+                  </div>
+                  <select
+                    value={historyMonth}
+                    onChange={(e) => setHistoryMonth(e.target.value)}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: 999,
+                      border: '1px solid rgba(148,163,184,0.7)',
+                      background: 'rgba(15,23,42,0.95)',
+                      color: '#e5e7eb',
+                      fontSize: 12,
+                    }}
+                  >
+                    {historyMonthOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt === 'all' ? 'All months' : opt}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              {/* History table */}
-              {historyLoading && (
-                <div style={{ fontSize: 14, opacity: 0.8 }}>
-                  Loading payment history...
-                </div>
-              )}
+              {/* Summary */}
+              <div
+                style={{
+                  fontSize: 12,
+                  opacity: 0.9,
+                }}
+              >
+                Showing {historySummary.count} payments · Total:{' '}
+                <strong>{formatCurrency(historySummary.total)}</strong>
+              </div>
+            </div>
 
-              {historyError && (
-                <div style={{ fontSize: 14, color: '#fecaca' }}>
-                  {historyError}
-                </div>
-              )}
+            {/* History table */}
+            {historyLoading && (
+              <div style={{ fontSize: 14, opacity: 0.8 }}>
+                Loading payment history...
+              </div>
+            )}
 
-              {!historyLoading && !historyError && filteredHistory.length === 0 && (
+            {historyError && (
+              <div style={{ fontSize: 14, color: '#fecaca' }}>
+                {historyError}
+              </div>
+            )}
+
+            {!historyLoading &&
+              !historyError &&
+              filteredHistory.length === 0 && (
                 <div style={{ fontSize: 14, opacity: 0.8 }}>
                   No payments found for the selected filters.
                 </div>
               )}
 
-              {!historyLoading && !historyError && filteredHistory.length > 0 && (
+            {!historyLoading &&
+              !historyError &&
+              filteredHistory.length > 0 && (
                 <div
                   style={{
-                    borderRadius: 18,
+                    borderRadius: 14,
                     overflow: 'hidden',
                     border: '1px solid rgba(148,163,184,0.4)',
-                    background:
-                      'radial-gradient(circle at top, rgba(15,23,42,0.95), rgba(15,23,42,0.9))',
+                    background: 'rgba(15,23,42,0.98)',
                     marginTop: 8,
                   }}
                 >
@@ -1015,7 +1122,11 @@ function PayoutsPage() {
                               opacity: 0.9,
                             }}
                           >
-                            {formatDateTime(row.completed_at || row.initiated_at)}
+                            {formatDateTime(
+                              row.completed_at ||
+                                row.initiated_at ||
+                                row.created_at
+                            )}
                           </td>
 
                           <td
@@ -1033,7 +1144,8 @@ function PayoutsPage() {
                                 fontWeight: 600,
                                 border: '1px solid rgba(148,163,184,0.4)',
                                 background:
-                                  row.processor === 'stripe'
+                                  (row.processor || '').toLowerCase() ===
+                                  'stripe'
                                     ? 'rgba(59,130,246,0.18)'
                                     : 'rgba(15,23,42,0.8)',
                               }}
@@ -1071,12 +1183,11 @@ function PayoutsPage() {
                   </table>
                 </div>
               )}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Demo payout modal (for now) */}
+      {/* Demo payout modal */}
       {modalOpen && modalClipper && (
         <div
           style={{
@@ -1212,5 +1323,3 @@ function PayoutsPage() {
     </div>
   );
 }
-
-export default PayoutsPage;
