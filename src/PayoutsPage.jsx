@@ -5,97 +5,36 @@ import { useNavigate } from 'react-router-dom';
 const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
-// ---- Demo placeholder data ----
+// ---- Helpers -------------------------------------------------
 
-const MOCK_UPCOMING = [
-  {
-    clipper_id: 'clipper_1',
-    clipper_name: 'Editor One',
-    total_earned_usd: 250.5,
-    last_payout_date: '2025-11-19',
-    processor: 'Stripe',
-  },
-  {
-    clipper_id: 'clipper_2',
-    clipper_name: 'Editor Two',
-    total_earned_usd: 120.0,
-    last_payout_date: '2025-11-17',
-    processor: 'PayPal',
-  },
-  {
-    clipper_id: 'clipper_3',
-    clipper_name: 'Editor Three',
-    total_earned_usd: 480.75,
-    last_payout_date: '2025-11-10',
-    processor: 'Wise',
-  },
-];
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
-const MOCK_HISTORY = [
-  {
-    id: 'tx_001',
-    clipper_id: 'clipper_1',
-    clipper_name: 'Editor One',
-    amount_usd: 250.5,
-    processor: 'Stripe',
-    ts: '2025-11-19T15:24:00Z',
-    invoice_url: '#',
-  },
-  {
-    id: 'tx_002',
-    clipper_id: 'clipper_2',
-    clipper_name: 'Editor Two',
-    amount_usd: 120.0,
-    processor: 'PayPal',
-    ts: '2025-11-17T18:10:00Z',
-    invoice_url: '#',
-  },
-  {
-    id: 'tx_003',
-    clipper_id: 'clipper_3',
-    clipper_name: 'Editor Three',
-    amount_usd: 310.25,
-    processor: 'Wise',
-    ts: '2025-10-30T12:00:00Z',
-    invoice_url: '#',
-  },
-  {
-    id: 'tx_004',
-    clipper_id: 'clipper_1',
-    clipper_name: 'Editor One',
-    amount_usd: 220.0,
-    processor: 'Stripe',
-    ts: '2025-10-15T09:42:00Z',
-    invoice_url: '#',
-  },
-];
+function formatCurrency(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '$0.00';
+  return currencyFormatter.format(n);
+}
 
-// ---- Helpers ----
-
-const formatCurrency = (value) => {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return '—';
-  return `$${num.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-};
-
-const formatDate = (value) => {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
+function formatDate(dateLike) {
+  if (!dateLike) return '-';
+  const d = new Date(dateLike);
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
-};
+}
 
-const formatDateTime = (value) => {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
+function formatDateTime(dateLike) {
+  if (!dateLike) return '-';
+  const d = new Date(dateLike);
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -103,43 +42,26 @@ const formatDateTime = (value) => {
     hour: 'numeric',
     minute: '2-digit',
   });
-};
-
-// ---- Processor badge ----
-
-function ProcessorBadge({ processor }) {
-  const base = {
-    Stripe: { bg: 'rgba(88, 101, 242, 0.16)', border: 'rgba(88, 101, 242, 0.6)' },
-    PayPal: { bg: 'rgba(0, 119, 181, 0.16)', border: 'rgba(0, 119, 181, 0.6)' },
-    Wise: { bg: 'rgba(0, 184, 128, 0.16)', border: 'rgba(0, 184, 128, 0.6)' },
-  }[processor] || { bg: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.24)' };
-
-  return (
-    <span
-      style={{
-        fontSize: 11,
-        padding: '4px 8px',
-        borderRadius: 999,
-        border: `1px solid ${base.border}`,
-        background: base.bg,
-        textTransform: 'uppercase',
-        letterSpacing: 0.04,
-      }}
-    >
-      {processor}
-    </span>
-  );
 }
 
-// ---- MAIN PAGE ----
+const CURRENT_MONTH_LABEL = new Date().toLocaleString('en-US', {
+  month: 'long',
+});
 
-export default function PayoutsPage() {
+// ---- Main component -------------------------------------------
+
+function PayoutsPage() {
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('upcoming');
-  const [loadingUpcoming, setLoadingUpcoming] = useState(true);
-  const [upcomingError, setUpcomingError] = useState('');
-  const [upcomingRows, setUpcomingRows] = useState([]);
+  const [activeTab, setActiveTab] = useState('upcoming'); // 'upcoming' | 'due' | 'history'
+
+  const [monthlyBalances, setMonthlyBalances] = useState([]);
+  const [balancesLoading, setBalancesLoading] = useState(false);
+  const [balancesError, setBalancesError] = useState('');
+
+  const [historyRows, setHistoryRows] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
 
   const [historyClipper, setHistoryClipper] = useState('all');
   const [historyMonth, setHistoryMonth] = useState('all');
@@ -148,112 +70,158 @@ export default function PayoutsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalClipper, setModalClipper] = useState(null);
 
+  // ---- Navigation ------------------------------------------------
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
   };
 
-   const handleGoDashV2 = () => {
-    navigate('/dashboard-v2');  // new BigQuery-powered dashboards page
+  const handleGoDashV2 = () => {
+    navigate('/dashboard-v2');
   };
 
   const handleGoDashV1 = () => {
-    navigate('/dashboard');     // your existing Power BI dashboards page
+    navigate('/dashboard');
   };
 
   const handleGoClippers = () => {
-  navigate('/clippers');
+    navigate('/clippers');
   };
 
-
-  // ---- Fetch demo payouts ----
+  // ---- Fetch monthly balances ------------------------------------
 
   useEffect(() => {
-    const fetchPayouts = async () => {
+    const fetchBalances = async () => {
       try {
-        setLoadingUpcoming(true);
-        setUpcomingError('');
-
-        const res = await fetch(`${API_BASE_URL}/payouts`);
-
-        if (!res.ok) throw new Error(`API responded with ${res.status}`);
-
+        setBalancesLoading(true);
+        setBalancesError('');
+        const res = await fetch(`${API_BASE_URL}/clipper-monthly-balances`);
+        if (!res.ok) throw new Error(`Balances API ${res.status}`);
         const data = await res.json();
-        const normalized = (Array.isArray(data) ? data : []).map((r, i) => ({
-          clipper_id: r.clipper_id || `clipper_${i + 1}`,
-          clipper_name: r.clipper_name || `Clipper ${i + 1}`,
-          total_earned_usd: Number(r.total_earned_usd) || 0,
-          last_payout_date:
-            r.last_payout_date && typeof r.last_payout_date === 'object'
-              ? r.last_payout_date.value
-              : r.last_payout_date,
-          processor: ['Stripe', 'PayPal', 'Wise'][i % 3],
-        }));
-
-        if (!normalized.length) setUpcomingRows(MOCK_UPCOMING);
-        else setUpcomingRows(normalized);
+        setMonthlyBalances(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error('Error fetching payouts:', err);
-        setUpcomingError('Using demo data (API unavailable).');
-        setUpcomingRows(MOCK_UPCOMING);
+        console.error('Error fetching monthly balances:', err);
+        setBalancesError(err.message || 'Failed to load balances');
       } finally {
-        setLoadingUpcoming(false);
+        setBalancesLoading(false);
       }
     };
-
-    fetchPayouts();
+    fetchBalances();
   }, []);
 
-  const totalAllEarned = useMemo(
-    () => upcomingRows.reduce((sum, r) => sum + Number(r.total_earned_usd || 0), 0),
+  // ---- Fetch payout history --------------------------------------
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        setHistoryLoading(true);
+        setHistoryError('');
+        const res = await fetch(`${API_BASE_URL}/clipper-payout-history`);
+        if (!res.ok) throw new Error(`History API ${res.status}`);
+        const data = await res.json();
+        setHistoryRows(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Error fetching payout history:', err);
+        setHistoryError(err.message || 'Failed to load payout history');
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+    fetchHistory();
+  }, []);
+
+  // ---- Derived datasets ------------------------------------------
+
+  const upcomingRows = useMemo(
+    () =>
+      monthlyBalances.filter(
+        (row) =>
+          row.month_label === CURRENT_MONTH_LABEL &&
+          Number(row.outstanding_usd) > 0
+      ),
+    [monthlyBalances]
+  );
+
+  const dueRows = useMemo(
+    () =>
+      monthlyBalances.filter(
+        (row) =>
+          row.month_label !== CURRENT_MONTH_LABEL &&
+          Number(row.outstanding_usd) > 0
+      ),
+    [monthlyBalances]
+  );
+
+  const upcomingTotal = useMemo(
+    () =>
+      upcomingRows.reduce(
+        (sum, row) => sum + Number(row.outstanding_usd || 0),
+        0
+      ),
     [upcomingRows]
   );
 
-  // ---- Filters ----
+  const upcomingCount = upcomingRows.length;
 
-  const clipperOptions = useMemo(() => {
-    const names = Array.from(new Set(MOCK_HISTORY.map((h) => h.clipper_name))).sort();
+  // history filter options
+  const historyClipperOptions = useMemo(() => {
+    const names = Array.from(
+      new Set(historyRows.map((h) => h.clipper_name).filter(Boolean))
+    ).sort();
     return ['all', ...names];
-  }, []);
+  }, [historyRows]);
 
-  const monthOptions = useMemo(() => {
+  const historyMonthOptions = useMemo(() => {
     const months = Array.from(
       new Set(
-        MOCK_HISTORY.map((h) => {
-          const d = new Date(h.ts);
-          if (Number.isNaN(d.getTime())) return null;
-          const yy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, '0');
-          return `${yy}-${mm}`;
-        }).filter(Boolean)
+        historyRows
+          .map((h) => h.earnings_month_label)
+          .filter((m) => m && typeof m === 'string')
       )
-    ).sort((a, b) => (a > b ? -1 : 1));
+    ).sort((a, b) => {
+      // naive but fine: compare by parsed date
+      const parse = (label) => {
+        const d = new Date(label);
+        return d.getTime() || 0;
+      };
+      return parse(a) - parse(b);
+    });
     return ['all', ...months];
-  }, []);
+  }, [historyRows]);
 
-  const filteredHistory = useMemo(() => {
-    return MOCK_HISTORY.filter((h) => {
-      if (historyClipper !== 'all' && h.clipper_name !== historyClipper) return false;
+  const filteredHistory = useMemo(
+    () =>
+      historyRows.filter((row) => {
+        if (historyClipper !== 'all' && row.clipper_name !== historyClipper) {
+          return false;
+        }
+        if (
+          historyMonth !== 'all' &&
+          row.earnings_month_label !== historyMonth
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    [historyRows, historyClipper, historyMonth]
+  );
 
-      if (historyMonth !== 'all') {
-        const d = new Date(h.ts);
-        const yy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        if (`${yy}-${mm}` !== historyMonth) return false;
-      }
-
-      return true;
-    }).sort((a, b) => (a.ts > b.ts ? -1 : 1));
-  }, [historyClipper, historyMonth]);
-
-  const totalHistoryPaid = useMemo(
-    () => filteredHistory.reduce((sum, h) => sum + Number(h.amount_usd || 0), 0),
+  const historySummary = useMemo(
+    () => ({
+      count: filteredHistory.length,
+      total: filteredHistory.reduce(
+        (sum, row) => sum + Number(row.amount_usd || 0),
+        0
+      ),
+    }),
     [filteredHistory]
   );
 
-  const handleDemoPayClick = (clipper) => {
-    setModalClipper(clipper);
+  // ---- Modal handlers (still demo; later we'll call Stripe/PayPal) ----
+
+  const handlePayClick = (row) => {
+    setModalClipper(row);
     setModalOpen(true);
   };
 
@@ -262,358 +230,510 @@ export default function PayoutsPage() {
     setModalClipper(null);
   };
 
-  // -------------------------------------------------------------
-  //                 🚀  FULLSCREEN + BLACK GUTTER
-  // -------------------------------------------------------------
+  // ---- Render helpers --------------------------------------------
+
+  const renderUpcomingOrDueTable = (rows) => {
+    if (balancesLoading) {
+      return (
+        <div style={{ padding: 12, fontSize: 14, opacity: 0.8 }}>
+          Loading payouts...
+        </div>
+      );
+    }
+
+    if (balancesError) {
+      return (
+        <div
+          style={{
+            padding: 12,
+            fontSize: 14,
+            color: '#fecaca',
+          }}
+        >
+          {balancesError}
+        </div>
+      );
+    }
+
+    if (!rows.length) {
+      return (
+        <div style={{ padding: 12, fontSize: 14, opacity: 0.8 }}>
+          No payouts found for this section.
+        </div>
+      );
+    }
+
+    return (
+      <div
+        style={{
+          borderRadius: 24,
+          overflow: 'hidden',
+          background:
+            'radial-gradient(circle at top left, rgba(148,163,184,0.12), transparent 60%)',
+          border: '1px solid rgba(148,163,184,0.2)',
+        }}
+      >
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: 13,
+          }}
+        >
+          <thead>
+            <tr>
+              <th
+                style={{
+                  textAlign: 'left',
+                  padding: '10px 16px',
+                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  fontWeight: 500,
+                  opacity: 0.7,
+                }}
+              >
+                Clipper
+              </th>
+              <th
+                style={{
+                  textAlign: 'right',
+                  padding: '10px 8px',
+                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  fontWeight: 500,
+                  opacity: 0.7,
+                }}
+              >
+                Month
+              </th>
+              <th
+                style={{
+                  textAlign: 'right',
+                  padding: '10px 8px',
+                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  fontWeight: 500,
+                  opacity: 0.7,
+                }}
+              >
+                Earned
+              </th>
+              <th
+                style={{
+                  textAlign: 'right',
+                  padding: '10px 8px',
+                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  fontWeight: 500,
+                  opacity: 0.7,
+                }}
+              >
+                Paid
+              </th>
+              <th
+                style={{
+                  textAlign: 'right',
+                  padding: '10px 8px',
+                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  fontWeight: 500,
+                  opacity: 0.7,
+                }}
+              >
+                Outstanding
+              </th>
+              <th
+                style={{
+                  textAlign: 'center',
+                  padding: '10px 8px',
+                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  fontWeight: 500,
+                  opacity: 0.7,
+                }}
+              >
+                Processor
+              </th>
+              <th
+                style={{
+                  textAlign: 'right',
+                  padding: '10px 16px',
+                  borderBottom: '1px solid rgba(255,255,255,0.12)',
+                  fontWeight: 500,
+                  opacity: 0.7,
+                }}
+              >
+                Action
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, idx) => (
+              <tr
+                key={`${row.clipper_id}_${row.month_label}_${idx}`}
+                style={{
+                  borderBottom:
+                    idx !== rows.length - 1
+                      ? '1px solid rgba(148,163,184,0.15)'
+                      : 'none',
+                }}
+              >
+                <td
+                  style={{
+                    padding: '12px 16px',
+                    fontSize: 14,
+                    fontWeight: 500,
+                  }}
+                >
+                  <div>{row.clipper_name || 'Clipper'}</div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      opacity: 0.6,
+                      marginTop: 2,
+                    }}
+                  >
+                    ID: {row.clipper_id || '—'}
+                  </div>
+                </td>
+
+                <td
+                  style={{
+                    padding: '12px 8px',
+                    fontSize: 13,
+                    textAlign: 'right',
+                    opacity: 0.85,
+                  }}
+                >
+                  {row.month_label}
+                </td>
+
+                <td
+                  style={{
+                    padding: '12px 8px',
+                    fontSize: 13,
+                    textAlign: 'right',
+                  }}
+                >
+                  {formatCurrency(row.earned_usd)}
+                </td>
+
+                <td
+                  style={{
+                    padding: '12px 8px',
+                    fontSize: 13,
+                    textAlign: 'right',
+                  }}
+                >
+                  {formatCurrency(row.paid_usd)}
+                </td>
+
+                <td
+                  style={{
+                    padding: '12px 8px',
+                    fontSize: 13,
+                    textAlign: 'right',
+                    color:
+                      Number(row.outstanding_usd) > 0 ? '#4ade80' : '#e5e7eb',
+                  }}
+                >
+                  {formatCurrency(row.outstanding_usd)}
+                </td>
+
+                <td
+                  style={{
+                    padding: '12px 8px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      padding: '4px 10px',
+                      borderRadius: 999,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      border: '1px solid rgba(148,163,184,0.4)',
+                      background:
+                        row.payment_processor === 'stripe'
+                          ? 'rgba(59,130,246,0.18)'
+                          : 'rgba(15,23,42,0.8)',
+                    }}
+                  >
+                    {(row.payment_processor || 'Unknown').toUpperCase()}
+                  </span>
+                </td>
+
+                <td
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'right',
+                  }}
+                >
+                  <button
+                    onClick={() => handlePayClick(row)}
+                    style={{
+                      padding: '8px 18px',
+                      borderRadius: 999,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background:
+                        'radial-gradient(circle at 0 0, #22c55e, #16a34a)',
+                      color: '#022c22',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      boxShadow: '0 10px 25px rgba(34,197,94,0.45)',
+                    }}
+                  >
+                    Pay
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // ---- Layout ----------------------------------------------------
 
   return (
     <div
       style={{
-        position: 'fixed',
-        inset: 0,
+        minHeight: '100vh',
+        width: '100vw',
+        boxSizing: 'border-box',
         background: 'radial-gradient(circle at top, #141414 0, #020202 55%)',
-        display: 'flex',
-        overflowX: 'hidden',
-        overflowY: 'auto',
         color: '#fff',
         fontFamily:
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        padding: '32px',       // <<<< 🔥 CLEAN BLACK OUTER GUTTER
-        paddingTop: '40px',
-        paddingBottom: '40px',
+        position: 'relative',
+        display: 'flex',
+        padding: 0,
+        overflowX: 'hidden',
       }}
     >
-      {/* WATERMARK */}
+      {/* Sidebar */}
       <div
         style={{
-          position: 'fixed',
-          inset: 0,
-          pointerEvents: 'none',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          opacity: 0.03,
-          fontFamily: 'Impact, Haettenschweiler, Arial Black, sans-serif',
-          fontSize: 140,
-          letterSpacing: 2,
-          textTransform: 'uppercase',
-          color: '#ffffff',
-          transform: 'rotate(-18deg)',
-          textShadow: '0 0 60px rgba(0,0,0,1)',
-        }}
-      >
-        STEVEWILLDOIT
-      </div>
-
-      {/* SIDEBAR */}
-      <div
-        style={{
-          width: sidebarOpen ? 190 : 54,
-          transition: 'width 180ms ease',
-          marginRight: 22,
-          position: 'relative',
-          zIndex: 2,
+          width: sidebarOpen ? 220 : 72,
+          transition: 'width 0.25s ease',
+          borderRight: '1px solid rgba(148,163,184,0.25)',
+          background:
+            'radial-gradient(circle at top left, #111827 0, #000000 60%)',
+          padding: '16px 14px',
+          boxSizing: 'border-box',
         }}
       >
         <div
           style={{
-            borderRadius: 18,
-            background: 'rgba(0,0,0,0.8)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            boxShadow: '0 18px 45px rgba(0,0,0,0.8)',
-            padding: 10,
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
+            fontWeight: 800,
+            letterSpacing: 1,
+            fontSize: 18,
+            marginBottom: 20,
           }}
         >
+          CLIPPER PAY
+        </div>
+
+        <button
+          onClick={() => setSidebarOpen((v) => !v)}
+          style={{
+            marginBottom: 16,
+            padding: '6px 10px',
+            borderRadius: 999,
+            border: '1px solid rgba(148,163,184,0.4)',
+            background: 'transparent',
+            color: '#e5e7eb',
+            fontSize: 11,
+            cursor: 'pointer',
+          }}
+        >
+          {sidebarOpen ? 'Collapse' : 'Expand'}
+        </button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {/* Dashboards */}
           <button
-            onClick={() => setSidebarOpen((v) => !v)}
+            onClick={handleGoDashV2}
             style={{
-              alignSelf: sidebarOpen ? 'flex-end' : 'center',
+              padding: '8px 10px',
               borderRadius: 999,
-              border: '1px solid rgba(255,255,255,0.18)',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#fff',
+              border: 'none',
+              background: 'transparent',
+              color: '#e5e7eb',
+              textAlign: 'left',
+              fontSize: 13,
               cursor: 'pointer',
-              fontSize: 11,
-              padding: '4px 7px',
             }}
           >
-            {sidebarOpen ? '◀' : '▶'}
+            Dashboard v2
           </button>
 
-          {sidebarOpen && (
-            <>
-              <div
-                style={{
-                  fontSize: 11,
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.1,
-                  opacity: 0.6,
-                  marginTop: 4,
-                  marginBottom: 4,
-                }}
-              >
-                Navigation
-              </div>
+          <button
+            onClick={handleGoDashV1}
+            style={{
+              padding: '8px 10px',
+              borderRadius: 999,
+              border: 'none',
+              background: 'transparent',
+              color: '#e5e7eb',
+              textAlign: 'left',
+              fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
+            Dashboard v1
+          </button>
 
-              {/* Dashboards V2 */}
-              <button
-                onClick={handleGoDashV2}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.7)',
-                }}
-              >
-                Dashboards V2
-              </button>
+          {/* Payouts (active) */}
+          <button
+            style={{
+              padding: '8px 10px',
+              borderRadius: 999,
+              border: 'none',
+              background:
+                'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
+              color: '#020617',
+              fontWeight: 600,
+              fontSize: 13,
+              textAlign: 'left',
+              marginTop: 8,
+            }}
+          >
+            Payouts
+          </button>
 
-              {/* Payouts – active page */}
-              <button
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '8px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                  background:
-                    'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
-                  color: '#020617',
-                  fontWeight: 600,
-                  marginBottom: 2,
-                }}
-              >
-                Payouts
-              </button>
+          {/* Clippers */}
+          <button
+            onClick={handleGoClippers}
+            style={{
+              padding: '8px 10px',
+              borderRadius: 999,
+              border: 'none',
+              background: 'transparent',
+              color: '#e5e7eb',
+              textAlign: 'left',
+              fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
+            Clippers
+          </button>
 
-              {/* Clippers */}
-              <button
-                onClick={handleGoClippers}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.7)',
-                  marginTop: 2,
-                }}
-              >
-                Clippers
-              </button>
-
-              {/* Settings (placeholder) */}
-              <button
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.55)',
-                }}
-              >
-                Settings
-              </button>
-
-              {/* push bottom cluster down */}
-              <div style={{ flexGrow: 1 }} />
-
-              {/* Dashboards V1 at bottom */}
-              <button
-                onClick={handleGoDashV1}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.7)',
-                  marginBottom: 4,
-                }}
-              >
-                Dashboards V1
-              </button>
-
-              {/* Logout */}
-              <button
-                onClick={handleLogout}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 999,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'rgba(248,250,252,0.06)',
-                  color: 'rgba(255,255,255,0.85)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  marginBottom: 6,
-                }}
-              >
-                <span style={{ fontSize: 12 }}>⏻</span>
-                Logout
-              </button>
-
-              <div
-                style={{
-                  fontSize: 11,
-                  opacity: 0.55,
-                  borderTop: '1px solid rgba(255,255,255,0.08)',
-                  paddingTop: 8,
-                }}
-              >
-                Clipper payouts hub
-              </div>
-            </>
-          )}
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '8px 10px',
+              borderRadius: 999,
+              border: 'none',
+              background: 'transparent',
+              color: '#fca5a5',
+              textAlign: 'left',
+              fontSize: 13,
+              cursor: 'pointer',
+              marginTop: 16,
+            }}
+          >
+            Log out
+          </button>
         </div>
       </div>
 
-
-
-      {/* MAIN CONTENT */}
+      {/* Main content */}
       <div
         style={{
           flex: 1,
-          position: 'relative',
-          zIndex: 3,
+          padding: '24px 32px',
+          boxSizing: 'border-box',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
         }}
       >
-        {/* Branding */}
-        <div
-          style={{
-            marginBottom: 12,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
-          <span
-            style={{
-              fontFamily: 'Impact, Haettenschweiler, Arial Black, sans-serif',
-              fontSize: 34,
-              letterSpacing: 0.5,
-              color: '#ffffff',
-              textTransform: 'uppercase',
-              textShadow: '0 3px 12px rgba(0,0,0,0.7)',
-            }}
-          >
-            STEVEWILLDOIT, LLC
-          </span>
-        </div>
-
         {/* Header */}
         <div
           style={{
-            marginBottom: 24,
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 16,
+            alignItems: 'center',
+            marginBottom: 8,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-            <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>
-              Payouts
-            </h1>
-            <span style={{ fontSize: 13, opacity: 0.7 }}>
-              Clipper earnings & payment history
-            </span>
-          </div>
-
-          {upcomingRows.length > 0 && (
+          <div>
             <div
               style={{
-                fontSize: 12,
-                padding: '6px 12px',
-                borderRadius: 999,
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: 'rgba(0,0,0,0.6)',
-                display: 'flex',
-                gap: 10,
-                alignItems: 'center',
-                backdropFilter: 'blur(8px)',
+                fontSize: 28,
+                fontWeight: 800,
+                letterSpacing: 0.5,
               }}
             >
-              <span style={{ opacity: 0.85 }}>
-                {upcomingRows.length} clippers with upcoming payouts
-              </span>
-              <span
-                style={{
-                  width: 1,
-                  height: 16,
-                  background: 'rgba(255,255,255,0.15)',
-                }}
-              />
-              <span style={{ opacity: 0.9 }}>
-                Upcoming total:{' '}
-                <strong>{formatCurrency(totalAllEarned)}</strong>
-              </span>
+              Payouts
             </div>
-          )}
+            <div
+              style={{
+                fontSize: 13,
+                opacity: 0.75,
+                marginTop: 4,
+              }}
+            >
+              Clipper earnings &amp; payment history
+            </div>
+          </div>
+
+          {/* Summary pill */}
+          <div
+            style={{
+              padding: '10px 16px',
+              borderRadius: 999,
+              border: '1px solid rgba(148,163,184,0.4)',
+              background:
+                'radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,0.5))',
+              fontSize: 13,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span style={{ opacity: 0.8 }}>
+              {upcomingCount} clippers with upcoming payouts
+            </span>
+            <span>·</span>
+            <span>
+              Upcoming total:{' '}
+              <strong>{formatCurrency(upcomingTotal)}</strong>
+            </span>
+          </div>
         </div>
 
         {/* Tabs */}
         <div
           style={{
-            marginBottom: 20,
             display: 'inline-flex',
+            background: 'rgba(15,23,42,0.85)',
             borderRadius: 999,
-            border: '1px solid rgba(255,255,255,0.12)',
-            background: 'rgba(0,0,0,0.55)',
-            padding: 3,
-            backdropFilter: 'blur(8px)',
+            padding: 4,
+            border: '1px solid rgba(148,163,184,0.5)',
+            marginBottom: 12,
           }}
         >
           {[
-            { key: 'upcoming', label: 'Upcoming payouts' },
-            { key: 'history', label: 'Payment history' },
+            { id: 'upcoming', label: 'Upcoming' },
+            { id: 'due', label: 'Payments due' },
+            { id: 'history', label: 'Payment history' },
           ].map((tab) => {
-            const active = activeTab === tab.key;
+            const active = activeTab === tab.id;
             return (
               <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
                 style={{
                   border: 'none',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  padding: '6px 14px',
                   borderRadius: 999,
-                  fontSize: 12,
+                  padding: '6px 14px',
+                  fontSize: 13,
+                  cursor: 'pointer',
                   background: active
-                    ? 'linear-gradient(135deg, #f97316, #facc15)'
+                    ? 'radial-gradient(circle at top, #fbbf24, #f97316)'
                     : 'transparent',
-                  color: active ? '#000' : 'rgba(255,255,255,0.7)',
-                  fontWeight: active ? 600 : 400,
-                  boxShadow: active
-                    ? '0 0 0 1px rgba(0,0,0,0.25), 0 10px 25px rgba(0,0,0,0.7)'
-                    : 'none',
-                  transition: 'all 150ms ease',
+                  color: active ? '#020617' : '#e5e7eb',
+                  fontWeight: active ? 700 : 500,
                 }}
               >
                 {tab.label}
@@ -622,254 +742,60 @@ export default function PayoutsPage() {
           })}
         </div>
 
-        {/* Content Card */}
-        <div
-          style={{
-            borderRadius: 20,
-            background:
-              'radial-gradient(circle at top left, rgba(255,255,255,0.04), transparent 55%)',
-            padding: 20,
-            boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
-          }}
-        >
-          {/* UPCOMING TAB */}
-          {activeTab === 'upcoming' && (
-            <>
-              {loadingUpcoming && (
-                <div style={{ padding: 12, fontSize: 14, opacity: 0.8 }}>
-                  Loading upcoming payouts…
-                </div>
-              )}
+        {/* Active tab content */}
+        <div style={{ marginTop: 8 }}>
+          {activeTab === 'upcoming' && renderUpcomingOrDueTable(upcomingRows)}
 
-              {!loadingUpcoming && upcomingError && (
-                <div
-                  style={{
-                    padding: 10,
-                    marginBottom: 8,
-                    fontSize: 12,
-                    borderRadius: 10,
-                    background: 'rgba(252, 165, 0, 0.08)',
-                    border: '1px solid rgba(252, 211, 77, 0.4)',
-                    color: '#fed7aa',
-                  }}
-                >
-                  {upcomingError}
-                </div>
-              )}
+          {activeTab === 'due' && renderUpcomingOrDueTable(dueRows)}
 
-              {!loadingUpcoming && upcomingRows.length === 0 && (
-                <div style={{ padding: 12, fontSize: 14, opacity: 0.8 }}>
-                  No upcoming payouts yet.
-                </div>
-              )}
-
-              {!loadingUpcoming && upcomingRows.length > 0 && (
-                <div
-                  style={{
-                    overflowX: 'auto',
-                    marginTop: 4,
-                  }}
-                >
-                  <table
-                    style={{
-                      width: '100%',
-                      borderCollapse: 'collapse',
-                      fontSize: 14,
-                    }}
-                  >
-                    <thead>
-                      <tr>
-                        <th
-                          style={{
-                            textAlign: 'left',
-                            padding: '10px 6px',
-                            borderBottom:
-                              '1px solid rgba(255,255,255,0.12)',
-                            fontWeight: 500,
-                            opacity: 0.7,
-                          }}
-                        >
-                          Clipper
-                        </th>
-                        <th
-                          style={{
-                            textAlign: 'left',
-                            padding: '10px 6px',
-                            borderBottom:
-                              '1px solid rgba(255,255,255,0.12)',
-                            fontWeight: 500,
-                            opacity: 0.7,
-                          }}
-                        >
-                          Total earned
-                        </th>
-                        <th
-                          style={{
-                            textAlign: 'left',
-                            padding: '10px 6px',
-                            borderBottom:
-                              '1px solid rgba(255,255,255,0.12)',
-                            fontWeight: 500,
-                            opacity: 0.7,
-                          }}
-                        >
-                          Last payout
-                        </th>
-                        <th
-                          style={{
-                            textAlign: 'left',
-                            padding: '10px 6px',
-                            borderBottom:
-                              '1px solid rgba(255,255,255,0.12)',
-                            fontWeight: 500,
-                            opacity: 0.7,
-                          }}
-                        >
-                          Processor
-                        </th>
-                        <th
-                          style={{
-                            textAlign: 'right',
-                            padding: '10px 6px',
-                            borderBottom:
-                              '1px solid rgba(255,255,255,0.12)',
-                            fontWeight: 500,
-                            opacity: 0.7,
-                          }}
-                        >
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {upcomingRows.map((row) => (
-                        <tr key={row.clipper_id}>
-                          <td
-                            style={{
-                              padding: '10px 6px',
-                              borderBottom:
-                                '1px solid rgba(255,255,255,0.06)',
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                              }}
-                            >
-                              <span>{row.clipper_name || row.clipper_id}</span>
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  opacity: 0.6,
-                                  marginTop: 1,
-                                }}
-                              >
-                                ID: {row.clipper_id}
-                              </span>
-                            </div>
-                          </td>
-                          <td
-                            style={{
-                              padding: '10px 6px',
-                              borderBottom:
-                                '1px solid rgba(255,255,255,0.06)',
-                              fontWeight: 500,
-                            }}
-                          >
-                            {formatCurrency(row.total_earned_usd)}
-                          </td>
-                          <td
-                            style={{
-                              padding: '10px 6px',
-                              borderBottom:
-                                '1px solid rgba(255,255,255,0.06)',
-                              opacity: 0.8,
-                            }}
-                          >
-                            {formatDate(row.last_payout_date)}
-                          </td>
-                          <td
-                            style={{
-                              padding: '10px 6px',
-                              borderBottom:
-                                '1px solid rgba(255,255,255,0.06)',
-                            }}
-                          >
-                            <ProcessorBadge processor={row.processor} />
-                          </td>
-                          <td
-                            style={{
-                              padding: '10px 6px',
-                              borderBottom:
-                                '1px solid rgba(255,255,255,0.06)',
-                              textAlign: 'right',
-                            }}
-                          >
-                            <button
-                              onClick={() => handleDemoPayClick(row)}
-                              style={{
-                                borderRadius: 999,
-                                border: 'none',
-                                padding: '6px 14px',
-                                cursor: 'pointer',
-                                fontSize: 12,
-                                fontWeight: 500,
-                                background:
-                                  'linear-gradient(135deg, #22c55e, #4ade80)',
-                                color: '#03240c',
-                                boxShadow:
-                                  '0 10px 25px rgba(34,197,94,0.45)',
-                              }}
-                            >
-                              Pay
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* HISTORY TAB */}
           {activeTab === 'history' && (
-            <>
+            <div
+              style={{
+                borderRadius: 24,
+                padding: 16,
+                background:
+                  'radial-gradient(circle at top left, rgba(30,64,175,0.22), rgba(15,23,42,0.9))',
+                border: '1px solid rgba(148,163,184,0.4)',
+              }}
+            >
+              {/* Filters */}
               <div
                 style={{
                   display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 12,
-                  marginBottom: 16,
-                  alignItems: 'center',
                   justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                  gap: 12,
+                  flexWrap: 'wrap',
                 }}
               >
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 4,
-                    }}
-                  >
-                    <span style={{ opacity: 0.7 }}>Filter by clipper</span>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: 10,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  {/* Filter by clipper */}
+                  <div>
+                    <div
+                      style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}
+                    >
+                      Filter by clipper
+                    </div>
                     <select
                       value={historyClipper}
                       onChange={(e) => setHistoryClipper(e.target.value)}
                       style={{
-                        fontSize: 12,
-                        padding: '6px 8px',
+                        padding: '6px 10px',
                         borderRadius: 999,
-                        border: '1px solid rgba(255,255,255,0.16)',
-                        background: 'rgba(0,0,0,0.6)',
-                        color: 'rgba(255,255,255,0.9)',
+                        border: '1px solid rgba(148,163,184,0.6)',
+                        background: 'rgba(15,23,42,0.9)',
+                        color: '#e5e7eb',
+                        fontSize: 12,
                       }}
                     >
-                      {clipperOptions.map((opt) => (
+                      {historyClipperOptions.map((opt) => (
                         <option key={opt} value={opt}>
                           {opt === 'all' ? 'All clippers' : opt}
                         </option>
@@ -877,77 +803,81 @@ export default function PayoutsPage() {
                     </select>
                   </div>
 
-                  <div
-                    style={{
-                      fontSize: 12,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 4,
-                    }}
-                  >
-                    <span style={{ opacity: 0.7 }}>Filter by month</span>
+                  {/* Filter by month */}
+                  <div>
+                    <div
+                      style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}
+                    >
+                      Filter by month
+                    </div>
                     <select
                       value={historyMonth}
                       onChange={(e) => setHistoryMonth(e.target.value)}
                       style={{
-                        fontSize: 12,
-                        padding: '6px 8px',
+                        padding: '6px 10px',
                         borderRadius: 999,
-                        border: '1px solid rgba(255,255,255,0.16)',
-                        background: 'rgba(0,0,0,0.6)',
-                        color: 'rgba(255,255,255,0.9)',
+                        border: '1px solid rgba(148,163,184,0.6)',
+                        background: 'rgba(15,23,42,0.9)',
+                        color: '#e5e7eb',
+                        fontSize: 12,
                       }}
                     >
-                      {monthOptions.map((opt) => {
-                        if (opt === 'all') {
-                          return (
-                            <option key={opt} value={opt}>
-                              All months
-                            </option>
-                          );
-                        }
-                        const [yy, mm] = opt.split('-');
-                        const label = formatDate(`${yy}-${mm}-01`).slice(0, 8);
-                        return (
-                          <option key={opt} value={opt}>
-                            {label}
-                          </option>
-                        );
-                      })}
+                      {historyMonthOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt === 'all' ? 'All months' : opt}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
+                {/* Summary */}
                 <div
                   style={{
                     fontSize: 12,
-                    padding: '6px 12px',
-                    borderRadius: 999,
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    background: 'rgba(0,0,0,0.6)',
+                    opacity: 0.9,
                   }}
                 >
-                  Showing {filteredHistory.length} payments · Total:{' '}
-                  <strong>{formatCurrency(totalHistoryPaid)}</strong>
+                  Showing {historySummary.count} payments · Total:{' '}
+                  <strong>{formatCurrency(historySummary.total)}</strong>
                 </div>
               </div>
 
-              {filteredHistory.length === 0 ? (
-                <div style={{ padding: 12, fontSize: 14, opacity: 0.8 }}>
-                  No payments match the selected filters.
+              {/* History table */}
+              {historyLoading && (
+                <div style={{ fontSize: 14, opacity: 0.8 }}>
+                  Loading payment history...
                 </div>
-              ) : (
+              )}
+
+              {historyError && (
+                <div style={{ fontSize: 14, color: '#fecaca' }}>
+                  {historyError}
+                </div>
+              )}
+
+              {!historyLoading && !historyError && filteredHistory.length === 0 && (
+                <div style={{ fontSize: 14, opacity: 0.8 }}>
+                  No payments found for the selected filters.
+                </div>
+              )}
+
+              {!historyLoading && !historyError && filteredHistory.length > 0 && (
                 <div
                   style={{
-                    overflowX: 'auto',
-                    marginTop: 4,
+                    borderRadius: 18,
+                    overflow: 'hidden',
+                    border: '1px solid rgba(148,163,184,0.4)',
+                    background:
+                      'radial-gradient(circle at top, rgba(15,23,42,0.95), rgba(15,23,42,0.9))',
+                    marginTop: 8,
                   }}
                 >
                   <table
                     style={{
                       width: '100%',
                       borderCollapse: 'collapse',
-                      fontSize: 14,
+                      fontSize: 13,
                     }}
                   >
                     <thead>
@@ -955,7 +885,7 @@ export default function PayoutsPage() {
                         <th
                           style={{
                             textAlign: 'left',
-                            padding: '10px 6px',
+                            padding: '10px 16px',
                             borderBottom:
                               '1px solid rgba(255,255,255,0.12)',
                             fontWeight: 500,
@@ -966,8 +896,20 @@ export default function PayoutsPage() {
                         </th>
                         <th
                           style={{
-                            textAlign: 'left',
-                            padding: '10px 6px',
+                            textAlign: 'right',
+                            padding: '10px 8px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.12)',
+                            fontWeight: 500,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Month
+                        </th>
+                        <th
+                          style={{
+                            textAlign: 'right',
+                            padding: '10px 8px',
                             borderBottom:
                               '1px solid rgba(255,255,255,0.12)',
                             fontWeight: 500,
@@ -978,8 +920,8 @@ export default function PayoutsPage() {
                         </th>
                         <th
                           style={{
-                            textAlign: 'left',
-                            padding: '10px 6px',
+                            textAlign: 'right',
+                            padding: '10px 8px',
                             borderBottom:
                               '1px solid rgba(255,255,255,0.12)',
                             fontWeight: 500,
@@ -990,8 +932,8 @@ export default function PayoutsPage() {
                         </th>
                         <th
                           style={{
-                            textAlign: 'left',
-                            padding: '10px 6px',
+                            textAlign: 'center',
+                            padding: '10px 8px',
                             borderBottom:
                               '1px solid rgba(255,255,255,0.12)',
                             fontWeight: 500,
@@ -1002,8 +944,8 @@ export default function PayoutsPage() {
                         </th>
                         <th
                           style={{
-                            textAlign: 'left',
-                            padding: '10px 6px',
+                            textAlign: 'center',
+                            padding: '10px 16px',
                             borderBottom:
                               '1px solid rgba(255,255,255,0.12)',
                             fontWeight: 500,
@@ -1015,87 +957,113 @@ export default function PayoutsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredHistory.map((row) => (
-                        <tr key={row.id}>
+                      {filteredHistory.map((row, idx) => (
+                        <tr
+                          key={row.payout_id || idx}
+                          style={{
+                            borderBottom:
+                              idx !== filteredHistory.length - 1
+                                ? '1px solid rgba(148,163,184,0.18)'
+                                : 'none',
+                          }}
+                        >
                           <td
                             style={{
-                              padding: '10px 6px',
-                              borderBottom:
-                                '1px solid rgba(255,255,255,0.06)',
+                              padding: '10px 16px',
+                              fontSize: 14,
+                              fontWeight: 500,
                             }}
                           >
+                            <div>{row.clipper_name || 'Clipper'}</div>
                             <div
                               style={{
-                                display: 'flex',
-                                flexDirection: 'column',
+                                fontSize: 11,
+                                opacity: 0.6,
+                                marginTop: 2,
                               }}
                             >
-                              <span>{row.clipper_name}</span>
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  opacity: 0.6,
-                                  marginTop: 1,
-                                }}
-                              >
-                                ID: {row.clipper_id}
-                              </span>
+                              ID: {row.clipper_id || '—'}
                             </div>
                           </td>
+
                           <td
                             style={{
-                              padding: '10px 6px',
-                              borderBottom:
-                                '1px solid rgba(255,255,255,0.06)',
-                              fontWeight: 500,
+                              padding: '10px 8px',
+                              fontSize: 13,
+                              textAlign: 'right',
+                              opacity: 0.85,
+                            }}
+                          >
+                            {row.earnings_month_label || '-'}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: '10px 8px',
+                              fontSize: 13,
+                              textAlign: 'right',
                             }}
                           >
                             {formatCurrency(row.amount_usd)}
                           </td>
+
                           <td
                             style={{
-                              padding: '10px 6px',
-                              borderBottom:
-                                '1px solid rgba(255,255,255,0.06)',
-                              opacity: 0.85,
+                              padding: '10px 8px',
+                              fontSize: 13,
+                              textAlign: 'right',
+                              opacity: 0.9,
                             }}
                           >
-                            {formatDateTime(row.ts)}
+                            {formatDateTime(row.completed_at || row.initiated_at)}
                           </td>
+
                           <td
                             style={{
-                              padding: '10px 6px',
-                              borderBottom:
-                                '1px solid rgba(255,255,255,0.06)',
+                              padding: '10px 8px',
+                              textAlign: 'center',
                             }}
                           >
-                            <ProcessorBadge processor={row.processor} />
-                          </td>
-                          <td
-                            style={{
-                              padding: '10px 6px',
-                              borderBottom:
-                                '1px solid rgba(255,255,255,0.06)',
-                            }}
-                          >
-                            <a
-                              href={row.invoice_url}
+                            <span
                               style={{
-                                fontSize: 12,
-                                color: '#facc15',
-                                textDecoration: 'none',
-                                borderBottom:
-                                  '1px dashed rgba(250,204,21,0.7)',
-                              }}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                alert(
-                                  'Demo only: invoice/receipt viewer coming soon.'
-                                );
+                                display: 'inline-flex',
+                                padding: '4px 10px',
+                                borderRadius: 999,
+                                fontSize: 11,
+                                fontWeight: 600,
+                                border: '1px solid rgba(148,163,184,0.4)',
+                                background:
+                                  row.processor === 'stripe'
+                                    ? 'rgba(59,130,246,0.18)'
+                                    : 'rgba(15,23,42,0.8)',
                               }}
                             >
-                              View invoice
-                            </a>
+                              {(row.processor || 'Unknown').toUpperCase()}
+                            </span>
+                          </td>
+
+                          <td
+                            style={{
+                              padding: '10px 16px',
+                              fontSize: 13,
+                              textAlign: 'center',
+                            }}
+                          >
+                            {row.invoice_url ? (
+                              <a
+                                href={row.invoice_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  color: '#facc15',
+                                  textDecoration: 'underline dotted',
+                                }}
+                              >
+                                View invoice
+                              </a>
+                            ) : (
+                              <span style={{ opacity: 0.5 }}>—</span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1103,146 +1071,125 @@ export default function PayoutsPage() {
                   </table>
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </div>
 
-      {/* PAY MODAL */}
+      {/* Demo payout modal (for now) */}
       {modalOpen && modalClipper && (
         <div
-          onClick={closeModal}
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.65)',
+            background: 'rgba(0,0,0,0.6)',
             display: 'flex',
-            justifyContent: 'center',
             alignItems: 'center',
-            zIndex: 30,
+            justifyContent: 'center',
+            zIndex: 40,
           }}
+          onClick={closeModal}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
               width: 360,
-              maxWidth: '90%',
-              borderRadius: 18,
+              maxWidth: '90vw',
+              borderRadius: 24,
               padding: 20,
               background:
-                'radial-gradient(circle at top, rgba(34,197,94,0.16), rgba(15,23,42,1))',
-              border: '1px solid rgba(34,197,94,0.5)',
-              boxShadow: '0 25px 60px rgba(0,0,0,0.9)',
-              transform: 'translateY(0)',
-              animation: 'modal-pop 220ms ease-out',
+                'radial-gradient(circle at top left, rgba(15,23,42,0.98), rgba(15,23,42,0.95))',
+              border: '1px solid rgba(148,163,184,0.6)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
             }}
           >
-            <style>
-              {`
-                @keyframes modal-pop {
-                  0% { opacity: 0; transform: translateY(10px) scale(0.96); }
-                  100% { opacity: 1; transform: translateY(0) scale(1); }
-                }
-              `}
-            </style>
-
             <div
               style={{
-                marginBottom: 10,
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                marginBottom: 10,
               }}
             >
-              <h2
-                style={{
-                  fontSize: 18,
-                  margin: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                }}
-              >
-                <span>Confirm payout</span>
-              </h2>
+              <div>
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                  }}
+                >
+                  Confirm payout
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    opacity: 0.7,
+                    marginTop: 2,
+                  }}
+                >
+                  This is still a demo modal – wiring Stripe/PayPal is next.
+                </div>
+              </div>
               <button
                 onClick={closeModal}
                 style={{
                   border: 'none',
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.7)',
+                  background: 'rgba(15,23,42,0.9)',
+                  borderRadius: 999,
+                  width: 28,
+                  height: 28,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   cursor: 'pointer',
                   fontSize: 16,
+                  color: '#e5e7eb',
                 }}
               >
-                ✕
+                ×
               </button>
             </div>
 
-            <p
-              style={{
-                fontSize: 13,
-                opacity: 0.8,
-                marginBottom: 14,
-              }}
-            >
-              This is a <strong>demo</strong> flow. In production, this button
-              would trigger a secure payout via{' '}
-              <strong>{modalClipper.processor}</strong>.
-            </p>
-
             <div
               style={{
+                marginBottom: 12,
                 fontSize: 14,
-                padding: 10,
-                borderRadius: 12,
-                background: 'rgba(15,23,42,0.9)',
-                border: '1px solid rgba(148,163,184,0.5)',
-                marginBottom: 16,
               }}
             >
               <div
                 style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: 6,
+                  marginBottom: 4,
                 }}
               >
-                <span style={{ opacity: 0.75 }}>Clipper</span>
-                <span>{modalClipper.clipper_name}</span>
+                <span style={{ opacity: 0.7 }}>Clipper</span>
+                <br />
+                <strong>{modalClipper.clipper_name}</strong>
               </div>
-
+              <div
+                style={{
+                  marginBottom: 4,
+                }}
+              >
+                <span style={{ opacity: 0.7 }}>Month</span>
+                <br />
+                <strong>{modalClipper.month_label}</strong>
+              </div>
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  marginBottom: 6,
+                  marginTop: 4,
                 }}
               >
-                <span style={{ opacity: 0.75 }}>Amount</span>
-                <span>{formatCurrency(modalClipper.total_earned_usd)}</span>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <span style={{ opacity: 0.75 }}>Processor</span>
-                <span>{modalClipper.processor}</span>
+                <span style={{ opacity: 0.7 }}>Outstanding amount</span>
+                <span>
+                  {formatCurrency(modalClipper.outstanding_usd || 0)}
+                </span>
               </div>
             </div>
 
             <button
-              onClick={() => {
-                alert(
-                  `Demo only: would send ${formatCurrency(
-                    modalClipper.total_earned_usd
-                  )} to ${modalClipper.clipper_name} via ${modalClipper.processor}.`
-                );
-                closeModal();
-              }}
+              onClick={closeModal}
               style={{
                 width: '100%',
                 padding: '8px 14px',
@@ -1265,3 +1212,5 @@ export default function PayoutsPage() {
     </div>
   );
 }
+
+export default PayoutsPage;
