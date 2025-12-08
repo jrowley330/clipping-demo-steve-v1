@@ -702,34 +702,46 @@ export default function PayoutsPage() {
 
               {/* Logout */}
               <button
-                onClick={handleLogout}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 999,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'rgba(248,250,252,0.06)',
-                  color: 'rgba(255,255,255,0.85)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <span
+                  onClick={handleLogout}
                   style={{
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    background: '#f97316',
-                    boxShadow: '0 0 0 4px rgba(251,146,60,0.35)',
+                    width: '135px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: 'rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    padding: '8px 14px',
+                    borderRadius: '999px',
+                    color: '#fff',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
                   }}
-                />
-                Log out
-              </button>
-
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '14px',
+                      height: '14px',
+                      maskImage: 'url("https://api.iconify.design/mdi/power.svg")',
+                      WebkitMaskImage: 'url("https://api.iconify.design/mdi/power.svg")',
+                      maskSize: 'contain',
+                      WebkitMaskSize: 'contain',
+                      maskRepeat: 'no-repeat',
+                      WebkitMaskRepeat: 'no-repeat',
+                      backgroundColor: '#fff',
+                    }}
+                  />
+                  Logout
+                </button>
+              
+                {/* Label at the bottom of sidebar*/}
               <div
                 style={{
                   fontSize: 11,
