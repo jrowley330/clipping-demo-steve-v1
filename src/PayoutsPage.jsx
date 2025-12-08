@@ -729,6 +729,18 @@ export default function PayoutsPage() {
                 />
                 Log out
               </button>
+
+              <div
+                style={{
+                  fontSize: 11,
+                  opacity: 0.55,
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                  paddingTop: 8,
+                  marginTop: 4,
+                }}
+              >
+                Clipper payouts hub
+              </div>
             </>
           )}
         </div>
