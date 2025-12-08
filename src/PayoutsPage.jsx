@@ -15,6 +15,13 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
 });
 
+const unwrapValue = (v) => {
+  if (v && typeof v === 'object' && 'value' in v) {
+    return v.value;
+  }
+  return v;
+};
+
 function formatCurrency(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return '$0.00';
@@ -22,8 +29,9 @@ function formatCurrency(value) {
 }
 
 function formatDate(dateLike) {
-  if (!dateLike) return '-';
-  const d = new Date(dateLike);
+  const raw = unwrapValue(dateLike);
+  if (!raw) return '-';
+  const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('en-US', {
     month: 'short',
@@ -33,8 +41,9 @@ function formatDate(dateLike) {
 }
 
 function formatDateTime(dateLike) {
-  if (!dateLike) return '-';
-  const d = new Date(dateLike);
+  const raw = unwrapValue(dateLike);
+  if (!raw) return '-';
+  const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleString('en-US', {
     month: 'short',
@@ -44,6 +53,7 @@ function formatDateTime(dateLike) {
     minute: '2-digit',
   });
 }
+
 
 const CURRENT_MONTH_LABEL = new Date().toLocaleString('en-US', {
   month: 'long',
