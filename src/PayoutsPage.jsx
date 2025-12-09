@@ -1245,7 +1245,7 @@ export default function PayoutsPage() {
         )}
       </div>
 
-    {/* Payout modal */}
+        {/* Payout modal */}
     {modalOpen && modalClipper && (
       <div
         style={{
@@ -1397,4 +1397,3 @@ export default function PayoutsPage() {
   </div>
 );
 }
-
