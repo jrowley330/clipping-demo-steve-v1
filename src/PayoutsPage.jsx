@@ -59,7 +59,7 @@ const CURRENT_MONTH_LABEL = new Date().toLocaleString('en-US', {
   month: 'long',
 });
 
-// ---------- component ----------
+// ---------- component -----------
 
 export default function PayoutsPage() {
   const navigate = useNavigate();
