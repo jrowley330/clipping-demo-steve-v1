@@ -81,6 +81,11 @@ export default function PayoutsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalClipper, setModalClipper] = useState(null);
 
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState('');
+  const [payResult, setPayResult] = useState(null); // will hold API response later
+
+
   // ---------- navigation handlers (match other pages) ----------
 
   const handleLogout = async () => {
@@ -244,6 +249,49 @@ export default function PayoutsPage() {
     setModalOpen(false);
     setModalClipper(null);
   };
+
+  const handleConfirmPay = async () => {
+    if (!modalClipper || paying) return;
+
+    try {
+      setPayError('');
+      setPayResult(null);
+      setPaying(true);
+
+      const body = {
+        clipperId: modalClipper.clipper_id,
+        month: modalClipper.month_label, // e.g. "December 2025"
+        amountUsd: Number(modalClipper.outstanding_usd || 0),
+        initiatedByUserId: 'demo-admin', // will swap for real user later
+      };
+
+      console.log('Sending payout request', body);
+
+      const res = await fetch(`${API_BASE_URL}/pay-clipper`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Pay API ${res.status}`);
+      }
+
+      setPayResult(data);
+      console.log('Payout successful', data);
+
+      // For now, just close the modal on success.
+      closeModal();
+    } catch (err) {
+      console.error('Error paying clipper:', err);
+      setPayError(err.message || 'Failed to send payout');
+    } finally {
+      setPaying(false);
+    }
+  };
+
 
   // ---------- table render for Upcoming / Due ----------
 
@@ -1197,139 +1245,152 @@ export default function PayoutsPage() {
         )}
       </div>
 
-      {/* Demo payout modal */}
-      {modalOpen && modalClipper && (
+    {/* Payout modal */}
+    {modalOpen && modalClipper && (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 40,
+        }}
+        onClick={closeModal}
+      >
         <div
+          onClick={(e) => e.stopPropagation()}
           style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 40,
+            width: 360,
+            maxWidth: '90vw',
+            borderRadius: 24,
+            padding: 20,
+            background:
+              'radial-gradient(circle at top left, rgba(15,23,42,0.98), rgba(15,23,42,0.95))',
+            border: '1px solid rgba(148,163,184,0.6)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
           }}
-          onClick={closeModal}
         >
           <div
-            onClick={(e) => e.stopPropagation()}
             style={{
-              width: 360,
-              maxWidth: '90vw',
-              borderRadius: 24,
-              padding: 20,
-              background:
-                'radial-gradient(circle at top left, rgba(15,23,42,0.98), rgba(15,23,42,0.95))',
-              border: '1px solid rgba(148,163,184,0.6)',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 10,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                }}
+              >
+                Confirm payout
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  opacity: 0.7,
+                  marginTop: 2,
+                }}
+              >
+                This will trigger a test payout via Stripe for this clipper.
+              </div>
+            </div>
+            <button
+              onClick={closeModal}
+              style={{
+                border: 'none',
+                background: 'rgba(15,23,42,0.9)',
+                borderRadius: 999,
+                width: 28,
+                height: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: 16,
+                color: '#e5e7eb',
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          <div
+            style={{
+              marginBottom: 12,
+              fontSize: 14,
             }}
           >
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 10,
+                marginBottom: 6,
               }}
             >
-              <div>
-                <div
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 700,
-                  }}
-                >
-                  Confirm payout
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    opacity: 0.7,
-                    marginTop: 2,
-                  }}
-                >
-                  This is still a demo modal – wiring Stripe/PayPal is next.
-                </div>
-              </div>
-              <button
-                onClick={closeModal}
-                style={{
-                  border: 'none',
-                  background: 'rgba(15,23,42,0.9)',
-                  borderRadius: 999,
-                  width: 28,
-                  height: 28,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: 16,
-                  color: '#e5e7eb',
-                }}
-              >
-                ×
-              </button>
+              <span style={{ opacity: 0.7 }}>Clipper</span>
+              <strong>{modalClipper.clipper_name}</strong>
             </div>
-
             <div
               style={{
-                marginBottom: 12,
-                fontSize: 14,
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: 6,
               }}
             >
-              <div
-                style={{
-                  marginBottom: 4,
-                }}
-              >
-                <span style={{ opacity: 0.7 }}>Clipper</span>
-                <br />
-                <strong>{modalClipper.clipper_name}</strong>
-              </div>
-              <div
-                style={{
-                  marginBottom: 4,
-                }}
-              >
-                <span style={{ opacity: 0.7 }}>Month</span>
-                <br />
-                <strong>{modalClipper.month_label}</strong>
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginTop: 4,
-                }}
-              >
-                <span style={{ opacity: 0.7 }}>Outstanding amount</span>
-                <span>
-                  {formatCurrency(modalClipper.outstanding_usd || 0)}
-                </span>
-              </div>
+              <span style={{ opacity: 0.7 }}>Month</span>
+              <strong>{modalClipper.month_label}</strong>
             </div>
-
-            <button
-              onClick={closeModal}
+            <div
               style={{
-                width: '100%',
-                padding: '8px 14px',
-                borderRadius: 999,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 600,
-                background:
-                  'linear-gradient(135deg, #22c55e, #4ade80, #bbf7d0)',
-                color: '#022c22',
-                boxShadow: '0 15px 35px rgba(34,197,94,0.5)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginTop: 4,
               }}
             >
-              Confirm demo payout
-            </button>
+              <span style={{ opacity: 0.7 }}>Outstanding amount</span>
+              <span>
+                {formatCurrency(modalClipper.outstanding_usd || 0)}
+              </span>
+            </div>
           </div>
+
+          {payError && (
+            <div
+              style={{
+                marginBottom: 8,
+                fontSize: 13,
+                color: '#fecaca',
+              }}
+            >
+              {payError}
+            </div>
+          )}
+
+          <button
+            onClick={handleConfirmPay}
+            disabled={paying}
+            style={{
+              width: '100%',
+              padding: '8px 14px',
+              borderRadius: 999,
+              border: 'none',
+              cursor: paying ? 'not-allowed' : 'pointer',
+              fontSize: 14,
+              fontWeight: 600,
+              background:
+                'linear-gradient(135deg, #22c55e, #4ade80, #bbf7d0)',
+              color: '#022c22',
+              boxShadow: '0 15px 35px rgba(34,197,94,0.5)',
+              opacity: paying ? 0.7 : 1,
+            }}
+          >
+            {paying ? 'Processing payout…' : 'Confirm payout'}
+          </button>
         </div>
-      )}
-    </div>
-  );
-}
+      </div>
+    )}
