@@ -1394,3 +1394,7 @@ export default function PayoutsPage() {
         </div>
       </div>
     )}
+  </div>
+);
+}
+
