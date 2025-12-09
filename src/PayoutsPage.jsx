@@ -1,4 +1,4 @@
-// PayoutsPage.jsxx
+// PayoutsPage.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
@@ -28,18 +28,6 @@ function formatCurrency(value) {
   return currencyFormatter.format(n);
 }
 
-function formatDate(dateLike) {
-  const raw = unwrapValue(dateLike);
-  if (!raw) return '-';
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return '-';
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
 function formatDateTime(dateLike) {
   const raw = unwrapValue(dateLike);
   if (!raw) return '-';
@@ -54,12 +42,11 @@ function formatDateTime(dateLike) {
   });
 }
 
-
 const CURRENT_MONTH_LABEL = new Date().toLocaleString('en-US', {
   month: 'long',
 });
 
-// ---------- component ----------
+// ---------- component -----------
 
 export default function PayoutsPage() {
   const navigate = useNavigate();
@@ -80,6 +67,10 @@ export default function PayoutsPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalClipper, setModalClipper] = useState(null);
+
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState('');
+  const [payResult, setPayResult] = useState(null); // will hold API response later
 
   // ---------- navigation handlers (match other pages) ----------
 
@@ -233,7 +224,7 @@ export default function PayoutsPage() {
     [filteredHistory]
   );
 
-  // ---------- modal handlers (still demo, Stripe later) ----------
+  // ---------- modal handlers ----------
 
   const handlePayClick = (row) => {
     setModalClipper(row);
@@ -243,6 +234,50 @@ export default function PayoutsPage() {
   const closeModal = () => {
     setModalOpen(false);
     setModalClipper(null);
+    setPayError('');
+  };
+
+  const handleConfirmPay = async () => {
+    if (!modalClipper || paying) return;
+
+    try {
+      setPayError('');
+      setPayResult(null);
+      setPaying(true);
+
+      const body = {
+        clipperId: modalClipper.clipper_id,
+        month: modalClipper.month_label, // e.g. "December 2025"
+        amountUsd: Number(modalClipper.outstanding_usd || 0),
+        initiatedByUserId: 'demo-admin', // TODO: replace with real user id
+      };
+
+      console.log('Sending payout request', body);
+
+      const res = await fetch(`${API_BASE_URL}/pay-clipper`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Pay API ${res.status}`);
+      }
+
+      setPayResult(data);
+      console.log('Payout successful', data);
+
+      // Simple v1: notify + reload data
+      alert('Payout successful!');
+      window.location.reload();
+    } catch (err) {
+      console.error('Error paying clipper:', err);
+      setPayError(err.message || 'Failed to send payout');
+    } finally {
+      setPaying(false);
+    }
   };
 
   // ---------- table render for Upcoming / Due ----------
@@ -546,193 +581,193 @@ export default function PayoutsPage() {
         STEVEWILLDOIT
       </div>
 
-{/* SIDEBAR */}
-<div
-  style={{
-    width: sidebarOpen ? 190 : 54,
-    transition: 'width 180ms ease',
-    marginRight: 22,
-    position: 'relative',
-    zIndex: 2,
-  }}
->
-  <div
-    style={{
-      borderRadius: 18,
-      background: 'rgba(0,0,0,0.8)',
-      border: '1px solid rgba(255,255,255,0.06)',
-      boxShadow: '0 18px 45px rgba(0,0,0,0.8)',
-      padding: 10,
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-    }}
-  >
-    <button
-      onClick={() => setSidebarOpen((v) => !v)}
-      style={{
-        alignSelf: sidebarOpen ? 'flex-end' : 'center',
-        borderRadius: 999,
-        border: '1px solid rgba(255,255,255,0.18)',
-        background: 'rgba(255,255,255,0.06)',
-        color: '#fff',
-        cursor: 'pointer',
-        fontSize: 11,
-        padding: '4px 7px',
-      }}
-    >
-      {sidebarOpen ? '◀' : '▶'}
-    </button>
-
-    {sidebarOpen && (
-      <>
+      {/* SIDEBAR */}
+      <div
+        style={{
+          width: sidebarOpen ? 190 : 54,
+          transition: 'width 180ms ease',
+          marginRight: 22,
+          position: 'relative',
+          zIndex: 2,
+        }}
+      >
         <div
           style={{
-            fontSize: 11,
-            textTransform: 'uppercase',
-            letterSpacing: 0.1,
-            opacity: 0.6,
-            marginTop: 4,
-            marginBottom: 4,
-          }}
-        >
-          Navigation
-        </div>
-
-        {/* Dashboards V2 */}
-        <button
-          onClick={handleGoDashV2}
-          style={{
-            border: 'none',
-            outline: 'none',
-            borderRadius: 12,
-            padding: '7px 10px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontSize: 12,
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.7)',
-          }}
-        >
-          Dashboards V2
-        </button>
-
-        {/* Payouts (current) */}
-        <button
-          onClick={() => navigate('/payouts')}
-          style={{
-            border: 'none',
-            outline: 'none',
-            borderRadius: 12,
-            padding: '8px 10px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontSize: 13,
-            background:
-              'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
-            color: '#020617',
-            fontWeight: 600,
-            marginBottom: 2,
-          }}
-        >
-          Payouts
-        </button>
-
-        {/* Clippers */}
-        <button
-          onClick={handleGoClippers}
-          style={{
-            border: 'none',
-            outline: 'none',
-            borderRadius: 12,
-            padding: '7px 10px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontSize: 12,
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.7)',
-            marginTop: 2,
-          }}
-        >
-          Clippers
-        </button>
-
-        {/* Settings */}
-        <button
-          style={{
-            border: 'none',
-            outline: 'none',
-            borderRadius: 12,
-            padding: '7px 10px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontSize: 12,
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.55)',
-          }}
-        >
-          Settings
-        </button>
-
-        <div style={{ flexGrow: 1 }} />
-
-        {/* Dashboards V1 at bottom */}
-        <button
-          onClick={handleGoDashV1}
-          style={{
-            border: 'none',
-            outline: 'none',
-            borderRadius: 12,
-            padding: '7px 10px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontSize: 12,
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.7)',
-            marginBottom: 4,
-          }}
-        >
-          Dashboards V1
-        </button>
-
-        {/* Logout (same look as other pages) */}
-        <button
-          onClick={handleLogout}
-          style={{
-            border: 'none',
-            outline: 'none',
-            borderRadius: 999,
-            padding: '7px 10px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontSize: 12,
-            background: 'rgba(248,250,252,0.06)',
-            color: 'rgba(255,255,255,0.85)',
+            borderRadius: 18,
+            background: 'rgba(0,0,0,0.8)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow: '0 18px 45px rgba(0,0,0,0.8)',
+            padding: 10,
+            height: '100%',
             display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            marginBottom: 6,
+            flexDirection: 'column',
+            gap: 10,
           }}
         >
-          <span style={{ fontSize: 12 }}>⏻</span>
-          Logout
-        </button>
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            style={{
+              alignSelf: sidebarOpen ? 'flex-end' : 'center',
+              borderRadius: 999,
+              border: '1px solid rgba(255,255,255,0.18)',
+              background: 'rgba(255,255,255,0.06)',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: 11,
+              padding: '4px 7px',
+            }}
+          >
+            {sidebarOpen ? '◀' : '▶'}
+          </button>
 
-        <div
-          style={{
-            fontSize: 11,
-            opacity: 0.55,
-            borderTop: '1px solid rgba(255,255,255,0.08)',
-            paddingTop: 8,
-          }}
-        >
-          Clipper payouts hub
+          {sidebarOpen && (
+            <>
+              <div
+                style={{
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.1,
+                  opacity: 0.6,
+                  marginTop: 4,
+                  marginBottom: 4,
+                }}
+              >
+                Navigation
+              </div>
+
+              {/* Dashboards V2 */}
+              <button
+                onClick={handleGoDashV2}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                Dashboards V2
+              </button>
+
+              {/* Payouts (current) */}
+              <button
+                onClick={handleGoPayouts}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '8px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  background:
+                    'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
+                  color: '#020617',
+                  fontWeight: 600,
+                  marginBottom: 2,
+                }}
+              >
+                Payouts
+              </button>
+
+              {/* Clippers */}
+              <button
+                onClick={handleGoClippers}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginTop: 2,
+                }}
+              >
+                Clippers
+              </button>
+
+              {/* Settings */}
+              <button
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.55)',
+                }}
+              >
+                Settings
+              </button>
+
+              <div style={{ flexGrow: 1 }} />
+
+              {/* Dashboards V1 at bottom */}
+              <button
+                onClick={handleGoDashV1}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginBottom: 4,
+                }}
+              >
+                Dashboards V1
+              </button>
+
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 999,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'rgba(248,250,252,0.06)',
+                  color: 'rgba(255,255,255,0.85)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginBottom: 6,
+                }}
+              >
+                <span style={{ fontSize: 12 }}>⏻</span>
+                Logout
+              </button>
+
+              <div
+                style={{
+                  fontSize: 11,
+                  opacity: 0.55,
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                  paddingTop: 8,
+                }}
+              >
+                Clipper payouts hub
+              </div>
+            </>
+          )}
         </div>
-      </>
-    )}
-  </div>
-</div>
+      </div>
 
       {/* MAIN CONTENT */}
       <div
@@ -851,7 +886,6 @@ export default function PayoutsPage() {
 
         {/* Content card */}
         {activeTab === 'upcoming' && renderUpcomingOrDueTable(upcomingRows)}
-
         {activeTab === 'due' && renderUpcomingOrDueTable(dueRows)}
 
         {activeTab === 'history' && (
@@ -1197,7 +1231,7 @@ export default function PayoutsPage() {
         )}
       </div>
 
-      {/* Demo payout modal */}
+      {/* Payout modal */}
       {modalOpen && modalClipper && (
         <div
           style={{
@@ -1248,7 +1282,7 @@ export default function PayoutsPage() {
                     marginTop: 2,
                   }}
                 >
-                  This is still a demo modal – wiring Stripe/PayPal is next.
+                  This will trigger a test payout via Stripe for this clipper.
                 </div>
               </div>
               <button
@@ -1279,20 +1313,22 @@ export default function PayoutsPage() {
             >
               <div
                 style={{
-                  marginBottom: 4,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: 6,
                 }}
               >
                 <span style={{ opacity: 0.7 }}>Clipper</span>
-                <br />
                 <strong>{modalClipper.clipper_name}</strong>
               </div>
               <div
                 style={{
-                  marginBottom: 4,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: 6,
                 }}
               >
                 <span style={{ opacity: 0.7 }}>Month</span>
-                <br />
                 <strong>{modalClipper.month_label}</strong>
               </div>
               <div
@@ -1309,23 +1345,37 @@ export default function PayoutsPage() {
               </div>
             </div>
 
+            {payError && (
+              <div
+                style={{
+                  marginBottom: 8,
+                  fontSize: 13,
+                  color: '#fecaca',
+                }}
+              >
+                {payError}
+              </div>
+            )}
+
             <button
-              onClick={closeModal}
+              onClick={handleConfirmPay}
+              disabled={paying}
               style={{
                 width: '100%',
                 padding: '8px 14px',
                 borderRadius: 999,
                 border: 'none',
-                cursor: 'pointer',
+                cursor: paying ? 'not-allowed' : 'pointer',
                 fontSize: 14,
                 fontWeight: 600,
                 background:
                   'linear-gradient(135deg, #22c55e, #4ade80, #bbf7d0)',
                 color: '#022c22',
                 boxShadow: '0 15px 35px rgba(34,197,94,0.5)',
+                opacity: paying ? 0.7 : 1,
               }}
             >
-              Confirm demo payout
+              {paying ? 'Processing payout…' : 'Confirm payout'}
             </button>
           </div>
         </div>
