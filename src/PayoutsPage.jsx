@@ -28,18 +28,6 @@ function formatCurrency(value) {
   return currencyFormatter.format(n);
 }
 
-function formatDate(dateLike) {
-  const raw = unwrapValue(dateLike);
-  if (!raw) return '-';
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return '-';
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
 function formatDateTime(dateLike) {
   const raw = unwrapValue(dateLike);
   if (!raw) return '-';
@@ -53,7 +41,6 @@ function formatDateTime(dateLike) {
     minute: '2-digit',
   });
 }
-
 
 const CURRENT_MONTH_LABEL = new Date().toLocaleString('en-US', {
   month: 'long',
@@ -84,7 +71,6 @@ export default function PayoutsPage() {
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
   const [payResult, setPayResult] = useState(null); // will hold API response later
-
 
   // ---------- navigation handlers (match other pages) ----------
 
@@ -238,7 +224,7 @@ export default function PayoutsPage() {
     [filteredHistory]
   );
 
-  // ---------- modal handlers (still demo, Stripe later) ----------
+  // ---------- modal handlers ----------
 
   const handlePayClick = (row) => {
     setModalClipper(row);
@@ -248,6 +234,7 @@ export default function PayoutsPage() {
   const closeModal = () => {
     setModalOpen(false);
     setModalClipper(null);
+    setPayError('');
   };
 
   const handleConfirmPay = async () => {
@@ -262,7 +249,7 @@ export default function PayoutsPage() {
         clipperId: modalClipper.clipper_id,
         month: modalClipper.month_label, // e.g. "December 2025"
         amountUsd: Number(modalClipper.outstanding_usd || 0),
-        initiatedByUserId: 'demo-admin', // will swap for real user later
+        initiatedByUserId: 'demo-admin', // TODO: replace with real user id
       };
 
       console.log('Sending payout request', body);
@@ -282,8 +269,9 @@ export default function PayoutsPage() {
       setPayResult(data);
       console.log('Payout successful', data);
 
-      // For now, just close the modal on success.
-      closeModal();
+      // Simple v1: notify + reload data
+      alert('Payout successful!');
+      window.location.reload();
     } catch (err) {
       console.error('Error paying clipper:', err);
       setPayError(err.message || 'Failed to send payout');
@@ -291,7 +279,6 @@ export default function PayoutsPage() {
       setPaying(false);
     }
   };
-
 
   // ---------- table render for Upcoming / Due ----------
 
@@ -594,193 +581,193 @@ export default function PayoutsPage() {
         STEVEWILLDOIT
       </div>
 
-{/* SIDEBAR */}
-<div
-  style={{
-    width: sidebarOpen ? 190 : 54,
-    transition: 'width 180ms ease',
-    marginRight: 22,
-    position: 'relative',
-    zIndex: 2,
-  }}
->
-  <div
-    style={{
-      borderRadius: 18,
-      background: 'rgba(0,0,0,0.8)',
-      border: '1px solid rgba(255,255,255,0.06)',
-      boxShadow: '0 18px 45px rgba(0,0,0,0.8)',
-      padding: 10,
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-    }}
-  >
-    <button
-      onClick={() => setSidebarOpen((v) => !v)}
-      style={{
-        alignSelf: sidebarOpen ? 'flex-end' : 'center',
-        borderRadius: 999,
-        border: '1px solid rgba(255,255,255,0.18)',
-        background: 'rgba(255,255,255,0.06)',
-        color: '#fff',
-        cursor: 'pointer',
-        fontSize: 11,
-        padding: '4px 7px',
-      }}
-    >
-      {sidebarOpen ? '◀' : '▶'}
-    </button>
-
-    {sidebarOpen && (
-      <>
+      {/* SIDEBAR */}
+      <div
+        style={{
+          width: sidebarOpen ? 190 : 54,
+          transition: 'width 180ms ease',
+          marginRight: 22,
+          position: 'relative',
+          zIndex: 2,
+        }}
+      >
         <div
           style={{
-            fontSize: 11,
-            textTransform: 'uppercase',
-            letterSpacing: 0.1,
-            opacity: 0.6,
-            marginTop: 4,
-            marginBottom: 4,
-          }}
-        >
-          Navigation
-        </div>
-
-        {/* Dashboards V2 */}
-        <button
-          onClick={handleGoDashV2}
-          style={{
-            border: 'none',
-            outline: 'none',
-            borderRadius: 12,
-            padding: '7px 10px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontSize: 12,
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.7)',
-          }}
-        >
-          Dashboards V2
-        </button>
-
-        {/* Payouts (current) */}
-        <button
-          onClick={() => navigate('/payouts')}
-          style={{
-            border: 'none',
-            outline: 'none',
-            borderRadius: 12,
-            padding: '8px 10px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontSize: 13,
-            background:
-              'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
-            color: '#020617',
-            fontWeight: 600,
-            marginBottom: 2,
-          }}
-        >
-          Payouts
-        </button>
-
-        {/* Clippers */}
-        <button
-          onClick={handleGoClippers}
-          style={{
-            border: 'none',
-            outline: 'none',
-            borderRadius: 12,
-            padding: '7px 10px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontSize: 12,
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.7)',
-            marginTop: 2,
-          }}
-        >
-          Clippers
-        </button>
-
-        {/* Settings */}
-        <button
-          style={{
-            border: 'none',
-            outline: 'none',
-            borderRadius: 12,
-            padding: '7px 10px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontSize: 12,
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.55)',
-          }}
-        >
-          Settings
-        </button>
-
-        <div style={{ flexGrow: 1 }} />
-
-        {/* Dashboards V1 at bottom */}
-        <button
-          onClick={handleGoDashV1}
-          style={{
-            border: 'none',
-            outline: 'none',
-            borderRadius: 12,
-            padding: '7px 10px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontSize: 12,
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.7)',
-            marginBottom: 4,
-          }}
-        >
-          Dashboards V1
-        </button>
-
-        {/* Logout (same look as other pages) */}
-        <button
-          onClick={handleLogout}
-          style={{
-            border: 'none',
-            outline: 'none',
-            borderRadius: 999,
-            padding: '7px 10px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontSize: 12,
-            background: 'rgba(248,250,252,0.06)',
-            color: 'rgba(255,255,255,0.85)',
+            borderRadius: 18,
+            background: 'rgba(0,0,0,0.8)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow: '0 18px 45px rgba(0,0,0,0.8)',
+            padding: 10,
+            height: '100%',
             display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            marginBottom: 6,
+            flexDirection: 'column',
+            gap: 10,
           }}
         >
-          <span style={{ fontSize: 12 }}>⏻</span>
-          Logout
-        </button>
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            style={{
+              alignSelf: sidebarOpen ? 'flex-end' : 'center',
+              borderRadius: 999,
+              border: '1px solid rgba(255,255,255,0.18)',
+              background: 'rgba(255,255,255,0.06)',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: 11,
+              padding: '4px 7px',
+            }}
+          >
+            {sidebarOpen ? '◀' : '▶'}
+          </button>
 
-        <div
-          style={{
-            fontSize: 11,
-            opacity: 0.55,
-            borderTop: '1px solid rgba(255,255,255,0.08)',
-            paddingTop: 8,
-          }}
-        >
-          Clipper payouts hub
+          {sidebarOpen && (
+            <>
+              <div
+                style={{
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.1,
+                  opacity: 0.6,
+                  marginTop: 4,
+                  marginBottom: 4,
+                }}
+              >
+                Navigation
+              </div>
+
+              {/* Dashboards V2 */}
+              <button
+                onClick={handleGoDashV2}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                Dashboards V2
+              </button>
+
+              {/* Payouts (current) */}
+              <button
+                onClick={handleGoPayouts}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '8px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  background:
+                    'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
+                  color: '#020617',
+                  fontWeight: 600,
+                  marginBottom: 2,
+                }}
+              >
+                Payouts
+              </button>
+
+              {/* Clippers */}
+              <button
+                onClick={handleGoClippers}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginTop: 2,
+                }}
+              >
+                Clippers
+              </button>
+
+              {/* Settings */}
+              <button
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.55)',
+                }}
+              >
+                Settings
+              </button>
+
+              <div style={{ flexGrow: 1 }} />
+
+              {/* Dashboards V1 at bottom */}
+              <button
+                onClick={handleGoDashV1}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginBottom: 4,
+                }}
+              >
+                Dashboards V1
+              </button>
+
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 999,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'rgba(248,250,252,0.06)',
+                  color: 'rgba(255,255,255,0.85)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginBottom: 6,
+                }}
+              >
+                <span style={{ fontSize: 12 }}>⏻</span>
+                Logout
+              </button>
+
+              <div
+                style={{
+                  fontSize: 11,
+                  opacity: 0.55,
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                  paddingTop: 8,
+                }}
+              >
+                Clipper payouts hub
+              </div>
+            </>
+          )}
         </div>
-      </>
-    )}
-  </div>
-</div>
+      </div>
 
       {/* MAIN CONTENT */}
       <div
@@ -899,7 +886,6 @@ export default function PayoutsPage() {
 
         {/* Content card */}
         {activeTab === 'upcoming' && renderUpcomingOrDueTable(upcomingRows)}
-
         {activeTab === 'due' && renderUpcomingOrDueTable(dueRows)}
 
         {activeTab === 'history' && (
@@ -1245,155 +1231,155 @@ export default function PayoutsPage() {
         )}
       </div>
 
-        {/* Payout modal */}
-    {modalOpen && modalClipper && (
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.6)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 40,
-        }}
-        onClick={closeModal}
-      >
+      {/* Payout modal */}
+      {modalOpen && modalClipper && (
         <div
-          onClick={(e) => e.stopPropagation()}
           style={{
-            width: 360,
-            maxWidth: '90vw',
-            borderRadius: 24,
-            padding: 20,
-            background:
-              'radial-gradient(circle at top left, rgba(15,23,42,0.98), rgba(15,23,42,0.95))',
-            border: '1px solid rgba(148,163,184,0.6)',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 40,
           }}
+          onClick={closeModal}
         >
           <div
+            onClick={(e) => e.stopPropagation()}
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 10,
+              width: 360,
+              maxWidth: '90vw',
+              borderRadius: 24,
+              padding: 20,
+              background:
+                'radial-gradient(circle at top left, rgba(15,23,42,0.98), rgba(15,23,42,0.95))',
+              border: '1px solid rgba(148,163,184,0.6)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
             }}
           >
-            <div>
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                }}
-              >
-                Confirm payout
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  opacity: 0.7,
-                  marginTop: 2,
-                }}
-              >
-                This will trigger a test payout via Stripe for this clipper.
-              </div>
-            </div>
-            <button
-              onClick={closeModal}
+            <div
               style={{
-                border: 'none',
-                background: 'rgba(15,23,42,0.9)',
-                borderRadius: 999,
-                width: 28,
-                height: 28,
                 display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                fontSize: 16,
-                color: '#e5e7eb',
+                marginBottom: 10,
               }}
             >
-              ×
+              <div>
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                  }}
+                >
+                  Confirm payout
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    opacity: 0.7,
+                    marginTop: 2,
+                  }}
+                >
+                  This will trigger a test payout via Stripe for this clipper.
+                </div>
+              </div>
+              <button
+                onClick={closeModal}
+                style={{
+                  border: 'none',
+                  background: 'rgba(15,23,42,0.9)',
+                  borderRadius: 999,
+                  width: 28,
+                  height: 28,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  color: '#e5e7eb',
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              style={{
+                marginBottom: 12,
+                fontSize: 14,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: 6,
+                }}
+              >
+                <span style={{ opacity: 0.7 }}>Clipper</span>
+                <strong>{modalClipper.clipper_name}</strong>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: 6,
+                }}
+              >
+                <span style={{ opacity: 0.7 }}>Month</span>
+                <strong>{modalClipper.month_label}</strong>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginTop: 4,
+                }}
+              >
+                <span style={{ opacity: 0.7 }}>Outstanding amount</span>
+                <span>
+                  {formatCurrency(modalClipper.outstanding_usd || 0)}
+                </span>
+              </div>
+            </div>
+
+            {payError && (
+              <div
+                style={{
+                  marginBottom: 8,
+                  fontSize: 13,
+                  color: '#fecaca',
+                }}
+              >
+                {payError}
+              </div>
+            )}
+
+            <button
+              onClick={handleConfirmPay}
+              disabled={paying}
+              style={{
+                width: '100%',
+                padding: '8px 14px',
+                borderRadius: 999,
+                border: 'none',
+                cursor: paying ? 'not-allowed' : 'pointer',
+                fontSize: 14,
+                fontWeight: 600,
+                background:
+                  'linear-gradient(135deg, #22c55e, #4ade80, #bbf7d0)',
+                color: '#022c22',
+                boxShadow: '0 15px 35px rgba(34,197,94,0.5)',
+                opacity: paying ? 0.7 : 1,
+              }}
+            >
+              {paying ? 'Processing payout…' : 'Confirm payout'}
             </button>
           </div>
-
-          <div
-            style={{
-              marginBottom: 12,
-              fontSize: 14,
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginBottom: 6,
-              }}
-            >
-              <span style={{ opacity: 0.7 }}>Clipper</span>
-              <strong>{modalClipper.clipper_name}</strong>
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginBottom: 6,
-              }}
-            >
-              <span style={{ opacity: 0.7 }}>Month</span>
-              <strong>{modalClipper.month_label}</strong>
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginTop: 4,
-              }}
-            >
-              <span style={{ opacity: 0.7 }}>Outstanding amount</span>
-              <span>
-                {formatCurrency(modalClipper.outstanding_usd || 0)}
-              </span>
-            </div>
-          </div>
-
-          {payError && (
-            <div
-              style={{
-                marginBottom: 8,
-                fontSize: 13,
-                color: '#fecaca',
-              }}
-            >
-              {payError}
-            </div>
-          )}
-
-          <button
-            onClick={handleConfirmPay}
-            disabled={paying}
-            style={{
-              width: '100%',
-              padding: '8px 14px',
-              borderRadius: 999,
-              border: 'none',
-              cursor: paying ? 'not-allowed' : 'pointer',
-              fontSize: 14,
-              fontWeight: 600,
-              background:
-                'linear-gradient(135deg, #22c55e, #4ade80, #bbf7d0)',
-              color: '#022c22',
-              boxShadow: '0 15px 35px rgba(34,197,94,0.5)',
-              opacity: paying ? 0.7 : 1,
-            }}
-          >
-            {paying ? 'Processing payout…' : 'Confirm payout'}
-          </button>
         </div>
-      </div>
-    )}
-  </div>
-);
+      )}
+    </div>
+  );
 }
