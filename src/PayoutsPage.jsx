@@ -73,8 +73,9 @@ export default function PayoutsPage() {
   const [payResult, setPayResult] = useState(null); // will hold API response later
 
   // amount the user will pay in this payout (can be partial)
-  const [payAmount, setPayAmount] = useState(0);
+  const [payAmount, setPayAmount] = useState('0.00'); // string
   const [editingAmount, setEditingAmount] = useState(false);
+
 
   // ---------- navigation handlers (match other pages) ----------
 
@@ -230,26 +231,26 @@ export default function PayoutsPage() {
 
   // ---------- modal handlers ----------
 
-    const handlePayClick = (row) => {
-    setModalClipper(row);
+  const handlePayClick = (row) => {
+  setModalClipper(row);
 
-    const outstanding = Number(row.outstanding_usd || 0) || 0;
-    setPayAmount(outstanding);
-    setEditingAmount(false);
+  const outstanding = Number(row.outstanding_usd || 0) || 0;
+  setPayAmount(outstanding.toFixed(2)); // "193.31"
+  setEditingAmount(false);
 
-    setPayError('');
-    setPayResult(null);
-    setModalOpen(true);
-  };
+  setPayError('');
+  setPayResult(null);
+  setModalOpen(true);
+};
 
   const closeModal = () => {
-    setModalOpen(false);
-    setModalClipper(null);
-    setPayError('');
-    setPayResult(null);
-    setPayAmount(0);
-    setEditingAmount(false);
-  };
+  setModalOpen(false);
+  setModalClipper(null);
+  setPayError('');
+  setPayResult(null);
+  setPayAmount('0.00');
+  setEditingAmount(false);
+};
 
 
 
@@ -1404,15 +1405,21 @@ export default function PayoutsPage() {
                     gap: 8,
                   }}
                 >
+                  
                   {editingAmount ? (
                     <input
                       type="text"
                       value={payAmount}
                       onChange={(e) => {
                         const raw = e.target.value || '';
+                  
+                        // Allow only digits + optional single dot + up to 2 decimals
                         const cleaned = raw.replace(/[^0-9.]/g, '');
-                        const n = Number(cleaned);
-                        setPayAmount(Number.isFinite(n) ? n : 0);
+                        const validPattern = /^(\d+(\.\d{0,2})?)?$/;
+                  
+                        if (cleaned === '' || validPattern.test(cleaned)) {
+                          setPayAmount(cleaned);
+                        }
                       }}
                       style={{
                         width: 90,
@@ -1426,7 +1433,9 @@ export default function PayoutsPage() {
                       }}
                     />
                   ) : (
-                    <strong>{formatCurrency(payAmount || 0)}</strong>
+                    <strong>
+                      {formatCurrency(Number(payAmount || 0))}
+                    </strong>
                   )}
 
                   <button
