@@ -72,6 +72,9 @@ export default function PayoutsPage() {
   const [payError, setPayError] = useState('');
   const [payResult, setPayResult] = useState(null); // will hold API response later
 
+  // amount the user will pay in this payout (can be partial)
+  const [payAmount, setPayAmount] = useState(0);
+
   // ---------- navigation handlers (match other pages) ----------
 
   const handleLogout = async () => {
@@ -226,8 +229,15 @@ export default function PayoutsPage() {
 
   // ---------- modal handlers ----------
 
-  const handlePayClick = (row) => {
+    const handlePayClick = (row) => {
     setModalClipper(row);
+
+    // default to the full outstanding amount for this row
+    const outstanding = Number(row.outstanding_usd || 0) || 0;
+    setPayAmount(outstanding);
+
+    setPayError('');
+    setPayResult(null);
     setModalOpen(true);
   };
 
@@ -235,10 +245,35 @@ export default function PayoutsPage() {
     setModalOpen(false);
     setModalClipper(null);
     setPayError('');
+    setPayResult(null);
+    setPayAmount(0);
   };
 
-  const handleConfirmPay = async () => {
+
+    const handleConfirmPay = async () => {
     if (!modalClipper || paying) return;
+
+    const maxOutstanding = Number(modalClipper.outstanding_usd || 0) || 0;
+    let desiredAmount = Number(payAmount);
+
+    if (!Number.isFinite(desiredAmount)) {
+      desiredAmount = 0;
+    }
+
+    // basic validations
+    if (desiredAmount <= 0) {
+      setPayError('Amount must be greater than 0.');
+      return;
+    }
+
+    if (desiredAmount > maxOutstanding + 0.000001) {
+      setPayError(
+        `Amount cannot exceed outstanding balance of ${formatCurrency(
+          maxOutstanding
+        )}.`
+      );
+      return;
+    }
 
     try {
       setPayError('');
@@ -248,7 +283,7 @@ export default function PayoutsPage() {
       const body = {
         clipperId: modalClipper.clipper_id,
         month: modalClipper.month_label, // e.g. "December 2025"
-        amountUsd: Number(modalClipper.outstanding_usd || 0),
+        amountUsd: desiredAmount,
         initiatedByUserId: 'demo-admin', // TODO: replace with real user id
       };
 
@@ -267,11 +302,8 @@ export default function PayoutsPage() {
       }
 
       setPayResult(data);
-      console.log('Payout successful', data);
-
-      // Simple v1: notify + reload data
-      alert('Payout successful!');
-      window.location.reload();
+      alert('Payout successful!'); // we'll replace this later with nicer UI
+      window.location.reload();    // and replace this with a state refresh later
     } catch (err) {
       console.error('Error paying clipper:', err);
       setPayError(err.message || 'Failed to send payout');
@@ -279,6 +311,7 @@ export default function PayoutsPage() {
       setPaying(false);
     }
   };
+
 
   // ---------- table render for Upcoming / Due ----------
 
