@@ -244,13 +244,21 @@ export default function PayoutsPage() {
 };
 
   const closeModal = () => {
-  setModalOpen(false);
-  setModalClipper(null);
-  setPayError('');
-  setPayResult(null);
-  setPayAmount('0.00');
-  setEditingAmount(false);
-};
+    const hadSuccess = !!payResult;
+
+    setModalOpen(false);
+    setModalClipper(null);
+    setPayError('');
+    setPayResult(null);
+    setPayAmount('0.00');
+    setEditingAmount(false);
+
+    // after a successful payout, refresh the page data
+    if (hadSuccess) {
+      window.location.reload();
+    }
+  };
+
 
 
 
@@ -306,8 +314,7 @@ export default function PayoutsPage() {
       }
 
       setPayResult(data);
-      alert('Payout successful!'); // we'll replace this later with nicer UI
-      window.location.reload();    // and replace this with a state refresh later
+    
     } catch (err) {
       console.error('Error paying clipper:', err);
       setPayError(err.message || 'Failed to send payout');
@@ -1457,6 +1464,7 @@ export default function PayoutsPage() {
               </div>
             </div>
 
+                      {/* Error message */}
             {payError && (
               <div
                 style={{
@@ -1469,26 +1477,107 @@ export default function PayoutsPage() {
               </div>
             )}
 
-            <button
-              onClick={handleConfirmPay}
-              disabled={paying}
-              style={{
-                width: '100%',
-                padding: '8px 14px',
-                borderRadius: 999,
-                border: 'none',
-                cursor: paying ? 'default' : 'pointer',
-                fontSize: 14,
-                fontWeight: 600,
-                background:
-                  'linear-gradient(135deg, #22c55e, #4ade80, #bbf7d0)',
-                color: '#022c22',
-                boxShadow: '0 15px 35px rgba(34,197,94,0.5)',
-                opacity: paying ? 0.7 : 1,
-              }}
-            >
-              {paying ? 'Processing payout…' : 'Confirm payout'}
-            </button>
+            {/* Success state */}
+            {payResult && (
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: '8px 10px',
+                  borderRadius: 12,
+                  background: 'rgba(22,163,74,0.12)',
+                  border: '1px solid rgba(34,197,94,0.6)',
+                  fontSize: 12,
+                  color: '#bbf7d0',
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 2 }}>
+                  Payout successful
+                </div>
+                <div style={{ opacity: 0.9 }}>
+                  Sent{' '}
+                  <strong>
+                    {formatCurrency(Number(payResult.amount_usd || payAmount || 0))}
+                  </strong>{' '}
+                  to <strong>{modalClipper.clipper_name}</strong> for{' '}
+                  <strong>{modalClipper.month_label}</strong>.
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            {payResult ? (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  marginTop: 4,
+                }}
+              >
+                {payResult.invoice_url && (
+                  <a
+                    href={payResult.invoice_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      flex: 1,
+                      textAlign: 'center',
+                      textDecoration: 'none',
+                      padding: '8px 12px',
+                      borderRadius: 999,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      border: '1px solid rgba(148,163,184,0.7)',
+                      background: 'rgba(15,23,42,0.9)',
+                      color: '#e5e7eb',
+                    }}
+                  >
+                    View in Stripe
+                  </a>
+                )}
+
+                <button
+                  onClick={closeModal}
+                  style={{
+                    flex: 1,
+                    padding: '8px 14px',
+                    borderRadius: 999,
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    background:
+                      'linear-gradient(135deg, #22c55e, #4ade80, #bbf7d0)',
+                    color: '#022c22',
+                    boxShadow: '0 15px 35px rgba(34,197,94,0.5)',
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleConfirmPay}
+                disabled={paying}
+                style={{
+                  width: '100%',
+                  padding: '8px 14px',
+                  borderRadius: 999,
+                  border: 'none',
+                  cursor: paying ? 'default' : 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  background:
+                    'linear-gradient(135deg, #22c55e, #4ade80, #bbf7d0)',
+                  color: '#022c22',
+                  boxShadow: '0 15px 35px rgba(34,197,94,0.5)',
+                  opacity: paying ? 0.7 : 1,
+                }}
+              >
+                {paying ? 'Processing payout…' : 'Confirm payout'}
+              </button>
+            )}
+
           </div>
         </div>
       )}
