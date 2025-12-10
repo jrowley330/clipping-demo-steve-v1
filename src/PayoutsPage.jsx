@@ -74,6 +74,7 @@ export default function PayoutsPage() {
 
   // amount the user will pay in this payout (can be partial)
   const [payAmount, setPayAmount] = useState(0);
+  const [editingAmount, setEditingAmount] = useState(false);
 
   // ---------- navigation handlers (match other pages) ----------
 
@@ -232,9 +233,9 @@ export default function PayoutsPage() {
     const handlePayClick = (row) => {
     setModalClipper(row);
 
-    // default to the full outstanding amount for this row
     const outstanding = Number(row.outstanding_usd || 0) || 0;
     setPayAmount(outstanding);
+    setEditingAmount(false);
 
     setPayError('');
     setPayResult(null);
@@ -247,7 +248,9 @@ export default function PayoutsPage() {
     setPayError('');
     setPayResult(null);
     setPayAmount(0);
+    setEditingAmount(false);
   };
+
 
 
     const handleConfirmPay = async () => {
@@ -1338,12 +1341,13 @@ export default function PayoutsPage() {
               </button>
             </div>
 
-            <div
+                        <div
               style={{
                 marginBottom: 12,
                 fontSize: 14,
               }}
             >
+              {/* Clipper */}
               <div
                 style={{
                   display: 'flex',
@@ -1354,6 +1358,8 @@ export default function PayoutsPage() {
                 <span style={{ opacity: 0.7 }}>Clipper</span>
                 <strong>{modalClipper.clipper_name}</strong>
               </div>
+
+              {/* Month */}
               <div
                 style={{
                   display: 'flex',
@@ -1364,11 +1370,13 @@ export default function PayoutsPage() {
                 <span style={{ opacity: 0.7 }}>Month</span>
                 <strong>{modalClipper.month_label}</strong>
               </div>
+
+              {/* Outstanding (read-only) */}
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  marginTop: 4,
+                  marginBottom: 6,
                 }}
               >
                 <span style={{ opacity: 0.7 }}>Outstanding amount</span>
@@ -1376,14 +1384,76 @@ export default function PayoutsPage() {
                   {formatCurrency(modalClipper.outstanding_usd || 0)}
                 </span>
               </div>
+
+              {/* This payout (editable) */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: 4,
+                }}
+              >
+                <div>
+                  <span style={{ opacity: 0.7 }}>This payout</span>
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  {editingAmount ? (
+                    <input
+                      type="text"
+                      value={payAmount}
+                      onChange={(e) => {
+                        const raw = e.target.value || '';
+                        const cleaned = raw.replace(/[^0-9.]/g, '');
+                        const n = Number(cleaned);
+                        setPayAmount(Number.isFinite(n) ? n : 0);
+                      }}
+                      style={{
+                        width: 90,
+                        padding: '4px 8px',
+                        borderRadius: 999,
+                        border: '1px solid rgba(148,163,184,0.7)',
+                        background: 'rgba(15,23,42,0.9)',
+                        color: '#e5e7eb',
+                        fontSize: 13,
+                        textAlign: 'right',
+                      }}
+                    />
+                  ) : (
+                    <strong>{formatCurrency(payAmount || 0)}</strong>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setEditingAmount((prev) => !prev)}
+                    style={{
+                      border: 'none',
+                      borderRadius: 999,
+                      padding: '4px 8px',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                      background: 'rgba(15,23,42,0.9)',
+                      color: '#9ca3af',
+                    }}
+                  >
+                    {editingAmount ? 'Done' : 'Edit'}
+                  </button>
+                </div>
+              </div>
             </div>
 
             {payError && (
               <div
                 style={{
-                  marginBottom: 8,
-                  fontSize: 13,
-                  color: '#fecaca',
+                  marginBottom: 12,
+                  fontSize: 12,
+                  color: '#f97373',
                 }}
               >
                 {payError}
@@ -1398,7 +1468,7 @@ export default function PayoutsPage() {
                 padding: '8px 14px',
                 borderRadius: 999,
                 border: 'none',
-                cursor: paying ? 'not-allowed' : 'pointer',
+                cursor: paying ? 'default' : 'pointer',
                 fontSize: 14,
                 fontWeight: 600,
                 background:
