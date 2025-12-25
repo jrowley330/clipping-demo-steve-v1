@@ -4,12 +4,11 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import App from './App.jsx';
 import LoginPage from './LoginPage.jsx';
-import DashboardPage from './DashboardPage.jsx';      // Dashboards V1 (Power BI)
+import DashboardPage from './DashboardPage.jsx';
 import PayoutsPage from './PayoutsPage.jsx';
-import DashboardsPageV2 from './DashboardPageV2.jsx'; // new BigQuery dashboards
-import ClippersPage from './ClippersPage.jsx'; // new Clippers/Users Config Page
+import DashboardsPageV2 from './DashboardPageV2.jsx';
+import ClippersPage from './ClippersPage.jsx';
 import Performance from "./pages/Performance.jsx";
-
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
