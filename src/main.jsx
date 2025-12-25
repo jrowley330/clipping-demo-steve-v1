@@ -8,7 +8,7 @@ import DashboardPage from './DashboardPage.jsx';
 import PayoutsPage from './PayoutsPage.jsx';
 import DashboardsPageV2 from './DashboardPageV2.jsx';
 import ClippersPage from './ClippersPage.jsx';
-import Performance from "./pages/Performance.jsx";
+import Performance from "./Performance.jsx";
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
