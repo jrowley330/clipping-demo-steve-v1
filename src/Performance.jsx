@@ -413,8 +413,7 @@ export default function PerformancePage() {
                   textAlign: 'left',
                   cursor: 'pointer',
                   fontSize: 13,
-                  background:
-                    'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
+                  background: 'transparent',
                   color: '#020617',
                   fontWeight: 700,
                   marginTop: 2,
