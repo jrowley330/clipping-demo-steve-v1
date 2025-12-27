@@ -2,16 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
-/**
- * Performance.jsx (UI-only v1)
- * - Matches existing Clipper Dashboards UI aesthetic (glass, watermark, sidebar)
- * - Uses mock data by default
- * - Later: wire fetch() to your Cloud Run API querying:
- *   `clipping-app-140330.DEMO.VIDEO_TOP_BOTTOM_CANDIDATES`
- */
-
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''; // optional later
-
 const PLATFORM_OPTIONS = ['all', 'youtube', 'tiktok', 'instagram'];
 
 function formatNumber(n) {
@@ -79,13 +70,8 @@ const MOCK_ROWS = [
 ];
 
 async function fetchCandidates({ platform, username, bucket }) {
-  // NOTE: Keeping mock-by-default until you wire a backend endpoint.
-  // Recommended future endpoint:
-  //   GET `${API_BASE}/performance/candidates?platform=&username=&bucket=`
-  // Backend queries `VIDEO_TOP_BOTTOM_CANDIDATES`
-
   if (!API_BASE) {
-    await new Promise((r) => setTimeout(r, 180));
+    await new Promise((r) => setTimeout(r, 160));
     return MOCK_ROWS
       .filter((r) => (bucket ? r.bucket === bucket : true))
       .filter((r) => (platform && platform !== 'all' ? r.platform === platform : true))
@@ -105,18 +91,19 @@ async function fetchCandidates({ platform, username, bucket }) {
   return res.json();
 }
 
-async function streamLiveAnalysis({ rows, signal, onToken }) {
-  // UI-first: mock streaming if no backend
+async function streamLiveAnalysis({ payload, signal, onToken }) {
+  // mock streaming for now
   if (!API_BASE) {
-    const fake = `What I’m seeing across these clips:\n\n` +
-      `• Winners consistently show a strong visual anchor in the first second (face or bold on-screen text).\n` +
-      `• Motion + pattern interrupts are higher on winners (more scene changes / quicker cuts).\n` +
-      `• Losers tend to “start slow” — no explicit promise, no contrast, and text appears too late.\n\n` +
-      `3 tests to run next:\n` +
-      `1) Add an on-screen hook in frame 1 (6–9 words, high contrast).\n` +
-      `2) Cut the first sentence by ~35% and start on the “result” first.\n` +
-      `3) Increase pattern interrupts every ~0.8–1.2s (zoom, cut, overlay, switch angle).\n\n` +
-      `If you want, I can generate: (a) hook rewrites, (b) first-3-seconds storyboard, (c) editing checklist.`;
+    const fake =
+      `High-level read:\n\n` +
+      `• Winners anchor attention immediately (face or bold text in frame 1).\n` +
+      `• Winners maintain velocity (higher motion + more pattern interrupts).\n` +
+      `• Losers start slow: unclear promise, weak contrast, hook arrives late.\n\n` +
+      `What to test next:\n` +
+      `1) Put the result first (start with outcome, not context).\n` +
+      `2) Add on-screen hook in first frame (6–9 words, high contrast).\n` +
+      `3) Add a pattern interrupt every ~0.8–1.2s (cut/zoom/overlay).\n\n` +
+      `If you want: I can generate 10 hook rewrites + a first-3-seconds storyboard for the top/bottom set.\n`;
 
     const chunks = fake.split(/(\s+)/);
     for (const c of chunks) {
@@ -127,12 +114,11 @@ async function streamLiveAnalysis({ rows, signal, onToken }) {
     return;
   }
 
-  // Future backend:
-  // POST `${API_BASE}/ai/live-performance` (streaming)
+  // future real endpoint:
   const res = await fetch(`${API_BASE}/ai/live-performance`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rows }),
+    body: JSON.stringify(payload),
     signal,
   });
 
@@ -154,27 +140,40 @@ async function streamLiveAnalysis({ rows, signal, onToken }) {
 export default function Performance() {
   const navigate = useNavigate();
 
-  // Sidebar state
+  // sidebar state (same as your other pages)
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Filters
+  // filters
   const [platform, setPlatform] = useState('all');
   const [username, setUsername] = useState('');
-  const [bucket, setBucket] = useState('top'); // top | bottom
-  const [mode, setMode] = useState('summary'); // summary | details (UI tab)
+  const [bucket, setBucket] = useState('top');
 
-  // Data
+  // data
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
-  // Live analysis
+  // analysis
   const [analysisText, setAnalysisText] = useState('');
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisErr, setAnalysisErr] = useState('');
   const abortRef = useRef(null);
 
-  // ---- Nav handlers (match other pages) ----
+  // “cool visualization” state
+  const [progress, setProgress] = useState(0);
+  const [phaseIdx, setPhaseIdx] = useState(0);
+  const phases = useMemo(
+    () => [
+      'Loading metrics + recent snapshots…',
+      'Comparing top vs bottom patterns…',
+      'Scoring hooks / pacing / motion…',
+      'Synthesizing recommendations…',
+      'Generating coaching summary…',
+    ],
+    []
+  );
+
+  // ---- nav handlers (match other pages) ----
   const handleGoDashV2 = () => navigate('/dashboard-v2');
   const handleGoDashV1 = () => navigate('/dashboard');
   const handleGoPayouts = () => navigate('/payouts');
@@ -208,15 +207,40 @@ export default function Performance() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platform, username, bucket]);
 
+  // progress animation while analyzing
+  useEffect(() => {
+    if (!analysisLoading) return;
+
+    setProgress(0);
+    setPhaseIdx(0);
+
+    const t0 = Date.now();
+    const id = setInterval(() => {
+      const elapsed = Date.now() - t0;
+
+      // progress curve: fast -> slow, never hits 100 until done
+      const next = Math.min(92, Math.floor(20 + 72 * (1 - Math.exp(-elapsed / 1800))));
+      setProgress((p) => Math.max(p, next));
+
+      // phase stepping
+      const step = Math.min(phases.length - 1, Math.floor(elapsed / 1300));
+      setPhaseIdx(step);
+    }, 120);
+
+    return () => clearInterval(id);
+  }, [analysisLoading, phases.length]);
+
   const stats = useMemo(() => {
     const safe = (rows || []).filter(Boolean);
     const total = safe.length;
-
     const views24 = safe.reduce((acc, r) => acc + (Number(r.views_24h) || 0), 0);
     const viewsTotal = safe.reduce((acc, r) => acc + (Number(r.view_count) || 0), 0);
     const avgEng = total ? safe.reduce((acc, r) => acc + (Number(r.engagement_rate) || 0), 0) / total : 0;
+    const withSpeech = safe.filter((r) => !!r.has_speech).length;
+    const withFace = safe.filter((r) => !!r.has_face).length;
+    const withText = safe.filter((r) => !!r.has_text).length;
 
-    return { total, views24, viewsTotal, avgEng };
+    return { total, views24, viewsTotal, avgEng, withSpeech, withFace, withText };
   }, [rows]);
 
   const runLiveAnalysis = async () => {
@@ -230,7 +254,7 @@ export default function Performance() {
     abortRef.current = new AbortController();
 
     try {
-      const slimRows = (rows || []).slice(0, 12).map((r) => ({
+      const slimRows = (rows || []).slice(0, 14).map((r) => ({
         platform: r.platform,
         video_id: r.video_id,
         title: r.title,
@@ -247,15 +271,16 @@ export default function Performance() {
       }));
 
       await streamLiveAnalysis({
-        rows: {
-          bucket,
-          platform,
-          username,
+        payload: {
+          filters: { bucket, platform, username },
           samples: slimRows,
+          aggregates: stats,
         },
         signal: abortRef.current.signal,
         onToken: (t) => setAnalysisText((prev) => prev + t),
       });
+
+      setProgress(100);
     } catch (e) {
       if (String(e?.message || '').includes('aborted')) return;
       setAnalysisErr(e?.message || 'Analysis failed.');
@@ -264,30 +289,29 @@ export default function Performance() {
     }
   };
 
-  // ---- Shared styles (matching your pages) ----
+  const stopAnalysis = () => {
+    try {
+      abortRef.current?.abort?.();
+    } catch {}
+    setAnalysisLoading(false);
+  };
+
+  // ---- style (match your look) ----
   const pageWrap = {
     minHeight: '100vh',
-    color: 'rgba(255,255,255,0.92)',
+    width: '100vw',
+    overflowX: 'hidden',
     background:
       'radial-gradient(900px 500px at 25% 0%, rgba(249,115,22,0.10), transparent 60%),' +
       'radial-gradient(900px 500px at 70% 10%, rgba(59,130,246,0.10), transparent 55%),' +
       'radial-gradient(700px 450px at 60% 85%, rgba(34,197,94,0.08), transparent 55%),' +
       'linear-gradient(180deg, #05060a 0%, #070812 50%, #05060a 100%)',
     padding: 22,
+    color: 'rgba(255,255,255,0.92)',
   };
 
-  const shell = {
-    display: 'flex',
-    alignItems: 'stretch',
-    gap: 0,
-    position: 'relative',
-  };
-
-  const content = {
-    flex: 1,
-    position: 'relative',
-    zIndex: 1,
-  };
+  const shell = { display: 'flex', alignItems: 'stretch', position: 'relative' };
+  const content = { flex: 1, position: 'relative', zIndex: 1 };
 
   const watermark = {
     position: 'absolute',
@@ -307,27 +331,21 @@ export default function Performance() {
     whiteSpace: 'nowrap',
   };
 
-  const headerRow = {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 14,
-    marginBottom: 14,
-    position: 'relative',
-    zIndex: 2,
+  const panel = {
+    borderRadius: 18,
+    background: 'rgba(0,0,0,0.55)',
+    border: '1px solid rgba(255,255,255,0.07)',
+    boxShadow: '0 18px 45px rgba(0,0,0,0.65)',
   };
 
-  const title = {
-    fontSize: 44,
-    fontWeight: 900,
-    letterSpacing: 0.2,
-    margin: 0,
-    lineHeight: 1.05,
-  };
-
-  const subtitle = {
-    marginTop: 6,
-    color: 'rgba(255,255,255,0.62)',
+  const input = {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 12,
+    border: '1px solid rgba(255,255,255,0.10)',
+    background: 'rgba(255,255,255,0.04)',
+    color: 'rgba(255,255,255,0.92)',
+    outline: 'none',
     fontSize: 13,
   };
 
@@ -351,70 +369,28 @@ export default function Performance() {
     background: active
       ? 'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))'
       : 'transparent',
-    fontWeight: active ? 700 : 600,
+    fontWeight: active ? 800 : 650,
   });
 
-  const panel = {
-    borderRadius: 18,
-    background: 'rgba(0,0,0,0.55)',
-    border: '1px solid rgba(255,255,255,0.07)',
-    boxShadow: '0 18px 45px rgba(0,0,0,0.65)',
-    padding: 14,
-  };
-
-  const input = {
-    width: '100%',
-    padding: '10px 12px',
-    borderRadius: 12,
-    border: '1px solid rgba(255,255,255,0.10)',
-    background: 'rgba(255,255,255,0.04)',
-    color: 'rgba(255,255,255,0.92)',
-    outline: 'none',
-    fontSize: 13,
-  };
-
-  const kpiGrid = {
-    display: 'grid',
-    gridTemplateColumns: '1.2fr 1fr 1fr',
-    gap: 12,
-    marginTop: 10,
-  };
-
-  const kpiCard = (tone) => ({
-    borderRadius: 18,
-    padding: 16,
-    border: `1px solid ${
-      tone === 'orange'
-        ? 'rgba(250,204,21,0.35)'
-        : tone === 'green'
-        ? 'rgba(34,197,94,0.30)'
-        : 'rgba(59,130,246,0.30)'
-    }`,
-    background:
-      tone === 'orange'
-        ? 'linear-gradient(135deg, rgba(250,204,21,0.10), rgba(249,115,22,0.06))'
-        : tone === 'green'
-        ? 'linear-gradient(135deg, rgba(34,197,94,0.10), rgba(16,185,129,0.05))'
-        : 'linear-gradient(135deg, rgba(59,130,246,0.10), rgba(99,102,241,0.05))',
-    boxShadow: '0 18px 45px rgba(0,0,0,0.45)',
-  });
-
-  const kpiLabel = { fontSize: 12, color: 'rgba(255,255,255,0.62)', marginBottom: 6 };
-  const kpiValue = { fontSize: 28, fontWeight: 900, letterSpacing: 0.2 };
-
-  const tableWrap = {
-    marginTop: 12,
-    borderRadius: 18,
-    border: '1px solid rgba(255,255,255,0.08)',
-    overflow: 'hidden',
-    background: 'rgba(6,10,24,0.55)',
+  const chip = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '6px 10px',
+    borderRadius: 999,
+    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'rgba(255,255,255,0.05)',
+    color: 'rgba(255,255,255,0.80)',
+    fontSize: 12,
+    fontWeight: 750,
+    whiteSpace: 'nowrap',
   };
 
   const th = {
     textAlign: 'left',
     fontSize: 12,
     color: 'rgba(255,255,255,0.62)',
-    fontWeight: 800,
+    fontWeight: 850,
     padding: '12px 14px',
     borderBottom: '1px solid rgba(255,255,255,0.08)',
   };
@@ -427,34 +403,33 @@ export default function Performance() {
     verticalAlign: 'top',
   };
 
-  const chip = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '6px 10px',
+  const analysisButton = {
+    border: 'none',
+    outline: 'none',
     borderRadius: 999,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(255,255,255,0.05)',
-    color: 'rgba(255,255,255,0.80)',
-    fontSize: 12,
-    fontWeight: 700,
-    whiteSpace: 'nowrap',
-  };
-
-  const bucketChip = (b) => ({
-    ...chip,
-    border:
-      b === 'top'
-        ? '1px solid rgba(34,197,94,0.35)'
-        : '1px solid rgba(239,68,68,0.35)',
+    padding: '12px 16px',
+    cursor: analysisLoading ? 'not-allowed' : 'pointer',
+    fontSize: 13,
+    fontWeight: 900,
+    color: '#020617',
     background:
-      b === 'top' ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
-  });
+      analysisLoading
+        ? 'rgba(250,204,21,0.65)'
+        : 'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
+    boxShadow: '0 18px 45px rgba(0,0,0,0.55)',
+    minWidth: 150,
+  };
 
   return (
     <div style={pageWrap}>
+      {/* removes the white border + default margins globally */}
+      <style>{`
+        html, body, #root { height: 100%; width: 100%; margin: 0; padding: 0; background: #05060a; }
+        * { box-sizing: border-box; }
+      `}</style>
+
       <div style={shell}>
-        {/* SIDEBAR */}
+        {/* SIDEBAR (your exact style, Performance active) */}
         <div
           style={{
             width: sidebarOpen ? 190 : 54,
@@ -477,7 +452,6 @@ export default function Performance() {
               gap: 10,
             }}
           >
-            {/* Collapse button */}
             <button
               onClick={() => setSidebarOpen((v) => !v)}
               style={{
@@ -509,7 +483,6 @@ export default function Performance() {
                   Navigation
                 </div>
 
-                {/* Dashboards V2 */}
                 <button
                   onClick={handleGoDashV2}
                   style={{
@@ -527,7 +500,6 @@ export default function Performance() {
                   Dashboards V2
                 </button>
 
-                {/* Payouts */}
                 <button
                   onClick={handleGoPayouts}
                   style={{
@@ -546,7 +518,6 @@ export default function Performance() {
                   Payouts
                 </button>
 
-                {/* Clippers */}
                 <button
                   onClick={handleGoClippers}
                   style={{
@@ -565,7 +536,7 @@ export default function Performance() {
                   Clippers
                 </button>
 
-                {/* Performance – active */}
+                {/* ACTIVE */}
                 <button
                   onClick={handleGoPerformance}
                   style={{
@@ -587,7 +558,6 @@ export default function Performance() {
                   Performance
                 </button>
 
-                {/* Settings placeholder */}
                 <button
                   style={{
                     border: 'none',
@@ -606,7 +576,6 @@ export default function Performance() {
 
                 <div style={{ flexGrow: 1 }} />
 
-                {/* Dashboards V1 */}
                 <button
                   onClick={handleGoDashV1}
                   style={{
@@ -625,7 +594,6 @@ export default function Performance() {
                   Dashboards V1
                 </button>
 
-                {/* Logout */}
                 <button
                   onClick={handleLogout}
                   style={{
@@ -636,343 +604,4 @@ export default function Performance() {
                     textAlign: 'left',
                     cursor: 'pointer',
                     fontSize: 12,
-                    background: 'rgba(248,250,252,0.06)',
-                    color: 'rgba(255,255,255,0.85)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    marginBottom: 6,
-                  }}
-                >
-                  <span style={{ fontSize: 12 }}>⏻</span>
-                  Logout
-                </button>
-
-                <div
-                  style={{
-                    fontSize: 11,
-                    opacity: 0.55,
-                    borderTop: '1px solid rgba(255,255,255,0.08)',
-                    paddingTop: 8,
-                  }}
-                >
-                  Clipper performance hub
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* MAIN CONTENT */}
-        <div style={content}>
-          <div style={watermark}>PERFORMANCE</div>
-
-          <div style={headerRow}>
-            <div>
-              <div style={{ fontSize: 44, fontWeight: 900, letterSpacing: 0.2 }}>
-                Performance
-              </div>
-              <div style={subtitle}>
-                AI-ready clip analysis (metrics + transcript + visuals)
-              </div>
-
-              <div style={{ marginTop: 12 }}>
-                <div style={pillRow}>
-                  <button style={pill(mode === 'summary')} onClick={() => setMode('summary')}>
-                    Summary
-                  </button>
-                  <button style={pill(mode === 'details')} onClick={() => setMode('details')}>
-                    Details
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                borderRadius: 999,
-                border: '1px solid rgba(255,255,255,0.10)',
-                padding: '10px 14px',
-                background: 'rgba(255,255,255,0.04)',
-                color: 'rgba(255,255,255,0.75)',
-                fontSize: 13,
-                marginTop: 6,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {loading ? 'Loading…' : `${stats.total} rows · ${bucket === 'top' ? 'Top' : 'Bottom'} set`}
-            </div>
-          </div>
-
-          {/* FILTERS + KPI + TABLE */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 14 }}>
-            {/* LEFT */}
-            <div style={panel}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-end',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                }}
-              >
-                <div style={{ display: 'grid', gridTemplateColumns: '170px 1fr 220px', gap: 12, width: '100%' }}>
-                  <div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', marginBottom: 6 }}>Platform</div>
-                    <select value={platform} onChange={(e) => setPlatform(e.target.value)} style={input}>
-                      {PLATFORM_OPTIONS.map((p) => (
-                        <option key={p} value={p}>
-                          {p === 'all' ? 'All' : p[0].toUpperCase() + p.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', marginBottom: 6 }}>Username</div>
-                    <input
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Filter by username…"
-                      style={input}
-                    />
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', marginBottom: 6 }}>Top / Bottom</div>
-                    <div style={pillRow}>
-                      <button style={pill(bucket === 'top')} onClick={() => setBucket('top')}>
-                        Top
-                      </button>
-                      <button style={pill(bucket === 'bottom')} onClick={() => setBucket('bottom')}>
-                        Bottom
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* KPIs */}
-              <div style={kpiGrid}>
-                <div style={kpiCard('orange')}>
-                  <div style={kpiLabel}>24h views (sum)</div>
-                  <div style={kpiValue}>{formatNumber(stats.views24)}</div>
-                </div>
-                <div style={kpiCard('green')}>
-                  <div style={kpiLabel}>Avg engagement</div>
-                  <div style={kpiValue}>{formatPct(stats.avgEng)}</div>
-                </div>
-                <div style={kpiCard('blue')}>
-                  <div style={kpiLabel}>Total views (sum)</div>
-                  <div style={kpiValue}>{formatNumber(stats.viewsTotal)}</div>
-                </div>
-              </div>
-
-              {/* Errors */}
-              {err ? (
-                <div style={{ marginTop: 12, color: 'rgba(239,68,68,0.95)', fontSize: 13 }}>
-                  {err}
-                </div>
-              ) : null}
-
-              {/* Table */}
-              <div style={tableWrap}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={th}>Bucket</th>
-                      <th style={th}>Video</th>
-                      <th style={th}>24h Views</th>
-                      <th style={th}>Total Views</th>
-                      <th style={th}>Eng%</th>
-                      <th style={th}>Signals</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr>
-                        <td style={td} colSpan={6}>
-                          <span style={{ color: 'rgba(255,255,255,0.62)' }}>Loading…</span>
-                        </td>
-                      </tr>
-                    ) : rows.length === 0 ? (
-                      <tr>
-                        <td style={td} colSpan={6}>
-                          <span style={{ color: 'rgba(255,255,255,0.62)' }}>No rows found for these filters.</span>
-                        </td>
-                      </tr>
-                    ) : (
-                      rows.map((r, idx) => (
-                        <tr key={`${r.platform}-${r.video_id}-${idx}`}>
-                          <td style={td}>
-                            <span style={bucketChip(r.bucket || bucket)}>
-                              {(r.bucket || bucket) === 'top' ? '▲ Top' : '▼ Bottom'}
-                              <span style={{ opacity: 0.75 }}>· {r.platform}</span>
-                            </span>
-                          </td>
-
-                          <td style={td}>
-                            <div style={{ fontWeight: 900, lineHeight: 1.25 }}>
-                              {r.title || 'Untitled'}
-                            </div>
-                            <div style={{ color: 'rgba(255,255,255,0.62)', fontSize: 12, marginTop: 6 }}>
-                              @{r.username || '—'} • {r.video_id || '—'}
-                            </div>
-                            {r.url ? (
-                              <div style={{ marginTop: 6 }}>
-                                <a
-                                  href={r.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  style={{ color: 'rgba(160,190,255,0.95)', fontSize: 12, textDecoration: 'none' }}
-                                >
-                                  Open clip →
-                                </a>
-                              </div>
-                            ) : null}
-                          </td>
-
-                          <td style={td}>{formatNumber(r.views_24h)}</td>
-                          <td style={td}>{formatNumber(r.view_count)}</td>
-                          <td style={td}>{formatPct(r.engagement_rate)}</td>
-
-                          <td style={td}>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                              {r.has_face ? <span style={chip}>Face</span> : null}
-                              {r.has_text ? <span style={chip}>Text</span> : null}
-                              {r.has_speech ? <span style={chip}>Speech</span> : null}
-                              {r.motion_level ? <span style={chip}>{r.motion_level}</span> : null}
-                              {r.hook_visual_type ? <span style={chip}>{r.hook_visual_type}</span> : null}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* RIGHT: LIVE ANALYSIS */}
-            <div style={panel}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: 0.2 }}>Live AI Analysis</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', marginTop: 4 }}>
-                    Coaching-style breakdown based on the currently loaded rows
-                  </div>
-                </div>
-
-                <button
-                  onClick={runLiveAnalysis}
-                  disabled={analysisLoading || loading || rows.length === 0}
-                  style={{
-                    border: 'none',
-                    outline: 'none',
-                    borderRadius: 999,
-                    padding: '10px 14px',
-                    cursor: analysisLoading ? 'not-allowed' : 'pointer',
-                    fontSize: 12,
-                    fontWeight: 800,
-                    color: '#020617',
-                    background:
-                      analysisLoading
-                        ? 'rgba(250,204,21,0.55)'
-                        : 'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
-                    boxShadow: '0 14px 35px rgba(0,0,0,0.45)',
-                  }}
-                >
-                  {analysisLoading ? 'Analyzing…' : 'Run analysis'}
-                </button>
-              </div>
-
-              {analysisErr ? (
-                <div style={{ marginTop: 10, color: 'rgba(239,68,68,0.95)', fontSize: 13 }}>
-                  {analysisErr}
-                </div>
-              ) : null}
-
-              <div
-                style={{
-                  marginTop: 12,
-                  borderRadius: 18,
-                  border: '1px solid rgba(255,255,255,0.10)',
-                  background: 'rgba(6,10,24,0.45)',
-                  padding: 14,
-                  minHeight: 360,
-                  whiteSpace: 'pre-wrap',
-                  lineHeight: 1.5,
-                  fontSize: 13,
-                  color: analysisText ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.62)',
-                }}
-              >
-                {analysisText ||
-                  'Click “Run analysis” to generate a breakdown of why these clips are winning/losing + recommended tests.'}
-              </div>
-
-              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                <button
-                  onClick={() => {
-                    try {
-                      abortRef.current?.abort?.();
-                    } catch {}
-                    setAnalysisLoading(false);
-                  }}
-                  disabled={!analysisLoading}
-                  style={{
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    outline: 'none',
-                    borderRadius: 999,
-                    padding: '9px 12px',
-                    cursor: analysisLoading ? 'pointer' : 'not-allowed',
-                    fontSize: 12,
-                    background: 'rgba(255,255,255,0.05)',
-                    color: 'rgba(255,255,255,0.85)',
-                  }}
-                >
-                  Stop
-                </button>
-
-                <button
-                  onClick={() => setAnalysisText('')}
-                  disabled={analysisLoading || !analysisText}
-                  style={{
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    outline: 'none',
-                    borderRadius: 999,
-                    padding: '9px 12px',
-                    cursor: analysisLoading || !analysisText ? 'not-allowed' : 'pointer',
-                    fontSize: 12,
-                    background: 'rgba(255,255,255,0.05)',
-                    color: 'rgba(255,255,255,0.85)',
-                  }}
-                >
-                  Clear
-                </button>
-
-                <button
-                  onClick={load}
-                  style={{
-                    marginLeft: 'auto',
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    outline: 'none',
-                    borderRadius: 999,
-                    padding: '9px 12px',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    background: 'rgba(255,255,255,0.05)',
-                    color: 'rgba(255,255,255,0.85)',
-                  }}
-                >
-                  Refresh
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ height: 8 }} />
-        </div>
-      </div>
-    </div>
-  );
-}
+                    background: 'rgba(248,250,252,0.
