@@ -114,6 +114,11 @@ export default function DashboardsPageV2() {
     navigate('/clippers');
   };
 
+  const handleGoPerformance = () => {
+    navigate('/performance');
+};
+
+
 
   // FETCH SUMMARY
   useEffect(() => {

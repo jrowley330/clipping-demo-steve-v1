@@ -63,6 +63,10 @@ export default function ClippersPage() {
     navigate('/payouts');
   };
 
+  const handleGoPerformance = () => {
+    navigate('/performance');
+  };
+
   const handleGoDashV1 = () => {
     navigate('/dashboard');
   };

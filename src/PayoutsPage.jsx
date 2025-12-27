@@ -100,6 +100,10 @@ export default function PayoutsPage() {
     navigate('/clippers');
   };
 
+  const handleGoPerformance = () => {
+    navigate('/performance');
+};
+
   // ---------- fetch monthly balances ----------
 
   useEffect(() => {
