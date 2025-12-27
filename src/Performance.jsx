@@ -604,4 +604,437 @@ export default function Performance() {
                     textAlign: 'left',
                     cursor: 'pointer',
                     fontSize: 12,
-                    background: 'rgba(248,250,252,0.
+                    background: 'rgba(248,250,252,0.06)',
+                    color: 'rgba(255,255,255,0.85)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    marginBottom: 6,
+                  }}
+                >
+                  <span style={{ fontSize: 12 }}>⏻</span>
+                  Logout
+                </button>
+
+                <div
+                  style={{
+                    fontSize: 11,
+                    opacity: 0.55,
+                    borderTop: '1px solid rgba(255,255,255,0.08)',
+                    paddingTop: 8,
+                  }}
+                >
+                  Clipper performance hub
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* MAIN */}
+        <div style={content}>
+          <div style={watermark}>PERFORMANCE</div>
+
+          {/* Header */}
+          <div style={{ position: 'relative', zIndex: 2, marginBottom: 14 }}>
+            <div style={{ fontSize: 44, fontWeight: 900, letterSpacing: 0.2, lineHeight: 1.05 }}>
+              Performance AI
+            </div>
+            <div style={{ marginTop: 6, color: 'rgba(255,255,255,0.62)', fontSize: 13 }}>
+              Live coaching analysis based on top vs bottom performers (metrics + transcript + visuals)
+            </div>
+          </div>
+
+          {/* Layout: AI is the hero (left/center). Videos are secondary (right rail). */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.85fr 1fr', gap: 14, position: 'relative', zIndex: 2 }}>
+            {/* HERO AI PANEL */}
+            <div style={{ ...panel, padding: 16, position: 'relative', overflow: 'hidden' }}>
+              {/* subtle animated “scanline” while analyzing */}
+              {analysisLoading ? (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background:
+                      'linear-gradient(180deg, transparent 0%, rgba(250,204,21,0.08) 45%, transparent 70%)',
+                    transform: 'translateY(-60%)',
+                    animation: 'scan 1.8s ease-in-out infinite',
+                    pointerEvents: 'none',
+                  }}
+                />
+              ) : null}
+
+              <style>{`
+                @keyframes scan {
+                  0% { transform: translateY(-70%); opacity: 0.0; }
+                  20% { opacity: 0.9; }
+                  60% { opacity: 0.35; }
+                  100% { transform: translateY(120%); opacity: 0.0; }
+                }
+                @keyframes pulseOrb {
+                  0% { transform: scale(1); opacity: 0.55; }
+                  50% { transform: scale(1.08); opacity: 0.9; }
+                  100% { transform: scale(1); opacity: 0.55; }
+                }
+                @keyframes shimmer {
+                  0% { transform: translateX(-60%); opacity: 0.0; }
+                  20% { opacity: 0.7; }
+                  100% { transform: translateX(160%); opacity: 0.0; }
+                }
+              `}</style>
+
+              {/* Title row */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 30, fontWeight: 950, letterSpacing: 0.2 }}>
+                    Live AI Analysis
+                  </div>
+                  <div style={{ marginTop: 6, color: 'rgba(255,255,255,0.62)', fontSize: 13 }}>
+                    Coaching-style breakdown based on the currently loaded rows
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    onClick={runLiveAnalysis}
+                    disabled={analysisLoading || loading || rows.length === 0}
+                    style={analysisButton}
+                  >
+                    {analysisLoading ? 'Analyzing…' : 'Run analysis'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Filters row (compact, doesn’t steal focus) */}
+              <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '160px 1fr 220px', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', marginBottom: 6 }}>Platform</div>
+                  <select value={platform} onChange={(e) => setPlatform(e.target.value)} style={input}>
+                    {PLATFORM_OPTIONS.map((p) => (
+                      <option key={p} value={p}>
+                        {p === 'all' ? 'All' : p[0].toUpperCase() + p.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', marginBottom: 6 }}>Username</div>
+                  <input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Filter by username…"
+                    style={input}
+                  />
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', marginBottom: 6 }}>Top / Bottom</div>
+                  <div style={pillRow}>
+                    <button style={pill(bucket === 'top')} onClick={() => setBucket('top')}>
+                      Top
+                    </button>
+                    <button style={pill(bucket === 'bottom')} onClick={() => setBucket('bottom')}>
+                      Bottom
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* “AI computation” visualization bar */}
+              <div style={{ marginTop: 14 }}>
+                <div
+                  style={{
+                    borderRadius: 18,
+                    border: '1px solid rgba(255,255,255,0.10)',
+                    background: 'rgba(6,10,24,0.45)',
+                    padding: 12,
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {/* shimmer */}
+                  {analysisLoading ? (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        width: '40%',
+                        background:
+                          'linear-gradient(90deg, transparent, rgba(250,204,21,0.12), transparent)',
+                        animation: 'shimmer 1.2s ease-in-out infinite',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  ) : null}
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      {/* orb */}
+                      <div
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 999,
+                          background:
+                            'radial-gradient(circle at 35% 35%, rgba(250,204,21,0.9), rgba(249,115,22,0.2) 55%, rgba(0,0,0,0) 70%)',
+                          border: '1px solid rgba(250,204,21,0.25)',
+                          boxShadow: '0 18px 45px rgba(0,0,0,0.55)',
+                          animation: analysisLoading ? 'pulseOrb 1.2s ease-in-out infinite' : 'none',
+                          opacity: analysisLoading ? 1 : 0.55,
+                        }}
+                      />
+                      <div>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)' }}>
+                          {analysisLoading ? 'AI computing…' : 'Ready'}
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 800, marginTop: 2 }}>
+                          {analysisLoading ? phases[phaseIdx] : 'Click “Run analysis” to generate insights.'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', whiteSpace: 'nowrap' }}>
+                      {analysisLoading ? `${progress}%` : `${stats.total} rows loaded`}
+                    </div>
+                  </div>
+
+                  {/* progress bar */}
+                  <div
+                    style={{
+                      marginTop: 10,
+                      height: 10,
+                      borderRadius: 999,
+                      border: '1px solid rgba(255,255,255,0.10)',
+                      background: 'rgba(255,255,255,0.04)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${analysisLoading ? progress : 0}%`,
+                        transition: 'width 220ms ease',
+                        background:
+                          'linear-gradient(90deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
+                        boxShadow: '0 0 24px rgba(250,204,21,0.25)',
+                      }}
+                    />
+                  </div>
+
+                  {/* tiny signal chips */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                    <span style={chip}>24h views: {formatNumber(stats.views24)}</span>
+                    <span style={chip}>Avg eng: {formatPct(stats.avgEng)}</span>
+                    <span style={chip}>Speech: {stats.withSpeech}/{stats.total}</span>
+                    <span style={chip}>Face: {stats.withFace}/{stats.total}</span>
+                    <span style={chip}>Text: {stats.withText}/{stats.total}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* errors */}
+              {analysisErr ? (
+                <div style={{ marginTop: 12, color: 'rgba(239,68,68,0.95)', fontSize: 13 }}>
+                  {analysisErr}
+                </div>
+              ) : null}
+
+              {/* output box */}
+              <div
+                style={{
+                  marginTop: 12,
+                  borderRadius: 18,
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  background: 'rgba(6,10,24,0.45)',
+                  padding: 14,
+                  minHeight: 360,
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: 1.55,
+                  fontSize: 14,
+                  color: analysisText ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.62)',
+                }}
+              >
+                {analysisText ? (
+                  <>
+                    {analysisText}
+                    {analysisLoading ? <span style={{ opacity: 0.9 }}>▌</span> : null}
+                  </>
+                ) : (
+                  'Click “Run analysis” to generate a breakdown of why these clips are winning/losing + recommended tests.'
+                )}
+              </div>
+
+              {/* actions */}
+              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                <button
+                  onClick={stopAnalysis}
+                  disabled={!analysisLoading}
+                  style={{
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    outline: 'none',
+                    borderRadius: 999,
+                    padding: '10px 12px',
+                    cursor: analysisLoading ? 'pointer' : 'not-allowed',
+                    fontSize: 12,
+                    background: 'rgba(255,255,255,0.05)',
+                    color: 'rgba(255,255,255,0.85)',
+                    fontWeight: 750,
+                  }}
+                >
+                  Stop
+                </button>
+
+                <button
+                  onClick={() => setAnalysisText('')}
+                  disabled={analysisLoading || !analysisText}
+                  style={{
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    outline: 'none',
+                    borderRadius: 999,
+                    padding: '10px 12px',
+                    cursor: analysisLoading || !analysisText ? 'not-allowed' : 'pointer',
+                    fontSize: 12,
+                    background: 'rgba(255,255,255,0.05)',
+                    color: 'rgba(255,255,255,0.85)',
+                    fontWeight: 750,
+                  }}
+                >
+                  Clear
+                </button>
+
+                <button
+                  onClick={load}
+                  style={{
+                    marginLeft: 'auto',
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    outline: 'none',
+                    borderRadius: 999,
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    background: 'rgba(255,255,255,0.05)',
+                    color: 'rgba(255,255,255,0.85)',
+                    fontWeight: 750,
+                  }}
+                >
+                  Refresh data
+                </button>
+              </div>
+            </div>
+
+            {/* RIGHT RAIL: TOP/BOTTOM list (secondary) */}
+            <div style={{ ...panel, padding: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: 0.2 }}>
+                    {bucket === 'top' ? 'Top performers' : 'Bottom performers'}
+                  </div>
+                  <div style={{ marginTop: 4, color: 'rgba(255,255,255,0.62)', fontSize: 12 }}>
+                    {loading ? 'Loading…' : `${stats.total} clips`}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    borderRadius: 999,
+                    border: '1px solid rgba(255,255,255,0.10)',
+                    padding: '7px 10px',
+                    background: 'rgba(255,255,255,0.04)',
+                    color: 'rgba(255,255,255,0.72)',
+                    fontSize: 12,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {platform === 'all' ? 'All platforms' : platform}
+                </div>
+              </div>
+
+              {err ? (
+                <div style={{ marginTop: 10, color: 'rgba(239,68,68,0.95)', fontSize: 13 }}>
+                  {err}
+                </div>
+              ) : null}
+
+              <div
+                style={{
+                  marginTop: 12,
+                  borderRadius: 18,
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  overflow: 'hidden',
+                  background: 'rgba(6,10,24,0.55)',
+                }}
+              >
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={th}>Clip</th>
+                      <th style={th}>24h</th>
+                      <th style={th}>Eng%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td style={td} colSpan={3}>
+                          <span style={{ color: 'rgba(255,255,255,0.62)' }}>Loading…</span>
+                        </td>
+                      </tr>
+                    ) : rows.length === 0 ? (
+                      <tr>
+                        <td style={td} colSpan={3}>
+                          <span style={{ color: 'rgba(255,255,255,0.62)' }}>No rows found.</span>
+                        </td>
+                      </tr>
+                    ) : (
+                      rows.slice(0, 10).map((r, idx) => (
+                        <tr key={`${r.platform}-${r.video_id}-${idx}`}>
+                          <td style={td}>
+                            <div style={{ fontWeight: 900, lineHeight: 1.2 }}>
+                              {r.title || 'Untitled'}
+                            </div>
+                            <div style={{ marginTop: 6, color: 'rgba(255,255,255,0.62)', fontSize: 12 }}>
+                              @{r.username || '—'} • {r.platform}
+                            </div>
+                            {r.url ? (
+                              <div style={{ marginTop: 6 }}>
+                                <a
+                                  href={r.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{ color: 'rgba(160,190,255,0.95)', fontSize: 12, textDecoration: 'none' }}
+                                >
+                                  Open →
+                                </a>
+                              </div>
+                            ) : null}
+
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                              {r.has_face ? <span style={chip}>Face</span> : null}
+                              {r.has_text ? <span style={chip}>Text</span> : null}
+                              {r.has_speech ? <span style={chip}>Speech</span> : null}
+                            </div>
+                          </td>
+
+                          <td style={td}>{formatNumber(r.views_24h)}</td>
+                          <td style={td}>{formatPct(r.engagement_rate)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>
+                Tip: keep the list small; the AI panel is the main event.
+              </div>
+            </div>
+          </div>
+
+          <div style={{ height: 8 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
