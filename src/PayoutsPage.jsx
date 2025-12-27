@@ -753,8 +753,8 @@ export default function PayoutsPage() {
                     cursor: 'pointer',
                     fontSize: 13,
                     background:
-                      'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
-                    color: '#020617',
+                      'transparent',
+                    color: 'rgba(255,255,255,0.55)',
                     fontWeight: 700,
                     marginTop: 2,
                     marginBottom: 2,
