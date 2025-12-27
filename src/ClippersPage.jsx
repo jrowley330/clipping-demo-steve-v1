@@ -453,20 +453,19 @@ export default function ClippersPage() {
                 Clippers
               </button>
 
+              {/* Performance */}
               <button
                   onClick={handleGoPerformance}
                   style={{
                     border: 'none',
                     outline: 'none',
                     borderRadius: 12,
-                    padding: '8px 10px',
+                    padding: '7px 10px',
                     textAlign: 'left',
                     cursor: 'pointer',
-                    fontSize: 13,
-                    background:
-                      'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
-                    color: '#020617',
-                    fontWeight: 700,
+                    fontSize: 12,
+                    background: 'transparent',
+                    color: 'rgba(255,255,255,0.55)',
                     marginTop: 2,
                     marginBottom: 2,
                   }}
