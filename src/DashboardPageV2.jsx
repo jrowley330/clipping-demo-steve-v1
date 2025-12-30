@@ -443,7 +443,7 @@ export default function DashboardsPageV2() {
                   marginBottom: 2,
                 }}
               >
-                Dashboards V2
+                Dashboards
               </button>
 
               {/* Payouts */}
@@ -623,7 +623,7 @@ export default function DashboardsPageV2() {
         >
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
             <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>
-              Dashboards V2
+              Dashboards
             </h1>
             <span style={{ fontSize: 13, opacity: 0.7 }}>
               BigQuery-powered clipper performance
