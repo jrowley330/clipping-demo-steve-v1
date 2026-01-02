@@ -1,10 +1,10 @@
-// PerformancePage.jsx
+// Performance.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
-const API_BASE_URL =
-  'https://clipper-payouts-api-810712855216.us-central1.run.app';
+// NEW performance API (Cloud Run)
+const PERF_API_BASE_URL = 'https://clipper-performance-api-xidmvbbcza-uc.a.run.app';
 
 // ---------- helpers ----------
 const formatNumber = (value) => {
@@ -29,6 +29,26 @@ const platformBadgeStyle = (platform) => {
   return { bg: 'rgba(59,130,246,0.14)', bd: 'rgba(59,130,246,0.45)' };
 };
 
+const getEventDataJson = (evtBlock) => {
+  // evtBlock: "event: delta\ndata: {...}\n"
+  const lines = String(evtBlock || '').split('\n').map((l) => l.trimEnd());
+  const dataLines = lines.filter((l) => l.startsWith('data:'));
+  if (!dataLines.length) return null;
+
+  // join multiline data
+  const jsonStr = dataLines
+    .map((l) => l.replace(/^data:\s?/, ''))
+    .join('\n')
+    .trim();
+
+  if (!jsonStr) return null;
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    return null;
+  }
+};
+
 // ---------- component ----------
 export default function PerformancePage() {
   const navigate = useNavigate();
@@ -36,15 +56,18 @@ export default function PerformancePage() {
   // sidebar (match other pages)
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // right panel toggle (moved here per request)
+  // right panel toggle
   const [videoMode, setVideoMode] = useState('top'); // 'top' | 'bottom'
 
-  // videos list (safe: works even if endpoint doesn’t exist)
+  // NEW: timeframe toggle
+  const [timeframe, setTimeframe] = useState('alltime'); // 'alltime' | 'recent'
+
+  // videos list
   const [videosLoading, setVideosLoading] = useState(false);
   const [videosError, setVideosError] = useState('');
   const [videos, setVideos] = useState([]);
 
-  // selected video for preview
+  // selected video
   const [selectedId, setSelectedId] = useState(null);
 
   // analysis UX
@@ -77,36 +100,49 @@ export default function PerformancePage() {
         setVideosLoading(true);
         setVideosError('');
 
-        // If your backend endpoint differs, just change this path.
-        // This UI will still render gracefully even if it 404s.
-        const res = await fetch(`${API_BASE_URL}/performance-videos?mode=${videoMode}`);
+        const qs = new URLSearchParams({
+          source: 'test', // change to 'prod' later if you want
+          mode: videoMode,
+          cohort: timeframe,
+        });
+
+        const res = await fetch(`${PERF_API_BASE_URL}/performance/videos?${qs.toString()}`);
         if (!res.ok) throw new Error(`Videos API ${res.status}`);
         const data = await res.json();
 
-        const normalized = (Array.isArray(data) ? data : []).map((v, i) => ({
-          id: v.id ?? v.video_id ?? `${videoMode}_${i}`,
+        const rows = Array.isArray(data?.rows) ? data.rows : Array.isArray(data) ? data : [];
+        const normalized = rows.map((v, i) => ({
+          id: v.id ?? v.video_id ?? `${videoMode}_${timeframe}_${i}`,
           platform: v.platform ?? 'unknown',
           title: v.title ?? v.caption ?? `Video ${i + 1}`,
           url: v.url ?? v.video_url ?? '',
-          thumb: v.thumb ?? v.thumbnail_url ?? '',
-          views: Number(v.views ?? v.view_count ?? 0),
-          likes: Number(v.likes ?? v.like_count ?? 0),
-          comments: Number(v.comments ?? v.comment_count ?? 0),
-          // Optional: if you have it
-          score: Number(v.score ?? v.performance_score ?? NaN),
+          ai_url: v.ai_url ?? '',
+          views: Number(v.view_count ?? v.views ?? 0),
+          likes: Number(v.like_count ?? v.likes ?? 0),
+          comments: Number(v.comment_count ?? v.comments ?? 0),
+          published_at: v.published_at?.value ?? v.published_at ?? null,
+          duration_seconds: Number(v.duration_seconds ?? 0),
+          engagement_rate: Number(v.engagement_rate ?? NaN),
           reason: v.reason ?? v.summary ?? '',
+          // keep extras (useful later)
+          _raw: v,
         }));
 
         if (cancelled) return;
 
         setVideos(normalized);
-        if (!selectedId && normalized.length) setSelectedId(normalized[0].id);
+        // preserve selection if possible
+        if (normalized.length) {
+          const stillExists = selectedId && normalized.some((x) => x.id === selectedId);
+          setSelectedId(stillExists ? selectedId : normalized[0].id);
+        } else {
+          setSelectedId(null);
+        }
       } catch (e) {
         if (cancelled) return;
-        setVideosError(
-          'Unable to load videos (endpoint may not exist yet). UI is ready — wire the endpoint when you’re ready.'
-        );
+        setVideosError('Unable to load videos. Check the performance API endpoint / query params.');
         setVideos([]);
+        setSelectedId(null);
       } finally {
         if (!cancelled) setVideosLoading(false);
       }
@@ -117,7 +153,7 @@ export default function PerformancePage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoMode]);
+  }, [videoMode, timeframe]);
 
   const selectedVideo = useMemo(
     () => videos.find((v) => v.id === selectedId) || null,
@@ -125,22 +161,22 @@ export default function PerformancePage() {
   );
 
   const topStats = useMemo(() => {
-    const n = videos.length || 1;
+    const n = videos.length || 0;
     const totalViews = videos.reduce((s, v) => s + (Number(v.views) || 0), 0);
     const totalLikes = videos.reduce((s, v) => s + (Number(v.likes) || 0), 0);
     const totalComments = videos.reduce((s, v) => s + (Number(v.comments) || 0), 0);
     return { n, totalViews, totalLikes, totalComments };
   }, [videos]);
 
-  // ---------- analysis animation ----------
+  // ---------- analysis logging ----------
   const pushLog = (line) => {
-    setAnalysisLog((prev) => [...prev.slice(-14), line]);
-    // auto-scroll
+    setAnalysisLog((prev) => [...prev.slice(-18), line]);
     setTimeout(() => {
       if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
     }, 0);
   };
 
+  // ---------- live streaming analysis ----------
   const runAnalysis = async () => {
     if (analyzing) return;
 
@@ -150,89 +186,111 @@ export default function PerformancePage() {
     setAnalysisLog([]);
     setAnalysisProgress(0);
 
-    // “2025 AI” staged feel
-    const steps = [
-      { p: 0.08, t: 'Booting analysis graph…' },
-      { p: 0.18, t: 'Loading selected rows + normalizing metrics…' },
-      { p: 0.30, t: 'Clustering winners vs losers (velocity, hold, engagement)…' },
-      { p: 0.44, t: 'Extracting hook patterns + pacing signatures…' },
-      { p: 0.60, t: 'Deriving testable hypotheses + recommended experiments…' },
-      { p: 0.74, t: 'Generating coaching-style writeup…' },
-      { p: 0.88, t: 'Formatting insights for dashboard…' },
-    ];
-
     try {
-      // log steps with timed cadence (UI-first)
-      for (const s of steps) {
-        pushLog(s.t);
-        setAnalysisProgress(s.p);
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise((r) => setTimeout(r, 380));
+      pushLog('Booting analysis graph…');
+      setAnalysisProgress(0.06);
+
+      // call streaming endpoint
+      const res = await fetch(`${PERF_API_BASE_URL}/performance/analyze/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // keep it simple for now: analyze cohort+mode (server reads table)
+        body: JSON.stringify({
+          source: 'test',
+          cohort: timeframe,
+          mode: videoMode,
+          limit: 20,
+          selectedVideoId: selectedVideo?.id || null,
+        }),
+      });
+
+      if (!res.ok || !res.body) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Stream failed (${res.status}): ${text.slice(0, 200)}`);
       }
 
-      // OPTIONAL: wire to your backend when ready.
-      // The payload structure is intentionally simple:
-      // currently loaded videos + mode + selected video.
-      //
-      // If you don’t have an endpoint yet, leave this commented out and the UI will still work.
-      //
-      // const res = await fetch(`${API_BASE_URL}/run-performance-analysis`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     mode: videoMode,
-      //     selectedVideoId: selectedVideo?.id || null,
-      //     videos: videos.map(v => ({
-      //       id: v.id,
-      //       platform: v.platform,
-      //       title: v.title,
-      //       url: v.url,
-      //       views: v.views,
-      //       likes: v.likes,
-      //       comments: v.comments,
-      //       score: v.score,
-      //     })),
-      //   }),
-      // });
-      // const data = await res.json();
-      // if (!res.ok) throw new Error(data.error || `Analysis API ${res.status}`);
-      // const text = data.analysis_text || data.text || '';
+      pushLog('Connected. Streaming tokens…');
+      setAnalysisProgress(0.12);
 
-      // UI-ready placeholder output (until endpoint is wired)
-      const text = [
-        `## Why these clips are ${videoMode === 'top' ? 'winning' : 'losing'}`,
-        '',
-        `**What the data suggests (based on the currently loaded rows):**`,
-        `- The best performers usually combine a *fast hook* + *clear premise* + *tight edit rhythm* in the first 1–2 seconds.`,
-        `- Underperformers often have slower context ramps (hook lands late), weaker pattern interrupts, or unclear payoff.`,
-        '',
-        `**What to do next (recommended tests):**`,
-        `1) Hook swap: keep the same body, test 3 hook variants (question, bold claim, “here’s the mistake”).`,
-        `2) Pace test: tighten dead air by 15–25% and add one pattern interrupt every ~2 seconds.`,
-        `3) Caption strategy: short, high-contrast captions that *advance the story* (not just subtitles).`,
-        '',
-        `**Operator notes:**`,
-        `- Your panel is already set up to support cross-platform rows — once the analysis endpoint is wired, this can become deterministic + repeatable.`,
-      ].join('\n');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
 
-      pushLog('Done. Insights generated.');
+      let buffer = '';
+      let fullText = '';
+      let gotMeta = false;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE blocks separated by \n\n
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
+
+        for (const block of parts) {
+          const payload = getEventDataJson(block);
+          if (!payload) continue;
+
+          // meta
+          if (payload.event === 'meta' || payload.type === 'meta') {
+            gotMeta = true;
+            pushLog(
+              `Loaded ${payload.count ?? payload.n ?? '?'} rows · cohort=${payload.cohort ?? timeframe} · mode=${payload.mode ?? videoMode}`
+            );
+            setAnalysisProgress((p) => Math.max(p, 0.18));
+            continue;
+          }
+
+          // log lines
+          if (payload.log) {
+            pushLog(payload.log);
+            if (!gotMeta) setAnalysisProgress((p) => Math.max(p, 0.16));
+            continue;
+          }
+
+          // progress
+          if (typeof payload.progress === 'number') {
+            setAnalysisProgress((p) => Math.max(p, clamp(payload.progress, 0, 1)));
+            continue;
+          }
+
+          // token delta
+          if (payload.delta) {
+            fullText += payload.delta;
+            setAnalysisOutput(fullText);
+            // keep progress moving forward gently if server doesn't emit progress
+            setAnalysisProgress((p) => Math.min(0.96, Math.max(p, 0.22) + 0.002));
+            continue;
+          }
+
+          // done
+          if (payload.done || payload.event === 'done') {
+            pushLog('Done. Insights generated.');
+            setAnalysisProgress(1);
+          }
+
+          // error
+          if (payload.error) {
+            throw new Error(payload.error);
+          }
+        }
+      }
+
+      if (!fullText) {
+        // Stream ended but no deltas — treat as failure
+        pushLog('Stream ended (no output).');
+        throw new Error('No analysis output received.');
+      }
+
       setAnalysisProgress(1);
-
-      // Small “typing” reveal for vibe
-      let idx = 0;
-      const chunk = 24;
-      while (idx < text.length) {
-        setAnalysisOutput(text.slice(0, idx));
-        idx += chunk;
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise((r) => setTimeout(r, 14));
-      }
-      setAnalysisOutput(text);
+      pushLog('Complete.');
     } catch (e) {
       setAnalysisError(e?.message || 'Analysis failed.');
       pushLog('Error: analysis failed.');
     } finally {
-      setTimeout(() => setAnalyzing(false), 250);
+      setTimeout(() => setAnalyzing(false), 220);
     }
   };
 
@@ -275,7 +333,7 @@ export default function PerformancePage() {
         }
       `}</style>
 
-      {/* WATERMARK (match other pages) */}
+      {/* WATERMARK */}
       <div
         style={{
           position: 'fixed',
@@ -297,7 +355,7 @@ export default function PerformancePage() {
         STEVEWILLDOIT
       </div>
 
-      {/* SIDEBAR (same pattern) */}
+      {/* SIDEBAR */}
       <div
         style={{
           width: sidebarOpen ? 190 : 54,
@@ -402,7 +460,6 @@ export default function PerformancePage() {
                 Clippers
               </button>
 
-              {/* Performance (current) */}
               <button
                 onClick={goPerformance}
                 style={{
@@ -498,7 +555,7 @@ export default function PerformancePage() {
 
       {/* MAIN CONTENT */}
       <div style={{ flex: 1, position: 'relative', zIndex: 3 }}>
-        {/* Branding (match Dashboards V2) */}
+        {/* Branding */}
         <div
           style={{
             marginBottom: 12,
@@ -532,15 +589,12 @@ export default function PerformancePage() {
           }}
         >
           <div>
-            <div style={{ fontSize: 30, fontWeight: 700, margin: 0 }}>
-              Performance
-            </div>
+            <div style={{ fontSize: 30, fontWeight: 700, margin: 0 }}>Performance</div>
             <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>
               Live AI Analysis — coaching-style breakdown based on the currently loaded rows
             </div>
           </div>
 
-          {/* small stats pill (subtle) */}
           <div
             style={{
               fontSize: 12,
@@ -557,18 +611,16 @@ export default function PerformancePage() {
             }}
           >
             <span style={{ opacity: 0.85 }}>
-              {topStats.n} videos · {formatNumber(topStats.totalViews)} views ·{' '}
-              {formatNumber(topStats.totalLikes)} likes
+              {topStats.n} videos · {formatNumber(topStats.totalViews)} views · {formatNumber(topStats.totalLikes)} likes
             </span>
           </div>
         </div>
 
-        {/* HERO: AI analysis card (primary emphasis) */}
+        {/* HERO */}
         <div
           style={{
             borderRadius: 20,
-            background:
-              'radial-gradient(circle at top left, rgba(255,255,255,0.05), transparent 60%)',
+            background: 'radial-gradient(circle at top left, rgba(255,255,255,0.05), transparent 60%)',
             border: '1px solid rgba(255,255,255,0.07)',
             boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
             padding: 18,
@@ -577,14 +629,12 @@ export default function PerformancePage() {
             overflow: 'hidden',
           }}
         >
-          {/* subtle shimmer */}
           <div
             style={{
               position: 'absolute',
               inset: 0,
               pointerEvents: 'none',
-              background:
-                'linear-gradient(90deg, transparent, rgba(250,204,21,0.10), transparent)',
+              background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.10), transparent)',
               width: '60%',
               filter: 'blur(0.5px)',
               animation: analyzing ? 'shimmer 1.2s linear infinite' : 'none',
@@ -602,11 +652,13 @@ export default function PerformancePage() {
             }}
           >
             <div>
-              <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 0.2 }}>
-                Live AI Analysis
-              </div>
+              <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 0.2 }}>Live AI Analysis</div>
               <div style={{ fontSize: 12, opacity: 0.72, marginTop: 4 }}>
                 Click “Run analysis” to generate a breakdown of why these clips are winning/losing + recommended tests.
+              </div>
+              <div style={{ fontSize: 11, opacity: 0.58, marginTop: 6 }}>
+                Mode: <strong style={{ opacity: 0.9 }}>{videoMode}</strong> · Timeframe:{' '}
+                <strong style={{ opacity: 0.9 }}>{timeframe === 'recent' ? 'recent (30d)' : 'all-time'}</strong>
               </div>
             </div>
 
@@ -635,7 +687,7 @@ export default function PerformancePage() {
             </button>
           </div>
 
-          {/* progress bar */}
+          {/* progress */}
           <div
             style={{
               height: 8,
@@ -656,13 +708,7 @@ export default function PerformancePage() {
             />
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
-              gap: 14,
-            }}
-          >
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 14 }}>
             {/* output */}
             <div
               style={{
@@ -675,16 +721,8 @@ export default function PerformancePage() {
                 overflow: 'hidden',
               }}
             >
-              {/* “AI compute” overlay */}
               {analyzing && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    pointerEvents: 'none',
-                  }}
-                >
-                  {/* rings */}
+                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                   <div
                     style={{
                       position: 'absolute',
@@ -714,7 +752,6 @@ export default function PerformancePage() {
                       animationDelay: '0.28s',
                     }}
                   />
-                  {/* scan line */}
                   <div
                     style={{
                       position: 'absolute',
@@ -722,8 +759,7 @@ export default function PerformancePage() {
                       right: 0,
                       top: 0,
                       height: 80,
-                      background:
-                        'linear-gradient(to bottom, transparent, rgba(250,204,21,0.12), transparent)',
+                      background: 'linear-gradient(to bottom, transparent, rgba(250,204,21,0.12), transparent)',
                       animation: 'scanLine 1.15s linear infinite',
                     }}
                   />
@@ -746,26 +782,22 @@ export default function PerformancePage() {
                 </div>
               )}
 
-              <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
-                Insights output
-              </div>
+              <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>Insights output</div>
 
               <pre
                 style={{
                   margin: 0,
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                  fontFamily:
+                    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
                   fontSize: 12.5,
                   lineHeight: 1.55,
                   color: 'rgba(255,255,255,0.88)',
                   minHeight: 140,
                 }}
               >
-                {analysisOutput ||
-                  (analyzing
-                    ? 'Computing…'
-                    : 'Run analysis to generate a coaching-style breakdown.')}
+                {analysisOutput || (analyzing ? 'Computing…' : 'Run analysis to generate a coaching-style breakdown.')}
               </pre>
             </div>
 
@@ -810,9 +842,7 @@ export default function PerformancePage() {
                 }}
               >
                 {analysisLog.length === 0 ? (
-                  <div style={{ fontSize: 12, opacity: 0.6 }}>
-                    {analyzing ? 'Starting…' : 'No compute logs yet.'}
-                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.6 }}>{analyzing ? 'Starting…' : 'No compute logs yet.'}</div>
                 ) : (
                   analysisLog.map((l, i) => (
                     <div
@@ -821,7 +851,8 @@ export default function PerformancePage() {
                         fontSize: 12,
                         opacity: 0.9,
                         padding: '3px 0',
-                        borderBottom: i === analysisLog.length - 1 ? 'none' : '1px dashed rgba(255,255,255,0.06)',
+                        borderBottom:
+                          i === analysisLog.length - 1 ? 'none' : '1px dashed rgba(255,255,255,0.06)',
                       }}
                     >
                       <span style={{ opacity: 0.55, marginRight: 8 }}>›</span>
@@ -838,15 +869,9 @@ export default function PerformancePage() {
           </div>
         </div>
 
-        {/* LOWER GRID: left notes + right video panel */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.15fr)',
-            gap: 18,
-          }}
-        >
-          {/* left: small “how to use” (clean, non-distracting) */}
+        {/* LOWER GRID */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.15fr)', gap: 18 }}>
+          {/* left: how to use */}
           <div
             style={{
               borderRadius: 20,
@@ -856,21 +881,20 @@ export default function PerformancePage() {
               padding: 16,
             }}
           >
-            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
-              How to use this
-            </div>
+            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>How to use this</div>
             <div style={{ fontSize: 13, opacity: 0.78, lineHeight: 1.55 }}>
               <div style={{ marginBottom: 8 }}>
                 1) Choose <strong>Top</strong> or <strong>Bottom</strong> performing videos on the right.
               </div>
               <div style={{ marginBottom: 8 }}>
-                2) Click a video row to set it as the context anchor.
+                2) Choose <strong>All-time</strong> or <strong>Recent (30d)</strong> timeframe.
               </div>
+              <div style={{ marginBottom: 8 }}>3) Click a video row to set it as the context anchor.</div>
               <div style={{ marginBottom: 8 }}>
-                3) Hit <strong>Run analysis</strong> to generate the “why” + experiments.
+                4) Hit <strong>Run analysis</strong> to generate the “why” + experiments.
               </div>
               <div style={{ opacity: 0.65, fontSize: 12, marginTop: 10 }}>
-                (When your backend endpoint is ready, this becomes deterministic instead of placeholder text.)
+                (This is running against your PERF_ANALYSIS_INPUT_TEST rows right now.)
               </div>
             </div>
 
@@ -892,26 +916,22 @@ export default function PerformancePage() {
                   style={{
                     borderRadius: 16,
                     padding: 12,
-                    background:
-                      'radial-gradient(circle at top left, rgba(96,165,250,0.16), rgba(0,0,0,0.35))',
+                    background: 'radial-gradient(circle at top left, rgba(96,165,250,0.16), rgba(0,0,0,0.35))',
                     border: '1px solid rgba(96,165,250,0.22)',
                   }}
                 >
                   <div style={{ fontSize: 12, opacity: 0.7 }}>{x.k}</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4 }}>
-                    {x.v}
-                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4 }}>{x.v}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* right: videos panel (toggle moved here) */}
+          {/* right: videos panel */}
           <div
             style={{
               borderRadius: 20,
-              background:
-                'radial-gradient(circle at top left, rgba(255,255,255,0.04), transparent 55%)',
+              background: 'radial-gradient(circle at top left, rgba(255,255,255,0.04), transparent 55%)',
               border: '1px solid rgba(255,255,255,0.07)',
               boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
               padding: 16,
@@ -931,67 +951,101 @@ export default function PerformancePage() {
                 <div style={{ fontSize: 16, fontWeight: 900 }}>
                   {videoMode === 'top' ? 'Top performing videos' : 'Bottom performing videos'}
                 </div>
-                <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
-                  Click a row to focus analysis context.
-                </div>
+                <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>Click a row to focus analysis context.</div>
               </div>
 
-              {/* Toggle (moved to right panel per request) */}
-              <div
-                style={{
-                  display: 'inline-flex',
-                  borderRadius: 999,
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  background: 'rgba(0,0,0,0.55)',
-                  padding: 3,
-                  backdropFilter: 'blur(8px)',
-                }}
-              >
-                {[
-                  { k: 'top', label: 'Top' },
-                  { k: 'bottom', label: 'Bottom' },
-                ].map((t) => {
-                  const active = videoMode === t.k;
-                  return (
-                    <button
-                      key={t.k}
-                      onClick={() => setVideoMode(t.k)}
-                      style={{
-                        border: 'none',
-                        outline: 'none',
-                        cursor: 'pointer',
-                        padding: '6px 12px',
-                        borderRadius: 999,
-                        fontSize: 12,
-                        background: active
-                          ? 'linear-gradient(135deg, #f97316, #facc15)'
-                          : 'transparent',
-                        color: active ? '#000' : 'rgba(255,255,255,0.7)',
-                        fontWeight: active ? 800 : 500,
-                        boxShadow: active
-                          ? '0 0 0 1px rgba(0,0,0,0.25), 0 10px 25px rgba(0,0,0,0.7)'
-                          : 'none',
-                      }}
-                    >
-                      {t.label}
-                    </button>
-                  );
-                })}
+              {/* controls */}
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                {/* Timeframe pill */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    borderRadius: 999,
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    background: 'rgba(0,0,0,0.55)',
+                    padding: 3,
+                    backdropFilter: 'blur(8px)',
+                  }}
+                >
+                  {[
+                    { k: 'alltime', label: 'All-time' },
+                    { k: 'recent', label: 'Recent (30d)' },
+                  ].map((t) => {
+                    const active = timeframe === t.k;
+                    return (
+                      <button
+                        key={t.k}
+                        onClick={() => setTimeframe(t.k)}
+                        style={{
+                          border: 'none',
+                          outline: 'none',
+                          cursor: 'pointer',
+                          padding: '6px 10px',
+                          borderRadius: 999,
+                          fontSize: 12,
+                          background: active ? 'linear-gradient(135deg, #f97316, #facc15)' : 'transparent',
+                          color: active ? '#000' : 'rgba(255,255,255,0.7)',
+                          fontWeight: active ? 800 : 500,
+                          boxShadow: active
+                            ? '0 0 0 1px rgba(0,0,0,0.25), 0 10px 25px rgba(0,0,0,0.7)'
+                            : 'none',
+                        }}
+                      >
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Top/Bottom pill */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    borderRadius: 999,
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    background: 'rgba(0,0,0,0.55)',
+                    padding: 3,
+                    backdropFilter: 'blur(8px)',
+                  }}
+                >
+                  {[
+                    { k: 'top', label: 'Top' },
+                    { k: 'bottom', label: 'Bottom' },
+                  ].map((t) => {
+                    const active = videoMode === t.k;
+                    return (
+                      <button
+                        key={t.k}
+                        onClick={() => setVideoMode(t.k)}
+                        style={{
+                          border: 'none',
+                          outline: 'none',
+                          cursor: 'pointer',
+                          padding: '6px 12px',
+                          borderRadius: 999,
+                          fontSize: 12,
+                          background: active ? 'linear-gradient(135deg, #f97316, #facc15)' : 'transparent',
+                          color: active ? '#000' : 'rgba(255,255,255,0.7)',
+                          fontWeight: active ? 800 : 500,
+                          boxShadow: active
+                            ? '0 0 0 1px rgba(0,0,0,0.25), 0 10px 25px rgba(0,0,0,0.7)'
+                            : 'none',
+                        }}
+                      >
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {videosLoading && (
-              <div style={{ padding: 12, fontSize: 13, opacity: 0.8 }}>
-                Loading videos…
-              </div>
-            )}
+            {videosLoading && <div style={{ padding: 12, fontSize: 13, opacity: 0.8 }}>Loading videos…</div>}
             {!videosLoading && videosError && (
-              <div style={{ padding: 12, fontSize: 12, color: '#fed7aa' }}>
-                {videosError}
-              </div>
+              <div style={{ padding: 12, fontSize: 12, color: '#fed7aa' }}>{videosError}</div>
             )}
 
-            {/* selected preview header */}
+            {/* selected preview */}
             <div
               style={{
                 borderRadius: 16,
@@ -1006,10 +1060,16 @@ export default function PerformancePage() {
               }}
             >
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
-                  Selected
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>Selected</div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 800,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
                   {selectedVideo?.title || '—'}
                 </div>
                 <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -1026,9 +1086,7 @@ export default function PerformancePage() {
                   >
                     {(selectedVideo?.platform || 'UNKNOWN').toUpperCase()}
                   </span>
-                  <span style={{ opacity: 0.8 }}>
-                    {formatNumber(selectedVideo?.views)} views
-                  </span>
+                  <span style={{ opacity: 0.8 }}>{formatNumber(selectedVideo?.views)} views</span>
                   <span style={{ opacity: 0.7 }}>
                     {formatNumber(selectedVideo?.likes)} likes · {formatNumber(selectedVideo?.comments)} comments
                   </span>
@@ -1129,16 +1187,11 @@ export default function PerformancePage() {
                             background: active
                               ? 'linear-gradient(90deg, rgba(249,115,22,0.14), rgba(250,204,21,0.10))'
                               : idx % 2 === 0
-                                ? 'rgba(255,255,255,0.02)'
-                                : 'transparent',
+                              ? 'rgba(255,255,255,0.02)'
+                              : 'transparent',
                           }}
                         >
-                          <td
-                            style={{
-                              padding: '10px 12px',
-                              borderBottom: '1px solid rgba(255,255,255,0.06)',
-                            }}
-                          >
+                          <td style={{ padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                               <span
                                 style={{
@@ -1155,11 +1208,27 @@ export default function PerformancePage() {
                                 {(v.platform || 'UNK').toUpperCase()}
                               </span>
                               <div style={{ minWidth: 0 }}>
-                                <div style={{ fontWeight: active ? 900 : 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <div
+                                  style={{
+                                    fontWeight: active ? 900 : 700,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                  }}
+                                >
                                   {v.title}
                                 </div>
                                 {v.reason ? (
-                                  <div style={{ fontSize: 11, opacity: 0.65, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  <div
+                                    style={{
+                                      fontSize: 11,
+                                      opacity: 0.65,
+                                      marginTop: 2,
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                    }}
+                                  >
                                     {v.reason}
                                   </div>
                                 ) : null}
