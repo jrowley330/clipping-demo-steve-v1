@@ -479,7 +479,6 @@ export default function Leaderboards() {
   const goPayouts = () => navigate("/payouts");
   const goClippers = () => navigate("/clippers");
   const goPerformance = () => navigate("/performance");
-  const goGallery = () => navigate("/gallery");
 
   const copySummary = async () => {
     const title = `🏆 Weekly Leaderboard — Week of ${formatDateLabel(
@@ -684,7 +683,6 @@ export default function Leaderboards() {
                 Leaderboards
               </button>
 
-              <NavBtn onClick={goGallery} label="Gallery" />
 
               <NavBtn label="Settings" muted />
 
