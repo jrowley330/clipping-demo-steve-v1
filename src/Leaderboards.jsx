@@ -475,7 +475,6 @@ export default function Leaderboards() {
   };
 
   const goDashV2 = () => navigate("/dashboard-v2");
-  const goDashV1 = () => navigate("/dashboard");
   const goPayouts = () => navigate("/payouts");
   const goClippers = () => navigate("/clippers");
   const goPerformance = () => navigate("/performance");
@@ -687,8 +686,6 @@ export default function Leaderboards() {
               <NavBtn label="Settings" muted />
 
               <div style={{ flexGrow: 1 }} />
-
-              <NavBtn onClick={goDashV1} label="Dashboards V1" />
 
               <button
                 onClick={handleLogout}
