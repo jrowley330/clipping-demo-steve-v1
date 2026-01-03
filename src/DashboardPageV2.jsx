@@ -122,6 +122,11 @@ export default function DashboardsPageV2() {
     navigate('/leaderboards');
 };
 
+  const goGallery = () => {
+    navigate('/gallery');
+};
+
+
 
   // FETCH SUMMARY
   useEffect(() => {
@@ -525,6 +530,26 @@ export default function DashboardsPageV2() {
                   }}
                 >
                   Leaderboards
+              </button>
+
+              {/* Gallery */}
+              <button
+                  onClick={goGallery}
+                  style={{
+                    border: 'none',
+                    outline: 'none',
+                    borderRadius: 12,
+                    padding: '7px 10px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    background: 'transparent',
+                    color: 'rgba(255,255,255,0.55)',
+                    marginTop: 2,
+                    marginBottom: 2,
+                  }}
+                >
+                  Gallery
               </button>
 
               {/* Settings */}

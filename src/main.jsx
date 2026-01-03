@@ -10,6 +10,7 @@ import DashboardsPageV2 from './DashboardPageV2.jsx';
 import ClippersPage from './ClippersPage.jsx';
 import Performance from "./Performance.jsx";
 import Leaderboards from './Leaderboards.jsx';
+import Gallery from './Gallery.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -77,6 +78,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           element={
             <App>
               <Leaderboards />
+            </App>
+          }
+        />
+
+        <Route
+          path="/gallery"
+          element={
+            <App>
+              <Gallery />
             </App>
           }
         />
