@@ -607,6 +607,16 @@ export default function PerformancePage() {
           60% { opacity: 0.22; }
           100% { transform: translateX(140%); opacity: 0; }
         }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes overlayShimmer {
+          0% { transform: translateX(-60%); opacity: 0; }
+          25% { opacity: 0.22; }
+          60% { opacity: 0.22; }
+          100% { transform: translateX(160%); opacity: 0; }
+        }
       `}</style>
 
       {/* WATERMARK */}
@@ -1024,6 +1034,70 @@ export default function PerformancePage() {
                 overflow: "hidden",
               }}
             >
+              {summarizing && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    zIndex: 5,
+                    background: "rgba(15, 15, 15, 0.62)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                    backdropFilter: "blur(7px)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                  }}
+                >
+                  {/* shimmer sweep */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      bottom: 0,
+                      width: "55%",
+                      background: "linear-gradient(90deg, transparent, rgba(250,204,21,0.10), transparent)",
+                      filter: "blur(0.5px)",
+                      animation: "overlayShimmer 1.15s linear infinite",
+                      pointerEvents: "none",
+                    }}
+                  />
+
+                  {/* center card */}
+                  <div
+                    style={{
+                      position: "relative",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "14px 16px",
+                      borderRadius: 16,
+                      background: "rgba(0,0,0,0.55)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      boxShadow: "0 20px 50px rgba(0,0,0,0.7)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 999,
+                        border: "3px solid rgba(255,255,255,0.15)",
+                        borderTopColor: "rgba(255,255,255,0.75)",
+                        animation: "spin 0.9s linear infinite",
+                      }}
+                    />
+                    <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.92 }}>
+                      Summarizing…
+                    </div>
+                    <div style={{ fontSize: 11, opacity: 0.65 }}>
+                      Compressing into key takeaways
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {analyzing && (
                 <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
                   <div
