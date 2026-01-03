@@ -67,6 +67,10 @@ export default function ClippersPage() {
     navigate('/performance');
   };
 
+    const goLeaderboards = () => {
+    navigate('/leaderboards');
+  };
+
   const handleGoDashV1 = () => {
     navigate('/dashboard');
   };
@@ -452,7 +456,7 @@ export default function ClippersPage() {
               >
                 Clippers
               </button>
-
+              
               {/* Performance */}
               <button
                   onClick={handleGoPerformance}
@@ -471,6 +475,26 @@ export default function ClippersPage() {
                   }}
                 >
                   Performance
+              </button>
+              
+              {/* Leaderboards */}
+              <button
+                  onClick={goLeaderboards}
+                  style={{
+                    border: 'none',
+                    outline: 'none',
+                    borderRadius: 12,
+                    padding: '7px 10px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    background: 'transparent',
+                    color: 'rgba(255,255,255,0.55)',
+                    marginTop: 2,
+                    marginBottom: 2,
+                  }}
+                >
+                  Leaderboards
               </button>
 
               {/* Settings placeholder under Clippers */}

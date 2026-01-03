@@ -193,6 +193,7 @@ export default function Leaderboards() {
   const goDashV1 = () => navigate('/dashboard');
   const goPayouts = () => navigate('/payouts');
   const goClippers = () => navigate('/clippers');
+  const goPerformance = () => navigate('/performance');
   const goLeaderboards = () => navigate('/leaderboards');
 
   // Actions
@@ -386,6 +387,26 @@ export default function Leaderboards() {
                 }}
               >
                 Clippers
+              </button>
+
+                {/* Performance */}
+              <button
+                  onClick={goPerformance}
+                  style={{
+                    border: 'none',
+                    outline: 'none',
+                    borderRadius: 12,
+                    padding: '7px 10px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    background: 'transparent',
+                    color: 'rgba(255,255,255,0.55)',
+                    marginTop: 2,
+                    marginBottom: 2,
+                  }}
+                >
+                  Performance
               </button>
 
               {/* ACTIVE: Leaderboards */}
