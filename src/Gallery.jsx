@@ -149,9 +149,13 @@ export default function Gallery() {
     navigate('/login');
   };
 
-  const goDashV2 = () => navigate('/dashboard-v2');
-  const goPayouts = () => navigate('/payouts');
-  const goClippers = () => navigate('/clippers');
+  const goDashV2 = () => navigate("/dashboard-v2");
+  const goPayouts = () => navigate("/payouts");
+  const goClippers = () => navigate("/clippers");
+  const goPerformance = () => navigate("/performance");
+  const goLeaderboards = () => navigate("/leaderboards");
+  const goGallery = () => navigate("/gallery");
+
   return (
     <div
       style={{
@@ -259,28 +263,7 @@ export default function Gallery() {
                   color: 'rgba(255,255,255,0.7)',
                 }}
               >
-                Dashboards V2
-              </button>
-
-              <button
-                onClick={() => navigate('/gallery')}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '8px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                  background:
-                    'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
-                  color: '#020617',
-                  fontWeight: 600,
-                  marginTop: 2,
-                  marginBottom: 2,
-                }}
-              >
-                Gallery
+                Dashboards
               </button>
 
               <button
@@ -317,6 +300,63 @@ export default function Gallery() {
                 }}
               >
                 Clippers
+              </button>
+
+              <button
+                onClick={goPerformance}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginTop: 2,
+                }}
+              >
+                Performance
+              </button>
+
+              <button
+                onClick={goLeaderboards}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginTop: 2,
+                }}
+              >
+                Leaderboards
+              </button>
+
+              <button
+                onClick={() => navigate('/gallery')}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '8px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  background:
+                    'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
+                  color: '#020617',
+                  fontWeight: 600,
+                  marginTop: 2,
+                  marginBottom: 2,
+                }}
+              >
+                Gallery
               </button>
 
               <button
