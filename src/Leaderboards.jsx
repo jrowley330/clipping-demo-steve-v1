@@ -553,11 +553,11 @@ export default function Leaderboards() {
         position: "fixed",
         inset: 0,
         background:
-          "radial-gradient(circle at top, rgba(184, 189, 198, 0.12) 0, rgba(2,2,2,1) 30%)",
+          "radial-gradient(circle at top, rgba(184, 189, 198, 0.1) 0, rgba(2,2,2,1) 50%)",
         display: "flex",
         overflowX: "hidden",
         overflowY: "auto",
-        color: "#fff",
+        color: "#ffffff9d",
         fontFamily:
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         padding: "32px",
