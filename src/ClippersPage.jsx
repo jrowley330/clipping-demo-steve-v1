@@ -71,9 +71,9 @@ export default function ClippersPage() {
     navigate('/leaderboards');
   };
 
-  const handleGoDashV1 = () => {
-    navigate('/dashboard');
-  };
+    const goGallery = () => {
+    navigate('/gallery');
+};
 
   // -------------------------------------------------------
   // FETCH CLIPPERS FROM API
@@ -497,6 +497,24 @@ export default function ClippersPage() {
                   Leaderboards
               </button>
 
+              {/* Gallery */}
+              <button
+                onClick={goGallery}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                Gallery
+              </button>
+
               {/* Settings placeholder under Clippers */}
               <button
                 style={{
@@ -517,24 +535,6 @@ export default function ClippersPage() {
               {/* push bottom cluster down */}
               <div style={{ flexGrow: 1 }} />
 
-              {/* Dashboards V1 at bottom */}
-              <button
-                onClick={handleGoDashV1}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.7)',
-                  marginBottom: 4,
-                }}
-              >
-                Dashboards V1
-              </button>
 
               {/* Logout – same style as other pages */}
               <button

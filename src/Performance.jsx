@@ -295,6 +295,7 @@ export default function PerformancePage() {
   const goClippers = () => navigate("/clippers");
   const goPerformance = () => navigate("/performance");
   const goLeaderboards = () => navigate("/leaderboards");
+  const goGallery = () => navigate("/gallery");
 
   // ---------- fetch videos ----------
   useEffect(() => {
@@ -787,6 +788,24 @@ export default function PerformancePage() {
                   Leaderboards
               </button>
 
+              {/* Gallery */}
+              <button
+                onClick={goGallery}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                Gallery
+              </button>
+
               <button
                 style={{
                   border: "none",
@@ -805,23 +824,6 @@ export default function PerformancePage() {
 
               <div style={{ flexGrow: 1 }} />
 
-              <button
-                onClick={goDashV1}
-                style={{
-                  border: "none",
-                  outline: "none",
-                  borderRadius: 12,
-                  padding: "7px 10px",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  background: "transparent",
-                  color: "rgba(255,255,255,0.7)",
-                  marginBottom: 4,
-                }}
-              >
-                Dashboards V1
-              </button>
 
               <button
                 onClick={handleLogout}

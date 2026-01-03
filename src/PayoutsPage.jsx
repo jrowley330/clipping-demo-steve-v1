@@ -108,6 +108,10 @@ export default function PayoutsPage() {
     navigate('/leaderboards');
 };
 
+    const goGallery = () => {
+    navigate('/gallery');
+};
+
   // ---------- fetch monthly balances ----------
 
   useEffect(() => {
@@ -783,6 +787,24 @@ export default function PayoutsPage() {
                   }}
                 >
                   Leaderboards
+              </button>
+
+              {/* Gallery */}
+              <button
+                onClick={goGallery}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                Gallery
               </button>
 
 
