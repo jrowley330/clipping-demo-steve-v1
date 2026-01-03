@@ -82,6 +82,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           }
         />
 
+        {/* Gallery */}
         <Route
           path="/gallery"
           element={
