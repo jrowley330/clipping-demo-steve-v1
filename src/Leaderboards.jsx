@@ -479,6 +479,7 @@ export default function Leaderboards() {
   const goClippers = () => navigate("/clippers");
   const goPerformance = () => navigate("/performance");
   const goLeaderboards = () => navigate("/leaderboards");
+  const goGallery = () => navigate("/gallery");
 
 
   const copySummary = async () => {
@@ -684,6 +685,7 @@ export default function Leaderboards() {
                 Leaderboards
               </button>
 
+              <NavBtn onClick={goGallery} label="Gallery" /> 
 
               <NavBtn label="Settings" muted />
 
