@@ -674,13 +674,11 @@ export default function Leaderboards() {
                   textAlign: "left",
                   cursor: "pointer",
                   fontSize: 13,
-                  background:
-                    "linear-gradient(135deg, rgba(59,130,246,0.95), rgba(168,85,247,0.95))",
+                  background: "linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))",
                   color: "#020617",
-                  fontWeight: 800,
+                  fontWeight: 700,
                   marginTop: 2,
                   marginBottom: 2,
-                  boxShadow: "0 14px 30px rgba(0,0,0,0.55)",
                 }}
               >
                 Leaderboards
