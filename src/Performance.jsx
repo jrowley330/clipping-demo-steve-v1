@@ -294,6 +294,7 @@ export default function PerformancePage() {
   const goPayouts = () => navigate("/payouts");
   const goClippers = () => navigate("/clippers");
   const goPerformance = () => navigate("/performance");
+  const goLeaderboards = () => navigate("/leaderboards");
 
   // ---------- fetch videos ----------
   useEffect(() => {
@@ -764,6 +765,26 @@ export default function PerformancePage() {
                 }}
               >
                 Performance
+              </button>
+
+              <button
+                onClick={goLeaderboards}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  borderRadius: 12,
+                  padding: "8px 10px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  background: "linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))",
+                  color: "#020617",
+                  fontWeight: 700,
+                  marginTop: 2,
+                  marginBottom: 2,
+                }}
+              >
+                Leaderboards
               </button>
 
               <button
