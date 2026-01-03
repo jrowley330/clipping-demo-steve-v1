@@ -220,7 +220,6 @@ const fallbackSummarize = (text) => {
   const raw = String(text || "");
   const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
 
-  // grab first bullets from Summary/Primary drivers/Experiments sections if present
   const pick = (sectionTitle, max = 4) => {
     const idx = lines.findIndex((l) => l.toLowerCase().startsWith(sectionTitle.toLowerCase()));
     if (idx === -1) return [];
@@ -238,9 +237,9 @@ const fallbackSummarize = (text) => {
   const s3 = pick("## Experiments to run next week", 3);
 
   const merged = [...s1, ...s2, ...s3].slice(0, 8);
-  if (!merged.length) return "• No summary available yet (try again after output is generated).";
+  if (!merged.length) return "## Key takeaways\n- No summary available yet (try again after output is generated).";
 
-  return merged.map((x) => `• ${x}`).join("\n");
+  return `## Key takeaways\n${merged.map((x) => `- ${x}`).join("\n")}`;
 };
 
 // ---------- component ----------
@@ -277,7 +276,10 @@ export default function PerformancePage() {
   // summarize UX
   const [summarizing, setSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState("");
-  const [summaryOutput, setSummaryOutput] = useState("");
+
+  // NEW: keep the full analysis so we can restore after summarizing
+  const [fullAnalysisOutput, setFullAnalysisOutput] = useState("");
+  const [isShowingSummary, setIsShowingSummary] = useState(false);
 
   const logRef = useRef(null);
 
@@ -381,6 +383,14 @@ export default function PerformancePage() {
     return `Analyzing ${modeLabel} ${n} ${tfLabel} ${plural}…`;
   }, [videos.length, videoMode, timeframe]);
 
+  const summarizeLabel = useMemo(() => {
+    const n = videos.length || 0;
+    const modeLabel = videoMode === "top" ? "Top" : "Bottom";
+    const tfLabel = timeframe === "recent" ? "recent (30d)" : "all-time";
+    const plural = n === 1 ? "video" : "videos";
+    return `Summary — ${modeLabel} ${n} ${tfLabel} ${plural}`;
+  }, [videos.length, videoMode, timeframe]);
+
   // ---------- live streaming analysis ----------
   const runAnalysis = async () => {
     if (analyzing) return;
@@ -388,13 +398,13 @@ export default function PerformancePage() {
     setAnalyzing(true);
     setAnalysisError("");
     setAnalysisOutput("");
+    setFullAnalysisOutput("");
+    setIsShowingSummary(false);
+    setSummaryError("");
+
     setAnalysisLog([]);
     setAnalysisProgress(0);
     setAnalysisHeader(selectionLabel);
-
-    // reset summary each run
-    setSummaryError("");
-    setSummaryOutput("");
 
     try {
       pushLog("Booting analysis graph…");
@@ -490,6 +500,10 @@ export default function PerformancePage() {
         throw new Error("No analysis output received.");
       }
 
+      // store as the "full" analysis baseline
+      setFullAnalysisOutput(fullText);
+      setIsShowingSummary(false);
+
       setAnalysisProgress(1);
       pushLog("Complete.");
     } catch (e) {
@@ -500,47 +514,60 @@ export default function PerformancePage() {
     }
   };
 
-  // ---------- summarize ----------
+  // ---------- summarize (REPLACES main output) ----------
   const summarize = async () => {
     if (summarizing || !analysisOutput) return;
+
     setSummarizing(true);
     setSummaryError("");
-    setSummaryOutput("");
 
     try {
-      // Preferred: implement this endpoint in your API
-      // POST /performance/summarize { text, cohort, mode }
+      // ensure we have the full analysis captured (in case user ran summarize mid-stream earlier)
+      if (!fullAnalysisOutput) setFullAnalysisOutput(analysisOutput);
+
       const res = await fetch(`${PERF_API_BASE_URL}/performance/summarize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: analysisOutput,
+          text: fullAnalysisOutput || analysisOutput,
           cohort: timeframe,
           mode: videoMode,
           hint: selectionLabel,
         }),
       });
 
-      if (!res.ok) {
-        // fallback to local summarize if endpoint isn't there yet
-        const fb = fallbackSummarize(analysisOutput);
-        setSummaryOutput(fb);
-        return;
+      let md = "";
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        md = data?.summary_markdown || data?.summary || "";
       }
 
-      const data = await res.json().catch(() => null);
-      const md = data?.summary_markdown || data?.summary || "";
       if (!md) {
-        setSummaryOutput(fallbackSummarize(analysisOutput));
-      } else {
-        setSummaryOutput(md);
+        md = fallbackSummarize(fullAnalysisOutput || analysisOutput);
       }
+
+      // REPLACE the main output
+      setAnalysisOutput(md);
+      setAnalysisHeader(summarizeLabel);
+      setIsShowingSummary(true);
+      pushLog("Summarized into key takeaways.");
     } catch (e) {
-      setSummaryError("Summarize failed (using fallback).");
-      setSummaryOutput(fallbackSummarize(analysisOutput));
+      setSummaryError("Summarize failed (used fallback).");
+      const md = fallbackSummarize(fullAnalysisOutput || analysisOutput);
+      setAnalysisOutput(md);
+      setAnalysisHeader(summarizeLabel);
+      setIsShowingSummary(true);
+      pushLog("Summarize failed; showed fallback summary.");
     } finally {
       setSummarizing(false);
     }
+  };
+
+  const restoreFull = () => {
+    if (!fullAnalysisOutput) return;
+    setAnalysisOutput(fullAnalysisOutput);
+    setAnalysisHeader(selectionLabel);
+    setIsShowingSummary(false);
   };
 
   // ---------- layout ----------
@@ -888,26 +915,47 @@ export default function PerformancePage() {
             </div>
 
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              {/* Summarize button (only after analysis finishes) */}
-              <button
-                onClick={summarize}
-                disabled={analyzing || summarizing || !analysisOutput}
-                style={{
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  cursor: analyzing || summarizing || !analysisOutput ? "default" : "pointer",
-                  borderRadius: 999,
-                  padding: "10px 14px",
-                  fontSize: 13,
-                  fontWeight: 900,
-                  letterSpacing: 0.2,
-                  color: "rgba(255,255,255,0.9)",
-                  background: "rgba(255,255,255,0.06)",
-                  opacity: analyzing || summarizing || !analysisOutput ? 0.55 : 1,
-                }}
-                title="Condense the full analysis into key takeaways"
-              >
-                {summarizing ? "Summarizing…" : "Summarize"}
-              </button>
+              {isShowingSummary && fullAnalysisOutput ? (
+                <button
+                  onClick={restoreFull}
+                  disabled={analyzing || summarizing}
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    cursor: analyzing || summarizing ? "default" : "pointer",
+                    borderRadius: 999,
+                    padding: "10px 14px",
+                    fontSize: 13,
+                    fontWeight: 900,
+                    letterSpacing: 0.2,
+                    color: "rgba(255,255,255,0.9)",
+                    background: "rgba(255,255,255,0.06)",
+                    opacity: analyzing || summarizing ? 0.55 : 1,
+                  }}
+                  title="Switch back to the full analysis"
+                >
+                  Restore full
+                </button>
+              ) : (
+                <button
+                  onClick={summarize}
+                  disabled={analyzing || summarizing || !analysisOutput || !fullAnalysisOutput}
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    cursor: analyzing || summarizing || !analysisOutput || !fullAnalysisOutput ? "default" : "pointer",
+                    borderRadius: 999,
+                    padding: "10px 14px",
+                    fontSize: 13,
+                    fontWeight: 900,
+                    letterSpacing: 0.2,
+                    color: "rgba(255,255,255,0.9)",
+                    background: "rgba(255,255,255,0.06)",
+                    opacity: analyzing || summarizing || !analysisOutput || !fullAnalysisOutput ? 0.55 : 1,
+                  }}
+                  title="Condense the full analysis into key takeaways"
+                >
+                  {summarizing ? "Summarizing…" : "Summarize"}
+                </button>
+              )}
 
               <button
                 onClick={runAnalysis}
@@ -934,6 +982,22 @@ export default function PerformancePage() {
               </button>
             </div>
           </div>
+
+          {!!summaryError && (
+            <div
+              style={{
+                marginBottom: 10,
+                padding: "8px 10px",
+                borderRadius: 12,
+                background: "rgba(251,146,60,0.10)",
+                border: "1px solid rgba(251,146,60,0.35)",
+                color: "rgba(255,237,213,0.95)",
+                fontSize: 12,
+              }}
+            >
+              {summaryError}
+            </div>
+          )}
 
           {/* progress */}
           <div style={{ height: 8, borderRadius: 999, background: "rgba(255,255,255,0.06)", overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", marginBottom: 12 }}>
@@ -1044,30 +1108,11 @@ export default function PerformancePage() {
                     Run analysis to generate a coaching-style breakdown.
                   </div>
                 ) : (
-                  <div style={{ opacity: analyzing ? 0.92 : 1 }}>{renderCoachMarkdown(analysisOutput || "Computing…")}</div>
+                  <div style={{ opacity: analyzing ? 0.92 : 1 }}>
+                    {renderCoachMarkdown(analysisOutput || "Computing…")}
+                  </div>
                 )}
               </div>
-
-              {/* SUMMARY output (after summarize) */}
-              {(summaryOutput || summaryError) && (
-                <div style={{ marginTop: 14 }}>
-                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 8 }}>Summary (key points)</div>
-                  {summaryError ? (
-                    <div style={{ fontSize: 12, opacity: 0.75, color: "#fed7aa", marginBottom: 8 }}>{summaryError}</div>
-                  ) : null}
-                  <div
-                    style={{
-                      borderRadius: 14,
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      background: "rgba(0,0,0,0.35)",
-                      padding: 12,
-                    }}
-                  >
-                    {/* summaryOutput might be bullets or markdown-ish; render it */}
-                    {renderCoachMarkdown(summaryOutput)}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* log */}
@@ -1162,7 +1207,7 @@ export default function PerformancePage() {
                 4) Hit <strong>Run analysis</strong> to generate the “why” + experiments.
               </div>
               <div style={{ marginBottom: 8 }}>
-                5) Hit <strong>Summarize</strong> to condense the full output into key takeaways.
+                5) Hit <strong>Summarize</strong> to replace the full output with key takeaways.
               </div>
               <div style={{ opacity: 0.65, fontSize: 12, marginTop: 10 }}>
                 (This is running against your PERF_ANALYSIS_INPUT_TEST rows right now.)
