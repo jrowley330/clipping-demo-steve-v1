@@ -553,7 +553,7 @@ export default function Leaderboards() {
         position: "fixed",
         inset: 0,
         background:
-          "radial-gradient(circle at top, rgba(59,130,246,0.25) 0, rgba(2,2,2,1) 80%)",
+          "radial-gradient(circle at top, rgba(59,130,246,0.25) 0, rgba(2,2,2,1) 10%)",
         display: "flex",
         overflowX: "hidden",
         overflowY: "auto",
