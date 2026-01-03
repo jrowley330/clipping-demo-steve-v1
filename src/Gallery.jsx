@@ -152,8 +152,6 @@ export default function Gallery() {
   const goDashV2 = () => navigate('/dashboard-v2');
   const goPayouts = () => navigate('/payouts');
   const goClippers = () => navigate('/clippers');
-  const goPerformance = () => navigate('/performance');
-
   return (
     <div
       style={{
@@ -339,23 +337,6 @@ export default function Gallery() {
 
               <div style={{ flexGrow: 1 }} />
 
-              <button
-                onClick={goDashV1}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.7)',
-                  marginBottom: 4,
-                }}
-              >
-                Dashboards V1
-              </button>
 
               <button
                 onClick={handleLogout}
