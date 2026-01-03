@@ -478,6 +478,8 @@ export default function Leaderboards() {
   const goPayouts = () => navigate("/payouts");
   const goClippers = () => navigate("/clippers");
   const goPerformance = () => navigate("/performance");
+  const goLeaderboards = () => navigate("/leaderboards");
+
 
   const copySummary = async () => {
     const title = `🏆 Weekly Leaderboard — Week of ${formatDateLabel(
