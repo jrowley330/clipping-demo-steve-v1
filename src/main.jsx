@@ -72,14 +72,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         />
 
         {/* Leaderboards */}
-+        <Route
-+          path="/leaderboards"
-+          element={
-+            <App>
-+              <Leaderboards />
-+            </App>
-+          }
-+        />
+        <Route
+          path="/leaderboards"
+          element={
+            <App>
+              <Leaderboards />
+            </App>
+          }
+        />
 
         {/* any unknown hash -> Dashboards V2 */}
         <Route path="*" element={<Navigate to="/dashboard-v2" replace />} />
