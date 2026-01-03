@@ -658,7 +658,7 @@ export default function Leaderboards() {
                 Navigation
               </div>
 
-              <NavBtn onClick={goDashV2} label="Dashboards V2" />
+              <NavBtn onClick={goDashV2} label="Dashboards" />
               <NavBtn onClick={goPayouts} label="Payouts" />
               <NavBtn onClick={goClippers} label="Clippers" />
               <NavBtn onClick={goPerformance} label="Performance" />

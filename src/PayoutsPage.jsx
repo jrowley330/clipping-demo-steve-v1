@@ -702,7 +702,7 @@ export default function PayoutsPage() {
                   color: 'rgba(255,255,255,0.7)',
                 }}
               >
-                Dashboards V2
+                Dashboards
               </button>
 
               {/* Payouts (current) */}
@@ -764,7 +764,7 @@ export default function PayoutsPage() {
                 >
                   Performance
               </button>
-              
+
               {/* Leaderboards */}
               <button
                   onClick={goLeaderboards}

@@ -414,7 +414,7 @@ export default function ClippersPage() {
                   color: 'rgba(255,255,255,0.7)',
                 }}
               >
-                Dashboards V2
+                Dashboards
               </button>
 
               {/* Payouts */}

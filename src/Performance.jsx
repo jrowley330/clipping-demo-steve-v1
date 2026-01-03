@@ -710,7 +710,7 @@ export default function PerformancePage() {
                   color: "rgba(255,255,255,0.7)",
                 }}
               >
-                Dashboards V2
+                Dashboards
               </button>
 
               <button
@@ -786,7 +786,7 @@ export default function PerformancePage() {
                 >
                   Leaderboards
               </button>
-              
+
               <button
                 style={{
                   border: "none",
