@@ -1315,7 +1315,7 @@ export default function DashboardsPageV2() {
                   <div
                     style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}
                   >
-                    Total views (lifetime)
+                    Total views (as of latest pull)
                   </div>
                   <div style={{ fontSize: 22, fontWeight: 600 }}>
                     {formatNumber(detailsTotalViews)}
