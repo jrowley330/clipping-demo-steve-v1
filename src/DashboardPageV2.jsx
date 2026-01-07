@@ -357,6 +357,28 @@ export default function DashboardsPageV2() {
     });
   }, [detailsRows, detailsMonth, detailsWeekOf, detailsClipper]);
 
+  //added to sort detail rows most recent at top
+  const sortedFilteredDetailsRows = useMemo(() => {
+    const rows = Array.isArray(filteredDetailsRows)
+      ? [...filteredDetailsRows]
+      : [];
+
+    rows.sort((a, b) => {
+      const ta = unwrapValue(a.snapshotTs)
+        ? new Date(unwrapValue(a.snapshotTs)).getTime()
+        : 0;
+      const tb = unwrapValue(b.snapshotTs)
+        ? new Date(unwrapValue(b.snapshotTs)).getTime()
+        : 0;
+
+      // newest first
+      return tb - ta;
+    });
+
+    return rows;
+  }, [filteredDetailsRows]);
+
+
   // DETAILS KPIs
   const detailsWeeklyViews = useMemo(
     () =>
@@ -1420,7 +1442,7 @@ export default function DashboardsPageV2() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredDetailsRows.map((row) => (
+                      {sortedFilteredDetailsRows.map((row) => (
                         <tr key={row.id}>
                           <td
                             style={{
