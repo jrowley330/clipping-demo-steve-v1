@@ -274,17 +274,22 @@ export default function DashboardsPageV2() {
 
   // DETAILS FILTER OPTIONS
   const detailsMonthOptions = useMemo(() => {
+    const rows = Array.isArray(detailsRows) ? detailsRows : [];
     const set = new Set();
-    detailsRows.forEach((r) => {
+
+    rows.forEach((r) => {
       const m = unwrapValue(r.month);
       if (m) set.add(m);
     });
+
     return ["all", ...Array.from(set).sort().reverse()];
   }, [detailsRows]);
 
 
   const detailsRowsForWeekOptions = useMemo(() => {
-    return detailsRows.filter((r) => {
+    const rows = Array.isArray(detailsRows) ? detailsRows : [];
+
+    return rows.filter((r) => {
       const month = unwrapValue(r.month);
       const clipper = unwrapValue(r.name);
 
@@ -296,32 +301,32 @@ export default function DashboardsPageV2() {
   }, [detailsRows, detailsMonthFilter, detailsClipperFilter]);
 
 
-
   const detailsWeekOfOptions = useMemo(() => {
-  const endByWeek = new Map(); // weekOf -> max snapshotTs
+    const rows = Array.isArray(detailsRowsForWeekOptions) ? detailsRowsForWeekOptions : [];
+    const endByWeek = new Map();
 
-  detailsRowsForWeekOptions.forEach((r) => {
-    const week = unwrapValue(r.weekOf);
-    const ts = unwrapValue(r.snapshotTs);
-    if (!week) return;
+    rows.forEach((r) => {
+      const week = unwrapValue(r.weekOf);
+      const ts = unwrapValue(r.snapshotTs);
+      if (!week) return;
 
-    const d = ts ? new Date(ts) : null;
-    const prev = endByWeek.get(week);
+      const d = ts ? new Date(ts) : null;
+      const prev = endByWeek.get(week);
+      if (!prev || (d && d > prev)) endByWeek.set(week, d);
+    });
 
-    if (!prev || (d && d > prev)) endByWeek.set(week, d);
-  });
+    const weeks = Array.from(endByWeek.keys()).sort((a, b) => {
+      const da = endByWeek.get(a);
+      const db = endByWeek.get(b);
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return db - da;
+    });
 
-  const weeks = Array.from(endByWeek.keys()).sort((a, b) => {
-    const da = endByWeek.get(a);
-    const db = endByWeek.get(b);
-    if (!da && !db) return 0;
-    if (!da) return 1;
-    if (!db) return -1;
-    return db - da; // newest first
-  });
-
-  return ["all", ...weeks];
+    return ["all", ...weeks];
   }, [detailsRowsForWeekOptions]);
+
 
   useEffect(() => {
     if (!detailsWeekOfOptions || detailsWeekOfOptions.length === 0) return;
