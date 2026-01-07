@@ -426,7 +426,7 @@ export default function DashboardsPageV2() {
   );
 
   ///end KPI calcs ^
-  
+
   const showSummaryLoading = summaryLoading && !summaryError;
   const showDetailsLoading = detailsLoading && !detailsError;
 
@@ -1299,7 +1299,7 @@ export default function DashboardsPageV2() {
                     Views Generated (filtered)
                   </div>
                   <div style={{ fontSize: 22, fontWeight: 600 }}>
-                    {formatNumber(detailsWeeklyViews)}
+                    {formatNumber(detailsViewsGenerated)}
                   </div>
                 </div>
 
