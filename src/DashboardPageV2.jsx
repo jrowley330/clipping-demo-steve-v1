@@ -321,7 +321,7 @@ export default function DashboardsPageV2() {
   });
 
   return ["all", ...weeks];
-}, [detailsRowsForWeekOptions]);
+  }, [detailsRowsForWeekOptions]);
 
   useEffect(() => {
     if (!detailsWeekOfOptions || detailsWeekOfOptions.length === 0) return;
