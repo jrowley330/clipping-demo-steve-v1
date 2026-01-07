@@ -285,7 +285,6 @@ export default function DashboardsPageV2() {
     return ["all", ...Array.from(set).sort().reverse()];
   }, [detailsRows]);
 
-
   const detailsRowsForWeekOptions = useMemo(() => {
     const rows = Array.isArray(detailsRows) ? detailsRows : [];
 
@@ -293,17 +292,20 @@ export default function DashboardsPageV2() {
       const month = unwrapValue(r.month);
       const clipper = unwrapValue(r.name);
 
-      if (detailsMonthFilter !== "all" && month !== detailsMonthFilter) return false;
-      if (detailsClipperFilter !== "all" && clipper !== detailsClipperFilter) return false;
+      // IMPORTANT: use your actual state vars: detailsMonth / detailsClipper
+      if (detailsMonth !== "all" && month !== detailsMonth) return false;
+      if (detailsClipper !== "all" && clipper !== detailsClipper) return false;
 
       return true;
     });
-  }, [detailsRows, detailsMonthFilter, detailsClipperFilter]);
-
+  }, [detailsRows, detailsMonth, detailsClipper]);
 
   const detailsWeekOfOptions = useMemo(() => {
-    const rows = Array.isArray(detailsRowsForWeekOptions) ? detailsRowsForWeekOptions : [];
-    const endByWeek = new Map();
+    const rows = Array.isArray(detailsRowsForWeekOptions)
+      ? detailsRowsForWeekOptions
+      : [];
+
+    const endByWeek = new Map(); // weekOf -> max snapshotTs
 
     rows.forEach((r) => {
       const week = unwrapValue(r.weekOf);
@@ -321,22 +323,21 @@ export default function DashboardsPageV2() {
       if (!da && !db) return 0;
       if (!da) return 1;
       if (!db) return -1;
-      return db - da;
+      return db - da; // newest first
     });
 
     return ["all", ...weeks];
   }, [detailsRowsForWeekOptions]);
 
-
+  // If selected week isn't available under current Month/Clipper, reset to "all"
   useEffect(() => {
     if (!detailsWeekOfOptions || detailsWeekOfOptions.length === 0) return;
-    if (detailsWeekOfFilter === "all") return;
+    if (detailsWeekOf === "all") return;
 
-    if (!detailsWeekOfOptions.includes(detailsWeekOfFilter)) {
-      setDetailsWeekOfFilter("all");
+    if (!detailsWeekOfOptions.includes(detailsWeekOf)) {
+      setDetailsWeekOf("all");
     }
-  }, [detailsWeekOfOptions, detailsWeekOfFilter]);
-
+  }, [detailsWeekOfOptions, detailsWeekOf]);
 
 
   const detailsClipperOptions = useMemo(() => {
