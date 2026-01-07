@@ -276,10 +276,12 @@ export default function DashboardsPageV2() {
   const detailsMonthOptions = useMemo(() => {
     const set = new Set();
     detailsRows.forEach((r) => {
-      if (r.month) set.add(r.month);
+      const m = unwrapValue(r.month);
+      if (m) set.add(m);
     });
-    return ['all', ...Array.from(set).sort().reverse()];
+    return ["all", ...Array.from(set).sort().reverse()];
   }, [detailsRows]);
+
 
   const detailsRowsForWeekOptions = useMemo(() => {
     return detailsRows.filter((r) => {
@@ -321,13 +323,15 @@ export default function DashboardsPageV2() {
   return ["all", ...weeks];
 }, [detailsRowsForWeekOptions]);
 
-useEffect(() => {
-  if (detailsWeekOfFilter === "all") return;
+  useEffect(() => {
+    if (!detailsWeekOfOptions || detailsWeekOfOptions.length === 0) return;
+    if (detailsWeekOfFilter === "all") return;
 
-  if (!detailsWeekOfOptions.includes(detailsWeekOfFilter)) {
-    setDetailsWeekOfFilter("all");
-  }
-}, [detailsWeekOfOptions, detailsWeekOfFilter]);
+    if (!detailsWeekOfOptions.includes(detailsWeekOfFilter)) {
+      setDetailsWeekOfFilter("all");
+    }
+  }, [detailsWeekOfOptions, detailsWeekOfFilter]);
+
 
 
   const detailsClipperOptions = useMemo(() => {
