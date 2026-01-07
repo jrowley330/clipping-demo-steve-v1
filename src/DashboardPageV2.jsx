@@ -1411,7 +1411,7 @@ export default function DashboardsPageV2() {
                               opacity: 0.85,
                             }}
                           >
-                            {formatDate(row.weekOf)}
+                            {row.weekOf}
                           </td>
                           <td
                             style={{
