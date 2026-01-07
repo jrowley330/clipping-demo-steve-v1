@@ -1135,7 +1135,7 @@ export default function DashboardsPageV2() {
                           </option>
                         ) : (
                           <option key={opt} value={opt}>
-                            {formatDate(opt)}
+                            {opt}
                           </option>
                         )
                       )}
