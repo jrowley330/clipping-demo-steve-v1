@@ -380,7 +380,7 @@ export default function DashboardsPageV2() {
 
 
   // DETAILS KPIs
-  const detailsWeeklyViews = useMemo(
+  const detailsViewsGenerated = useMemo(
     () =>
       filteredDetailsRows.reduce(
         (sum, r) => sum + Number(r.weeklyViews || 0),
@@ -389,14 +389,32 @@ export default function DashboardsPageV2() {
     [filteredDetailsRows]
   );
 
-  const detailsTotalViews = useMemo(
-    () =>
-      filteredDetailsRows.reduce(
-        (sum, r) => sum + Number(r.totalViews || 0),
-        0
-      ),
-    [filteredDetailsRows]
-  );
+  // Total views = lifetime as of the MOST RECENT snapshot in the filtered set
+  const detailsTotalViews = useMemo(() => {
+    if (!Array.isArray(filteredDetailsRows) || filteredDetailsRows.length === 0) return 0;
+
+    const latestByAccount = new Map(); // account+platform+clipper -> row
+
+    filteredDetailsRows.forEach((r) => {
+      const key = `${r.name}||${r.platform}||${r.account}`;
+      const ts = r.snapshotTs ? new Date(r.snapshotTs).getTime() : 0;
+
+      const prev = latestByAccount.get(key);
+      const prevTs = prev?.snapshotTs ? new Date(prev.snapshotTs).getTime() : 0;
+
+      if (!prev || ts > prevTs) {
+        latestByAccount.set(key, r);
+      }
+    });
+
+    let total = 0;
+    latestByAccount.forEach((r) => {
+      total += Number(r.totalViews || 0);
+    });
+
+    return total;
+  }, [filteredDetailsRows]);
+
 
   const detailsVideosPosted = useMemo(
     () =>
@@ -407,6 +425,8 @@ export default function DashboardsPageV2() {
     [filteredDetailsRows]
   );
 
+  ///end KPI calcs ^
+  
   const showSummaryLoading = summaryLoading && !summaryError;
   const showDetailsLoading = detailsLoading && !detailsError;
 
@@ -1276,7 +1296,7 @@ export default function DashboardsPageV2() {
                   <div
                     style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}
                   >
-                    Weekly views (filtered)
+                    Views Generated (filtered)
                   </div>
                   <div style={{ fontSize: 22, fontWeight: 600 }}>
                     {formatNumber(detailsWeeklyViews)}
@@ -1425,7 +1445,7 @@ export default function DashboardsPageV2() {
                             opacity: 0.7,
                           }}
                         >
-                          Weekly views
+                          Views Generated
                         </th>
                         <th
                           style={{
