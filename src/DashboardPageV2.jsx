@@ -281,16 +281,54 @@ export default function DashboardsPageV2() {
     return ['all', ...Array.from(set).sort().reverse()];
   }, [detailsRows]);
 
+  const detailsRowsForWeekOptions = useMemo(() => {
+    return detailsRows.filter((r) => {
+      const month = unwrapValue(r.month);
+      const clipper = unwrapValue(r.name);
+
+      if (detailsMonthFilter !== "all" && month !== detailsMonthFilter) return false;
+      if (detailsClipperFilter !== "all" && clipper !== detailsClipperFilter) return false;
+
+      return true;
+    });
+  }, [detailsRows, detailsMonthFilter, detailsClipperFilter]);
+
+
+
   const detailsWeekOfOptions = useMemo(() => {
-  const set = new Set();
-  detailsRows.forEach((r) => {
-    if (r.weekOf) {
-      const key = unwrapValue(r.weekOf);
-      if (key) set.add(key);
-    }
+  const endByWeek = new Map(); // weekOf -> max snapshotTs
+
+  detailsRowsForWeekOptions.forEach((r) => {
+    const week = unwrapValue(r.weekOf);
+    const ts = unwrapValue(r.snapshotTs);
+    if (!week) return;
+
+    const d = ts ? new Date(ts) : null;
+    const prev = endByWeek.get(week);
+
+    if (!prev || (d && d > prev)) endByWeek.set(week, d);
   });
-  return ['all', ...Array.from(set).sort((a, b) => (a > b ? -1 : 1))];
-}, [detailsRows]);
+
+  const weeks = Array.from(endByWeek.keys()).sort((a, b) => {
+    const da = endByWeek.get(a);
+    const db = endByWeek.get(b);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return db - da; // newest first
+  });
+
+  return ["all", ...weeks];
+}, [detailsRowsForWeekOptions]);
+
+useEffect(() => {
+  if (detailsWeekOfFilter === "all") return;
+
+  if (!detailsWeekOfOptions.includes(detailsWeekOfFilter)) {
+    setDetailsWeekOfFilter("all");
+  }
+}, [detailsWeekOfOptions, detailsWeekOfFilter]);
+
 
   const detailsClipperOptions = useMemo(() => {
     const set = new Set();
