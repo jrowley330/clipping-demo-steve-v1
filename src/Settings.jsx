@@ -5,30 +5,27 @@ import { supabase } from "./supabaseClient";
 
 const DEFAULT_PAYOUT = {
   viewsPerDollar: 1000,
-
   maxPayEnabled: false,
   maxPayPerVideoUsd: 200,
-
   minViewsEnabled: false,
   minViewCountEligibility: 50000,
-
   monthlyRetainerEnabled: false,
   monthlyRetainerUsd: 0,
 };
 
+const ALL_PLATFORMS = ["Instagram", "YouTube", "TikTok"];
+
 const DEFAULTS = {
-  // Branding
+  // App Branding
   headingText: "Your Clipping Campaign",
   watermarkText: "CLIPPING",
 
   // Campaign Details
   campaignName: "Whop Clips VIP",
-  campaignHandle: "@whop_clips_vip",
-  approvalRatePct: 97, // optional display
-  category: "Personal Brand",
   platforms: ["Instagram", "YouTube", "TikTok"],
+  budgetUsd: 0,
+  deadline: "", // YYYY-MM-DD
 
-  // Requirements
   requirements: [
     "Must tag @whop in bio",
     "Must have whop youtube linked in bio",
@@ -58,10 +55,6 @@ const fmt = (n) => {
   return x.toLocaleString();
 };
 
-const Line = () => (
-  <div style={{ height: 1, background: "rgba(148,163,184,0.18)", margin: "18px 0" }} />
-);
-
 const Label = ({ children }) => (
   <div
     style={{
@@ -76,12 +69,13 @@ const Label = ({ children }) => (
   </div>
 );
 
-const Input = ({ value, onChange, placeholder, disabled, width }) => (
+const Input = ({ value, onChange, placeholder, disabled, width, type = "text" }) => (
   <input
     value={value}
     onChange={onChange}
     placeholder={placeholder || ""}
     disabled={disabled}
+    type={type}
     style={{
       width: width || "100%",
       boxSizing: "border-box",
@@ -119,23 +113,44 @@ const Toggle = ({ on, setOn }) => (
   </button>
 );
 
-const Pill = ({ active, children, onClick }) => (
+const Pill = ({ active, children, onClick, tint }) => (
   <button
     onClick={onClick}
+    type="button"
     style={{
       borderRadius: 999,
       padding: "7px 12px",
-      border: "1px solid rgba(148,163,184,0.40)",
-      background: active ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)",
+      border: active ? `1px solid ${tint.border}` : "1px solid rgba(148,163,184,0.40)",
+      background: active ? tint.bg : "rgba(255,255,255,0.03)",
       color: active ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.7)",
       fontSize: 12,
-      fontWeight: 700,
+      fontWeight: 800,
       cursor: "pointer",
+      boxShadow: active ? `0 10px 24px ${tint.shadow}` : "none",
     }}
-    type="button"
   >
     {children}
   </button>
+);
+
+const SectionCard = ({ title, subtitle, accent, children }) => (
+  <div
+    style={{
+      borderRadius: 16,
+      border: "1px solid rgba(148,163,184,0.22)",
+      background: accent
+        ? `radial-gradient(circle at top left, ${accent}, rgba(255,255,255,0.02))`
+        : "rgba(255,255,255,0.03)",
+      padding: 16,
+      marginBottom: 14,
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12 }}>
+      <div style={{ fontSize: 16, fontWeight: 800 }}>{title}</div>
+      {subtitle ? <div style={{ fontSize: 12, opacity: 0.65 }}>{subtitle}</div> : null}
+    </div>
+    {children}
+  </div>
 );
 
 export default function SettingsPage() {
@@ -148,6 +163,36 @@ export default function SettingsPage() {
 
   const [activePlatform, setActivePlatform] = useState("instagram"); // instagram | youtube | tiktok
   const p = s.payouts[activePlatform];
+
+  const platformTint = useMemo(() => {
+    // subtle tints (you asked: YT light red, IG light purple, TT darker metallic)
+    if (activePlatform === "youtube")
+      return {
+        name: "YouTube",
+        header: "rgba(239,68,68,0.85)",
+        bg: "rgba(239,68,68,0.10)",
+        border: "rgba(239,68,68,0.35)",
+        shadow: "rgba(239,68,68,0.20)",
+        sectionAccent: "rgba(239,68,68,0.10)",
+      };
+    if (activePlatform === "tiktok")
+      return {
+        name: "TikTok",
+        header: "rgba(168,85,247,0.92)",
+        bg: "rgba(2,6,23,0.35)",
+        border: "rgba(168,85,247,0.35)",
+        shadow: "rgba(168,85,247,0.18)",
+        sectionAccent: "rgba(168,85,247,0.12)",
+      };
+    return {
+      name: "Instagram",
+      header: "rgba(192,132,252,0.92)",
+      bg: "rgba(192,132,252,0.10)",
+      border: "rgba(192,132,252,0.35)",
+      shadow: "rgba(192,132,252,0.18)",
+      sectionAccent: "rgba(192,132,252,0.10)",
+    };
+  }, [activePlatform]);
 
   // nav
   const handleLogout = async () => {
@@ -180,47 +225,45 @@ export default function SettingsPage() {
     }));
   };
 
-  const addRequirement = () => {
-    setS((prev) => ({
-      ...prev,
-      requirements: [...(prev.requirements || []), ""],
-    }));
-  };
+  // requirements
+  const addRequirement = () =>
+    setS((prev) => ({ ...prev, requirements: [...(prev.requirements || []), ""] }));
 
-  const updateRequirement = (idx, value) => {
+  const updateRequirement = (idx, value) =>
     setS((prev) => ({
       ...prev,
       requirements: prev.requirements.map((r, i) => (i === idx ? value : r)),
     }));
-  };
 
-  const removeRequirement = (idx) => {
+  const removeRequirement = (idx) =>
     setS((prev) => ({
       ...prev,
       requirements: prev.requirements.filter((_, i) => i !== idx),
     }));
+
+  // platforms dropdown
+  const [platformMenuOpen, setPlatformMenuOpen] = useState(false);
+
+  const setPlatforms = (next) => setS((prev) => ({ ...prev, platforms: next }));
+
+  const togglePlatform = (name) => {
+    setPlatforms(s.platforms.includes(name) ? s.platforms.filter((p) => p !== name) : [...s.platforms, name]);
   };
 
-  const togglePlatformChip = (name) => {
-    setS((prev) => {
-      const exists = prev.platforms.includes(name);
-      const next = exists ? prev.platforms.filter((p) => p !== name) : [...prev.platforms, name];
-      return { ...prev, platforms: next };
-    });
-  };
+  const selectAllPlatforms = () => setPlatforms([...ALL_PLATFORMS]);
+  const clearPlatforms = () => setPlatforms([]);
 
   const onSave = async () => {
     if (saving) return;
 
-    // normalize important stuff
     const norm = {
       ...s,
       headingText: String(s.headingText || "").trim(),
       watermarkText: String(s.watermarkText || "").trim(),
       campaignName: String(s.campaignName || "").trim(),
-      campaignHandle: String(s.campaignHandle || "").trim(),
-      approvalRatePct: Math.max(0, Math.min(100, toInt(s.approvalRatePct, 0))),
-      category: String(s.category || "").trim(),
+      budgetUsd: Math.max(0, toMoney(s.budgetUsd, 0)),
+      deadline: String(s.deadline || "").trim(),
+      platforms: (s.platforms || []).filter(Boolean),
       requirements: (s.requirements || []).map((x) => String(x || "").trim()).filter(Boolean),
       payouts: {
         instagram: {
@@ -249,7 +292,6 @@ export default function SettingsPage() {
 
     setS(norm);
 
-    // UI-only for now
     setSaving(true);
     setSaveMsg("");
     try {
@@ -437,10 +479,10 @@ export default function SettingsPage() {
         </div>
 
         {/* title row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22, gap: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 12 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
             <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>Settings</h1>
-            <span style={{ fontSize: 13, opacity: 0.7 }}>Campaign details, requirements, branding, and payouts</span>
+            <span style={{ fontSize: 13, opacity: 0.7 }}>Configure payouts, campaign details, and branding</span>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -480,318 +522,413 @@ export default function SettingsPage() {
             opacity: 0.95,
           }}
         >
-          {/* Campaign Details */}
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>Campaign Details</div>
-            <div style={{ fontSize: 12, opacity: 0.65 }}>Basic campaign info shown to clippers</div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 14, marginTop: 14 }}>
-            <div>
-              <Label>Campaign Name</Label>
-              <Input value={s.campaignName} onChange={(e) => setS((p) => ({ ...p, campaignName: e.target.value }))} placeholder="Whop Clips VIP" />
-            </div>
-
-            <div>
-              <Label>Handle / Username</Label>
-              <Input value={s.campaignHandle} onChange={(e) => setS((p) => ({ ...p, campaignHandle: e.target.value }))} placeholder="@whop_clips_vip" />
-            </div>
-
-            <div>
-              <Label>Category</Label>
-              <Input value={s.category} onChange={(e) => setS((p) => ({ ...p, category: e.target.value }))} placeholder="Personal Brand" />
-            </div>
-
-            <div>
-              <Label>Approval Rate %</Label>
-              <Input value={s.approvalRatePct} onChange={(e) => setS((p) => ({ ...p, approvalRatePct: e.target.value }))} placeholder="97" />
-            </div>
-          </div>
-
-          <div style={{ marginTop: 14 }}>
-            <Label>Platforms</Label>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {["Instagram", "YouTube", "TikTok"].map((name) => {
-                const active = s.platforms.includes(name);
-                return (
-                  <Pill key={name} active={active} onClick={() => togglePlatformChip(name)}>
-                    {name}
-                  </Pill>
-                );
-              })}
-            </div>
-            <div style={{ fontSize: 12, opacity: 0.65, marginTop: 8 }}>
-              Selected: {s.platforms.length ? s.platforms.join(", ") : "None"}
-            </div>
-          </div>
-
-          <Line />
-
-          {/* Requirements */}
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>Requirements</div>
-              <div style={{ fontSize: 12, opacity: 0.65 }}>Add rules clippers must follow</div>
-            </div>
-
-            <button
-              onClick={addRequirement}
-              type="button"
-              style={{
-                borderRadius: 999,
-                padding: "8px 12px",
-                border: "1px solid rgba(255,255,255,0.14)",
-                background: "rgba(255,255,255,0.06)",
-                color: "rgba(255,255,255,0.9)",
-                fontSize: 12,
-                fontWeight: 800,
-                cursor: "pointer",
-              }}
-            >
-              + Add requirement
-            </button>
-          </div>
-
-          <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-            {(s.requirements || []).map((req, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr auto",
-                  gap: 10,
-                  alignItems: "center",
+          {/* 1) Configure Payouts (top) */}
+          <SectionCard
+            title="Configure Payouts"
+            subtitle={`Define earnings rules for clippers (${platformTint.name})`}
+            accent={platformTint.sectionAccent}
+          >
+            {/* platform selector */}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+              <Pill
+                active={activePlatform === "instagram"}
+                onClick={() => setActivePlatform("instagram")}
+                tint={{
+                  bg: "rgba(192,132,252,0.12)",
+                  border: "rgba(192,132,252,0.45)",
+                  shadow: "rgba(192,132,252,0.18)",
                 }}
               >
-                <Input value={req} onChange={(e) => updateRequirement(idx, e.target.value)} placeholder="Type requirement..." />
-                <button
-                  type="button"
-                  onClick={() => removeRequirement(idx)}
-                  style={{
-                    borderRadius: 10,
-                    padding: "9px 10px",
-                    border: "1px solid rgba(239,68,68,0.25)",
-                    background: "rgba(239,68,68,0.10)",
-                    color: "rgba(254,202,202,0.95)",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    cursor: "pointer",
-                  }}
-                  title="Remove"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-
-            {(!s.requirements || s.requirements.length === 0) && (
-              <div style={{ fontSize: 12, opacity: 0.65 }}>No requirements yet. Click “Add requirement”.</div>
-            )}
-          </div>
-
-          <Line />
-
-          {/* Branding */}
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>Branding</div>
-            <div style={{ fontSize: 12, opacity: 0.65 }}>Controls header + watermark</div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
-            <div>
-              <Label>Heading Text</Label>
-              <Input value={s.headingText} onChange={(e) => setS((p) => ({ ...p, headingText: e.target.value }))} placeholder="Your Clipping Campaign" />
-            </div>
-
-            <div>
-              <Label>Watermark Text</Label>
-              <Input value={s.watermarkText} onChange={(e) => setS((p) => ({ ...p, watermarkText: e.target.value }))} placeholder="CLIPPING" />
-            </div>
-          </div>
-
-          <Line />
-
-          {/* Configure Payouts */}
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>Configure Payouts</div>
-              <div style={{ fontSize: 12, opacity: 0.65 }}>Platform-specific payout rules</div>
-            </div>
-
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <Pill active={activePlatform === "instagram"} onClick={() => setActivePlatform("instagram")}>
                 Instagram
               </Pill>
-              <Pill active={activePlatform === "youtube"} onClick={() => setActivePlatform("youtube")}>
+              <Pill
+                active={activePlatform === "youtube"}
+                onClick={() => setActivePlatform("youtube")}
+                tint={{
+                  bg: "rgba(239,68,68,0.12)",
+                  border: "rgba(239,68,68,0.45)",
+                  shadow: "rgba(239,68,68,0.18)",
+                }}
+              >
                 YouTube
               </Pill>
-              <Pill active={activePlatform === "tiktok"} onClick={() => setActivePlatform("tiktok")}>
+              <Pill
+                active={activePlatform === "tiktok"}
+                onClick={() => setActivePlatform("tiktok")}
+                tint={{
+                  bg: "rgba(168,85,247,0.12)",
+                  border: "rgba(168,85,247,0.45)",
+                  shadow: "rgba(168,85,247,0.16)",
+                }}
+              >
                 TikTok
               </Pill>
             </div>
-          </div>
 
-          {/* A) $1 / views */}
-          <div style={{ marginTop: 14 }}>
-            <Label>$1 / ____ Views</Label>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 10,
-                  borderRadius: 14,
-                  padding: "10px 12px",
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.04)",
-                }}
-              >
-                <div style={{ fontSize: 13, fontWeight: 800 }}>$1</div>
-                <div style={{ fontSize: 12, opacity: 0.6 }}>/</div>
-                <Input width={160} value={p.viewsPerDollar} onChange={(e) => updatePayout({ viewsPerDollar: e.target.value })} placeholder="1000" />
-                <div style={{ fontSize: 12, opacity: 0.75 }}>Views</div>
-              </div>
-
-              <div style={{ fontSize: 12, opacity: 0.7 }}>{payoutExplain}</div>
-            </div>
-          </div>
-
-          {/* B) Max Pay Per Video */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "240px 1fr",
-              gap: 12,
-              alignItems: "center",
-              marginTop: 16,
-              paddingTop: 12,
-              borderTop: "1px solid rgba(148,163,184,0.18)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Toggle on={p.maxPayEnabled} setOn={(fn) => updatePayout({ maxPayEnabled: fn(p.maxPayEnabled) })} />
-              <div>
-                <div style={{ fontWeight: 700 }}>Max Pay Per Video</div>
-                <div style={{ fontSize: 12, opacity: 0.65 }}>Cap payout per video</div>
-              </div>
-            </div>
-
+            {/* A) $1 / views */}
             <div>
-              <Input value={p.maxPayPerVideoUsd} onChange={(e) => updatePayout({ maxPayPerVideoUsd: e.target.value })} placeholder="200" disabled={!p.maxPayEnabled} />
-            </div>
-          </div>
-
-          {/* C) Min Views Eligibility */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "240px 1fr",
-              gap: 12,
-              alignItems: "center",
-              marginTop: 12,
-              paddingTop: 12,
-              borderTop: "1px solid rgba(148,163,184,0.18)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Toggle on={p.minViewsEnabled} setOn={(fn) => updatePayout({ minViewsEnabled: fn(p.minViewsEnabled) })} />
-              <div>
-                <div style={{ fontWeight: 700 }}>Min View Count Eligibility</div>
-                <div style={{ fontSize: 12, opacity: 0.65 }}>Minimum views to qualify</div>
-              </div>
-            </div>
-
-            <div>
-              <Input
-                value={p.minViewCountEligibility}
-                onChange={(e) => updatePayout({ minViewCountEligibility: e.target.value })}
-                placeholder="50000"
-                disabled={!p.minViewsEnabled}
-              />
-            </div>
-          </div>
-
-          {/* D) Monthly Retainer */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "240px 1fr",
-              gap: 12,
-              alignItems: "center",
-              marginTop: 12,
-              paddingTop: 12,
-              borderTop: "1px solid rgba(148,163,184,0.18)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Toggle on={p.monthlyRetainerEnabled} setOn={(fn) => updatePayout({ monthlyRetainerEnabled: fn(p.monthlyRetainerEnabled) })} />
-              <div>
-                <div style={{ fontWeight: 700 }}>Monthly Retainer</div>
-                <div style={{ fontSize: 12, opacity: 0.65 }}>Optional flat monthly amount</div>
-              </div>
-            </div>
-
-            <div>
-              <Input value={p.monthlyRetainerUsd} onChange={(e) => updatePayout({ monthlyRetainerUsd: e.target.value })} placeholder="0" disabled={!p.monthlyRetainerEnabled} />
-            </div>
-          </div>
-
-          <Line />
-
-          {/* Integrations placeholder */}
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>Integrations</div>
-            <div style={{ fontSize: 12, opacity: 0.65 }}>Placeholder for now</div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginTop: 14 }}>
-            {[
-              { name: "Stripe", desc: "Connect Stripe for automated payouts." },
-              { name: "Revolut", desc: "Send payouts via Revolut integration." },
-              { name: "Wise", desc: "International payouts through Wise." },
-            ].map((x) => (
-              <div
-                key={x.name}
-                style={{
-                  borderRadius: 14,
-                  border: "1px solid rgba(148,163,184,0.22)",
-                  background: "rgba(255,255,255,0.03)",
-                  padding: 14,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <div style={{ fontWeight: 800 }}>{x.name}</div>
-                  <div style={{ fontSize: 11, opacity: 0.65 }}>Coming soon</div>
+              <Label>$1 / ____ Views</Label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 10,
+                    borderRadius: 14,
+                    padding: "10px 12px",
+                    border: `1px solid ${platformTint.border}`,
+                    background: platformTint.bg,
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 900 }}>$1</div>
+                  <div style={{ fontSize: 12, opacity: 0.65 }}>/</div>
+                  <Input width={160} value={p.viewsPerDollar} onChange={(e) => updatePayout({ viewsPerDollar: e.target.value })} placeholder="1000" />
+                  <div style={{ fontSize: 12, opacity: 0.8 }}>Views</div>
                 </div>
-                <div style={{ fontSize: 12, opacity: 0.7, lineHeight: 1.4 }}>{x.desc}</div>
-                <div style={{ marginTop: 6 }}>
-                  <button
-                    disabled
+
+                <div style={{ fontSize: 12, opacity: 0.7 }}>{payoutExplain}</div>
+              </div>
+            </div>
+
+            {/* B/C/D rows */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "240px 1fr",
+                gap: 12,
+                alignItems: "center",
+                marginTop: 16,
+                paddingTop: 12,
+                borderTop: "1px solid rgba(148,163,184,0.18)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Toggle on={p.maxPayEnabled} setOn={(fn) => updatePayout({ maxPayEnabled: fn(p.maxPayEnabled) })} />
+                <div>
+                  <div style={{ fontWeight: 800 }}>Max Pay Per Video</div>
+                  <div style={{ fontSize: 12, opacity: 0.65 }}>Cap payout per video</div>
+                </div>
+              </div>
+
+              <div>
+                <Input value={p.maxPayPerVideoUsd} onChange={(e) => updatePayout({ maxPayPerVideoUsd: e.target.value })} placeholder="200" disabled={!p.maxPayEnabled} />
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "240px 1fr",
+                gap: 12,
+                alignItems: "center",
+                marginTop: 12,
+                paddingTop: 12,
+                borderTop: "1px solid rgba(148,163,184,0.18)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Toggle on={p.minViewsEnabled} setOn={(fn) => updatePayout({ minViewsEnabled: fn(p.minViewsEnabled) })} />
+                <div>
+                  <div style={{ fontWeight: 800 }}>Min View Count Eligibility</div>
+                  <div style={{ fontSize: 12, opacity: 0.65 }}>Minimum views to qualify</div>
+                </div>
+              </div>
+
+              <div>
+                <Input value={p.minViewCountEligibility} onChange={(e) => updatePayout({ minViewCountEligibility: e.target.value })} placeholder="50000" disabled={!p.minViewsEnabled} />
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "240px 1fr",
+                gap: 12,
+                alignItems: "center",
+                marginTop: 12,
+                paddingTop: 12,
+                borderTop: "1px solid rgba(148,163,184,0.18)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Toggle on={p.monthlyRetainerEnabled} setOn={(fn) => updatePayout({ monthlyRetainerEnabled: fn(p.monthlyRetainerEnabled) })} />
+                <div>
+                  <div style={{ fontWeight: 800 }}>Monthly Retainer</div>
+                  <div style={{ fontSize: 12, opacity: 0.65 }}>Optional flat monthly amount</div>
+                </div>
+              </div>
+
+              <div>
+                <Input value={p.monthlyRetainerUsd} onChange={(e) => updatePayout({ monthlyRetainerUsd: e.target.value })} placeholder="0" disabled={!p.monthlyRetainerEnabled} />
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* 2) Campaign Details (below payouts) with Requirements inside */}
+          <SectionCard title="Campaign Details" subtitle="Information shown to clippers (about campaign + rules)">
+            <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 14 }}>
+              <div>
+                <Label>Campaign Name</Label>
+                <Input value={s.campaignName} onChange={(e) => setS((p) => ({ ...p, campaignName: e.target.value }))} placeholder="Whop Clips VIP" />
+              </div>
+
+              <div>
+                <Label>Budget (USD)</Label>
+                <Input value={s.budgetUsd} onChange={(e) => setS((p) => ({ ...p, budgetUsd: e.target.value }))} placeholder="0" />
+              </div>
+
+              {/* Platforms selector + display field */}
+              <div style={{ position: "relative" }}>
+                <Label>Platforms</Label>
+
+                {/* display-like input + dropdown trigger */}
+                <button
+                  type="button"
+                  onClick={() => setPlatformMenuOpen((v) => !v)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    borderRadius: 10,
+                    padding: "9px 10px",
+                    border: "1px solid rgba(148,163,184,0.55)",
+                    background: "rgba(15,23,42,0.9)",
+                    color: "rgba(229,231,235,1)",
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  {s.platforms.length ? s.platforms.join(", ") : "Select platforms…"}
+                  <span style={{ float: "right", opacity: 0.7 }}>▾</span>
+                </button>
+
+                {platformMenuOpen && (
+                  <div
                     style={{
-                      borderRadius: 999,
-                      padding: "8px 12px",
-                      border: "1px solid rgba(255,255,255,0.14)",
-                      background: "rgba(255,255,255,0.06)",
-                      color: "rgba(255,255,255,0.8)",
-                      fontSize: 12,
-                      fontWeight: 800,
-                      cursor: "not-allowed",
-                      opacity: 0.6,
+                      position: "absolute",
+                      top: 62,
+                      left: 0,
+                      right: 0,
+                      zIndex: 50,
+                      borderRadius: 12,
+                      border: "1px solid rgba(148,163,184,0.28)",
+                      background: "rgba(2,6,23,0.95)",
+                      boxShadow: "0 20px 60px rgba(0,0,0,0.65)",
+                      padding: 10,
                     }}
                   >
-                    Connect
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                      <button
+                        type="button"
+                        onClick={selectAllPlatforms}
+                        style={{
+                          borderRadius: 10,
+                          padding: "8px 10px",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(255,255,255,0.06)",
+                          color: "rgba(255,255,255,0.9)",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Select all
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearPlatforms}
+                        style={{
+                          borderRadius: 10,
+                          padding: "8px 10px",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(255,255,255,0.03)",
+                          color: "rgba(255,255,255,0.7)",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
 
-          <div style={{ fontSize: 11, opacity: 0.55, marginTop: 12 }}>
-            Next: we’ll add OAuth/Connect flows + store account IDs in BigQuery.
-          </div>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {ALL_PLATFORMS.map((name) => {
+                        const checked = s.platforms.includes(name);
+                        return (
+                          <label
+                            key={name}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                              padding: "8px 8px",
+                              borderRadius: 10,
+                              cursor: "pointer",
+                              background: checked ? "rgba(255,255,255,0.06)" : "transparent",
+                              border: checked ? "1px solid rgba(255,255,255,0.10)" : "1px solid transparent",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => togglePlatform(name)}
+                              style={{ transform: "scale(1.05)" }}
+                            />
+                            <span style={{ fontSize: 13, fontWeight: 700 }}>{name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+                      <button
+                        type="button"
+                        onClick={() => setPlatformMenuOpen(false)}
+                        style={{
+                          borderRadius: 10,
+                          padding: "8px 10px",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(255,255,255,0.06)",
+                          color: "rgba(255,255,255,0.9)",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label>Deadline</Label>
+                <Input type="date" value={s.deadline} onChange={(e) => setS((p) => ({ ...p, deadline: e.target.value }))} />
+              </div>
+            </div>
+
+            {/* Requirements inside Campaign Details */}
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(148,163,184,0.18)" }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                  <div style={{ fontSize: 14, fontWeight: 900 }}>Requirements</div>
+                  <div style={{ fontSize: 12, opacity: 0.65 }}>Add rules clippers must follow</div>
+                </div>
+
+                <button
+                  onClick={addRequirement}
+                  type="button"
+                  style={{
+                    borderRadius: 999,
+                    padding: "8px 12px",
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    background: "rgba(255,255,255,0.06)",
+                    color: "rgba(255,255,255,0.9)",
+                    fontSize: 12,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  + Add requirement
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gap: 10 }}>
+                {(s.requirements || []).map((req, idx) => (
+                  <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center" }}>
+                    <Input value={req} onChange={(e) => updateRequirement(idx, e.target.value)} placeholder="Type requirement..." />
+                    <button
+                      type="button"
+                      onClick={() => removeRequirement(idx)}
+                      style={{
+                        borderRadius: 10,
+                        padding: "9px 10px",
+                        border: "1px solid rgba(239,68,68,0.25)",
+                        background: "rgba(239,68,68,0.10)",
+                        color: "rgba(254,202,202,0.95)",
+                        fontSize: 12,
+                        fontWeight: 900,
+                        cursor: "pointer",
+                      }}
+                      title="Remove"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+
+                {(!s.requirements || s.requirements.length === 0) && <div style={{ fontSize: 12, opacity: 0.65 }}>No requirements yet.</div>}
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* 3) App Branding */}
+          <SectionCard title="App Branding" subtitle="Controls header + watermark (shown across your app)" accent="rgba(96,165,250,0.08)">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <div>
+                <Label>Heading Text</Label>
+                <Input value={s.headingText} onChange={(e) => setS((p) => ({ ...p, headingText: e.target.value }))} placeholder="Your Clipping Campaign" />
+              </div>
+
+              <div>
+                <Label>Watermark Text</Label>
+                <Input value={s.watermarkText} onChange={(e) => setS((p) => ({ ...p, watermarkText: e.target.value }))} placeholder="CLIPPING" />
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* Integrations placeholder */}
+          <SectionCard title="Integrations" subtitle="Placeholder for now">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+              {[
+                { name: "Stripe", desc: "Connect Stripe for automated payouts." },
+                { name: "Revolut", desc: "Send payouts via Revolut integration." },
+                { name: "Wise", desc: "International payouts through Wise." },
+              ].map((x) => (
+                <div
+                  key={x.name}
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid rgba(148,163,184,0.22)",
+                    background: "rgba(255,255,255,0.03)",
+                    padding: 14,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <div style={{ fontWeight: 900 }}>{x.name}</div>
+                    <div style={{ fontSize: 11, opacity: 0.65 }}>Coming soon</div>
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.7, lineHeight: 1.4 }}>{x.desc}</div>
+                  <div style={{ marginTop: 6 }}>
+                    <button
+                      disabled
+                      style={{
+                        borderRadius: 999,
+                        padding: "8px 12px",
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        background: "rgba(255,255,255,0.06)",
+                        color: "rgba(255,255,255,0.8)",
+                        fontSize: 12,
+                        fontWeight: 900,
+                        cursor: "not-allowed",
+                        opacity: 0.6,
+                      }}
+                    >
+                      Connect
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 11, opacity: 0.55, marginTop: 12 }}>
+              Next: we’ll add OAuth/Connect flows + store account IDs in BigQuery.
+            </div>
+          </SectionCard>
         </div>
       </div>
     </div>
