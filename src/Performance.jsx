@@ -296,6 +296,7 @@ export default function PerformancePage() {
   const goPerformance = () => navigate("/performance");
   const goLeaderboards = () => navigate("/leaderboards");
   const goGallery = () => navigate("/gallery");
+  const goSettings = () => navigate("/settings");
 
   // ---------- fetch videos ----------
   useEffect(() => {
@@ -806,7 +807,9 @@ export default function PerformancePage() {
                 Gallery
               </button>
 
+              {/* Settings */}
               <button
+                onClick={goSettings}
                 style={{
                   border: "none",
                   outline: "none",

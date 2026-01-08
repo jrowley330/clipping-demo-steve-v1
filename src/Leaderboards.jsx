@@ -480,6 +480,8 @@ export default function Leaderboards() {
   const goPerformance = () => navigate("/performance");
   const goLeaderboards = () => navigate("/leaderboards");
   const goGallery = () => navigate("/gallery");
+  const goSettings = () => navigate("/settings");
+
 
 
   const copySummary = async () => {
@@ -687,7 +689,7 @@ export default function Leaderboards() {
 
               <NavBtn onClick={goGallery} label="Gallery" /> 
 
-              <NavBtn label="Settings" muted />
+              <NavBtn onClick={goSettings} label="Settings" /> 
 
               <div style={{ flexGrow: 1 }} />
 

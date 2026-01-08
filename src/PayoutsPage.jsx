@@ -108,6 +108,10 @@ export default function PayoutsPage() {
     navigate('/gallery');
 };
 
+    const goSettings = () => {
+    navigate('/settings');
+};
+
   // ---------- fetch monthly balances ----------
 
   useEffect(() => {
@@ -806,6 +810,7 @@ export default function PayoutsPage() {
 
               {/* Settings */}
               <button
+                onClick={goSettings}
                 style={{
                   border: 'none',
                   outline: 'none',

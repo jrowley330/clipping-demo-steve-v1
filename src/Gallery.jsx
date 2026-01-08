@@ -155,6 +155,7 @@ export default function Gallery() {
   const goPerformance = () => navigate("/performance");
   const goLeaderboards = () => navigate("/leaderboards");
   const goGallery = () => navigate("/gallery");
+  const goSettings = () => navigate("/settings");
 
   return (
     <div
@@ -360,6 +361,7 @@ export default function Gallery() {
               </button>
 
               <button
+                onClick={() => navigate('/settings')}
                 style={{
                   border: 'none',
                   outline: 'none',

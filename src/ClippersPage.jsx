@@ -515,8 +515,9 @@ export default function ClippersPage() {
                 Gallery
               </button>
 
-              {/* Settings placeholder under Clippers */}
+              {/* Settings */}
               <button
+                onClick={goSettings}
                 style={{
                   border: 'none',
                   outline: 'none',
