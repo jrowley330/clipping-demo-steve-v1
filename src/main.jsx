@@ -10,6 +10,7 @@ import ClippersPage from './ClippersPage.jsx';
 import Performance from "./Performance.jsx";
 import Leaderboards from './Leaderboards.jsx';
 import Gallery from './Gallery.jsx';
+import SettingsPage from "./Settings.jsx";
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -80,6 +81,17 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             </App>
           }
         />
+
+        {/* Settings */}
+        <Route
+          path="/setting"
+          element={
+            <App>
+              <Settings />
+            </App>
+          }
+        />
+
 
         {/* any unknown hash -> Dashboards V2 */}
         <Route path="*" element={<Navigate to="/dashboard-v2" replace />} />
