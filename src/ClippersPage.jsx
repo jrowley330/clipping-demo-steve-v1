@@ -75,6 +75,11 @@ export default function ClippersPage() {
     navigate('/gallery');
 };
 
+    const goSettings = () => {
+    navigate('/settings');
+};
+
+
   // -------------------------------------------------------
   // FETCH CLIPPERS FROM API
   // -------------------------------------------------------
