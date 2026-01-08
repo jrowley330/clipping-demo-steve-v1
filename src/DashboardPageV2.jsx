@@ -102,10 +102,6 @@ export default function DashboardsPageV2() {
     navigate('/dashboard-v2');
   };
 
-  const goDashV1 = () => {
-    navigate('/dashboard');
-  };
-
   const goPayouts = () => {
     navigate('/payouts');
   };
@@ -661,24 +657,6 @@ export default function DashboardsPageV2() {
 
               <div style={{ flexGrow: 1 }} />
 
-              {/* Dashboards V1 at bottom */}
-              <button
-                onClick={goDashV1}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.7)',
-                  marginBottom: 4,
-                }}
-              >
-                Dashboards V1
-              </button>
 
               {/* Logout */}
               <button
