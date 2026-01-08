@@ -767,7 +767,7 @@ export default function Leaderboards() {
           }}
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-            <h1 style={{ fontSize: 30, fontWeight: 800, margin: 0 }}>
+            <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>
               Leaderboards
             </h1>
             <span style={{ fontSize: 13, opacity: 0.7 }}>

@@ -883,7 +883,7 @@ export default function PerformancePage() {
         {/* Header */}
         <div style={{ marginBottom: 18, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
           <div>
-            <div style={{ fontSize: 30, fontWeight: 700, margin: 0 }}>Performance</div>
+            <div style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>Performance</div>
             <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>
               Live AI Analysis — coaching-style breakdown based on the currently loaded rows
             </div>
