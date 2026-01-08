@@ -92,10 +92,6 @@ export default function PayoutsPage() {
     navigate('/payouts');
   };
 
-  const handleGoDashV1 = () => {
-    navigate('/dashboard');
-  };
-
   const handleGoClippers = () => {
     navigate('/clippers');
   };
@@ -827,24 +823,6 @@ export default function PayoutsPage() {
 
               <div style={{ flexGrow: 1 }} />
 
-              {/* Dashboards V1 at bottom */}
-              <button
-                onClick={handleGoDashV1}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  borderRadius: 12,
-                  padding: '7px 10px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.7)',
-                  marginBottom: 4,
-                }}
-              >
-                Dashboards V1
-              </button>
 
               {/* Logout */}
               <button

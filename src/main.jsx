@@ -4,7 +4,6 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import App from './App.jsx';
 import LoginPage from './LoginPage.jsx';
-import DashboardPage from './DashboardPage.jsx';
 import PayoutsPage from './PayoutsPage.jsx';
 import DashboardsPageV2 from './DashboardPageV2.jsx';
 import ClippersPage from './ClippersPage.jsx';
@@ -28,16 +27,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           element={
             <App>
               <DashboardsPageV2 />
-            </App>
-          }
-        />
-
-        {/* Dashboards V1 – existing Power BI embed */}
-        <Route
-          path="/dashboard"
-          element={
-            <App>
-              <DashboardPage />
             </App>
           }
         />
