@@ -10,7 +10,7 @@ import ClippersPage from './ClippersPage.jsx';
 import Performance from "./Performance.jsx";
 import Leaderboards from './Leaderboards.jsx';
 import Gallery from './Gallery.jsx';
-import SettingsPage from "./Settings.jsx";
+import Settings from "./Settings.jsx";
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
