@@ -1,7 +1,14 @@
 // Settings.jsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
+
+// ✅ match your other pages (Cloud Run base)
+const API_BASE_URL =
+  "https://clipper-payouts-api-810712855216.us-central1.run.app";
+
+// ✅ for now (later you can tie to a real client/user id)
+const DEFAULT_CLIENT_ID = "default";
 
 const DEFAULT_PAYOUT = {
   viewsPerDollar: 1000,
@@ -53,6 +60,43 @@ const fmt = (n) => {
   const x = Number(n);
   if (!Number.isFinite(x)) return "—";
   return x.toLocaleString();
+};
+
+// ✅ map API row -> UI state (handles JSON coming back as object or string)
+const mapApiToUi = (row) => {
+  if (!row) return null;
+
+  const parseJsonMaybe = (val, fallbackObj) => {
+    if (!val) return { ...fallbackObj };
+    if (typeof val === "string") {
+      try {
+        return JSON.parse(val);
+      } catch {
+        return { ...fallbackObj };
+      }
+    }
+    if (typeof val === "object") return val;
+    return { ...fallbackObj };
+  };
+
+  return {
+    ...DEFAULTS,
+
+    headingText: row.heading_text ?? DEFAULTS.headingText,
+    watermarkText: row.watermark_text ?? DEFAULTS.watermarkText,
+
+    campaignName: row.campaign_name ?? DEFAULTS.campaignName,
+    platforms: row.platforms ?? DEFAULTS.platforms,
+    budgetUsd: row.budget_usd ?? DEFAULTS.budgetUsd,
+    deadline: row.deadline ?? DEFAULTS.deadline,
+    requirements: row.requirements ?? DEFAULTS.requirements,
+
+    payouts: {
+      instagram: parseJsonMaybe(row.payouts_instagram, DEFAULTS.payouts.instagram),
+      youtube: parseJsonMaybe(row.payouts_youtube, DEFAULTS.payouts.youtube),
+      tiktok: parseJsonMaybe(row.payouts_tiktok, DEFAULTS.payouts.tiktok),
+    },
+  };
 };
 
 const Label = ({ children }) => (
@@ -161,6 +205,12 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
 
+  // ✅ new: load state + error
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [settingsError, setSettingsError] = useState("");
+
+  const clientId = DEFAULT_CLIENT_ID;
+
   const [activePlatform, setActivePlatform] = useState("instagram"); // instagram | youtube | tiktok
   const p = s.payouts[activePlatform];
 
@@ -193,6 +243,35 @@ export default function SettingsPage() {
       sectionAccent: "rgba(192,132,252,0.10)",
     };
   }, [activePlatform]);
+
+  // ✅ GET settings on mount
+  useEffect(() => {
+    const run = async () => {
+      setLoadingSettings(true);
+      setSettingsError("");
+
+      try {
+        const resp = await fetch(
+          `${API_BASE_URL}/settings?clientId=${encodeURIComponent(clientId)}`
+        );
+
+        if (!resp.ok) {
+          const txt = await resp.text().catch(() => "");
+          throw new Error(txt || `GET /settings failed (${resp.status})`);
+        }
+
+        const row = await resp.json();
+        const mapped = mapApiToUi(row);
+        if (mapped) setS(mapped);
+      } catch (e) {
+        setSettingsError(e?.message || "Failed to load settings");
+      } finally {
+        setLoadingSettings(false);
+      }
+    };
+
+    run();
+  }, [clientId]);
 
   // nav
   const handleLogout = async () => {
@@ -247,12 +326,17 @@ export default function SettingsPage() {
   const setPlatforms = (next) => setS((prev) => ({ ...prev, platforms: next }));
 
   const togglePlatform = (name) => {
-    setPlatforms(s.platforms.includes(name) ? s.platforms.filter((p) => p !== name) : [...s.platforms, name]);
+    setPlatforms(
+      s.platforms.includes(name)
+        ? s.platforms.filter((p) => p !== name)
+        : [...s.platforms, name]
+    );
   };
 
   const selectAllPlatforms = () => setPlatforms([...ALL_PLATFORMS]);
   const clearPlatforms = () => setPlatforms([]);
 
+  // ✅ POST settings on save
   const onSave = async () => {
     if (saving) return;
 
@@ -294,9 +378,40 @@ export default function SettingsPage() {
 
     setSaving(true);
     setSaveMsg("");
+    setSettingsError("");
+
     try {
-      await new Promise((r) => setTimeout(r, 450));
-      setSaveMsg("Saved (UI only for now).");
+      const payload = {
+        clientId,
+
+        headingText: norm.headingText,
+        watermarkText: norm.watermarkText,
+
+        campaignName: norm.campaignName,
+        platforms: norm.platforms,
+        budgetUsd: norm.budgetUsd,
+        deadline: norm.deadline || null,
+        requirements: norm.requirements,
+
+        payoutsInstagram: norm.payouts.instagram,
+        payoutsYoutube: norm.payouts.youtube,
+        payoutsTiktok: norm.payouts.tiktok,
+      };
+
+      const resp = await fetch(`${API_BASE_URL}/settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        throw new Error(txt || `POST /settings failed (${resp.status})`);
+      }
+
+      setSaveMsg("Saved.");
+    } catch (e) {
+      setSettingsError(e?.message || "Failed to save settings");
     } finally {
       setSaving(false);
       setTimeout(() => setSaveMsg(""), 2000);
@@ -477,6 +592,30 @@ export default function SettingsPage() {
             {(s.headingText || "Your Clipping Campaign").toUpperCase()}
           </span>
         </div>
+
+        {/* ✅ loading + error */}
+        {loadingSettings ? (
+          <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 10 }}>
+            Loading settings…
+          </div>
+        ) : null}
+
+        {settingsError ? (
+          <div
+            style={{
+              marginBottom: 10,
+              padding: "10px 12px",
+              borderRadius: 12,
+              border: "1px solid rgba(239,68,68,0.25)",
+              background: "rgba(239,68,68,0.10)",
+              color: "rgba(254,202,202,0.95)",
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            {settingsError}
+          </div>
+        ) : null}
 
         {/* title row */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 12 }}>
