@@ -122,6 +122,9 @@ export default function DashboardsPageV2() {
     navigate('/gallery');
 };
 
+  const goSettings = () => {
+    navigate('/settings');
+};
 
 
   // FETCH SUMMARY
@@ -640,6 +643,7 @@ export default function DashboardsPageV2() {
 
               {/* Settings */}
               <button
+                onClick={goSettings}
                 style={{
                   border: 'none',
                   outline: 'none',
