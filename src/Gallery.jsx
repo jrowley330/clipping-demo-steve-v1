@@ -417,6 +417,30 @@ export default function Gallery() {
 
       {/* MAIN */}
       <div style={{ flex: 1, position: 'relative', zIndex: 3 }}>
+
+      {/* Branding */}
+      <div
+        style={{
+          marginBottom: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: 'Impact, Haettenschweiler, Arial Black, sans-serif',
+            fontSize: 34,
+            letterSpacing: 0.5,
+            color: '#ffffff',
+            textTransform: 'uppercase',
+            textShadow: '0 3px 12px rgba(0,0,0,0.7)',
+          }}
+        >
+          STEVEWILLDOIT, LLC
+        </span>
+      </div>
+      
         {/* Header */}
         <div
           style={{
