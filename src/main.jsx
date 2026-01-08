@@ -84,7 +84,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
         {/* Settings */}
         <Route
-          path="/setting"
+          path="/settings"
           element={
             <App>
               <Settings />
