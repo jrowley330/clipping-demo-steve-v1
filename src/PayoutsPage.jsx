@@ -892,34 +892,46 @@ export default function PayoutsPage() {
           zIndex: 3,
         }}
       >
-        {/* Header / title */}
+        {/* Branding */}
         <div
           style={{
+            marginBottom: 12,
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: 22,
+            alignItems: 'center',
+            gap: 12,
           }}
         >
-          <div>
-            <div
-              style={{
-                fontSize: 28,
-                fontWeight: 800,
-                letterSpacing: 0.5,
-              }}
-            >
+          <span
+            style={{
+              fontFamily: 'Impact, Haettenschweiler, Arial Black, sans-serif',
+              fontSize: 34,
+              letterSpacing: 0.5,
+              color: '#ffffff',
+              textTransform: 'uppercase',
+              textShadow: '0 3px 12px rgba(0,0,0,0.7)',
+            }}
+          >
+            STEVEWILLDOIT, LLC
+          </span>
+        </div>
+
+        {/* Header */}
+        <div
+          style={{
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+            <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>
               Payouts
-            </div>
-            <div
-              style={{
-                fontSize: 13,
-                opacity: 0.75,
-                marginTop: 4,
-              }}
-            >
-              Clipper earnings &amp; payment history
-            </div>
+            </h1>
+            <span style={{ fontSize: 13, opacity: 0.7 }}>
+              Clipper earnings & payment history
+            </span>
           </div>
 
           {/* Summary pill with Upcoming + Overdue */}
