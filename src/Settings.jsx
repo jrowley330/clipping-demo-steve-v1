@@ -428,14 +428,15 @@ export default function SettingsPage() {
       setTimeout(() => setSaveMsg(""), 2000);
     }
   };
-  
-    if (loadingSettings || !s) {
-      return (
-        <div style={{ padding: 32, color: "#fff" }}>
-          Loading settings…
-        </div>
-      );
-    }
+
+  if (loadingSettings || !s) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#070c12", color: "#fff", padding: 32 }}>
+        Loading settings…
+      </div>
+    );
+  }
+
 
   return (
     <div
