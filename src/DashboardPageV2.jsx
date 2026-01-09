@@ -708,7 +708,7 @@ export default function DashboardsPageV2() {
           zIndex: 3,
         }}
       >
-        {/* Branding */}
+        {/* HARDCODED BRANDING *
         <div
           style={{
             marginBottom: 12,
@@ -729,7 +729,8 @@ export default function DashboardsPageV2() {
           >
             STEVEWILLDOIT, LLC
           </span>
-        </div>
+        </div> 
+        */}
 
         {/* Header */}
         <div
