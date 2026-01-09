@@ -86,8 +86,13 @@ export function BrandingProvider({ clientId, children }) {
   const updateBranding = (partial) => {
     setBranding((prev) => {
       const next = {
-        headingText: String(partial?.headingText ?? prev?.headingText ?? DEFAULTS.headingText),
-        watermarkText: String(partial?.watermarkText ?? prev?.watermarkText ?? DEFAULTS.watermarkText),
+        headingText: loading
+          ? "Loading..."
+          : branding?.headingText || DEFAULTS.headingText,
+
+        watermarkText: loading
+          ? "LOADING"
+          : branding?.watermarkText || DEFAULTS.watermarkText,
       };
       localStorage.setItem(storageKey, JSON.stringify(next));
       return next;
