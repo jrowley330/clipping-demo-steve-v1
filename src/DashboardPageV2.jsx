@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
+import { useBranding } from "./branding/BrandingContext";
+
 const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
@@ -73,6 +75,12 @@ const unwrapValue = (v) => {
 
 export default function DashboardsPageV2() {
   const navigate = useNavigate();
+
+  const { headingText, loading, defaults } = useBranding();
+  const brandText =
+  (loading ? defaults.headingText : headingText) || defaults.headingText;
+
+
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'details'
@@ -446,7 +454,7 @@ export default function DashboardsPageV2() {
         paddingBottom: '40px',
       }}
     >
-      {/* WATERMARK */}
+      {/* WATERMARK 
       <div
         style={{
           position: 'fixed',
@@ -466,7 +474,7 @@ export default function DashboardsPageV2() {
         }}
       >
         STEVEWILLDOIT
-      </div>
+      </div> */}
 
       {/* SIDEBAR */}
       <div
@@ -727,7 +735,7 @@ export default function DashboardsPageV2() {
               textShadow: '0 3px 12px rgba(0,0,0,0.7)',
             }}
           >
-            STEVEWILLDOIT, LLC
+            {brandText}
           </span>
         </div> 
         

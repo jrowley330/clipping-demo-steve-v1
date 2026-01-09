@@ -5,7 +5,6 @@ import { supabase } from "./supabaseClient";
 
 import { BrandingProvider } from "./branding/BrandingContext";
 import BrandWatermark from "./branding/BrandWatermark";
-import BrandHeading from "./branding/BrandHeading";
 
 
 export default function App() {
