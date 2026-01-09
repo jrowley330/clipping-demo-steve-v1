@@ -207,7 +207,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const [s, setS] = useState(DEFAULTS);
+  const [s, setS] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
 
@@ -218,7 +218,7 @@ export default function SettingsPage() {
   const clientId = DEFAULT_CLIENT_ID;
 
   const [activePlatform, setActivePlatform] = useState("instagram"); // instagram | youtube | tiktok
-  const p = s.payouts[activePlatform];
+  const p = (s?.payouts?.[activePlatform]) || DEFAULT_PAYOUT;
 
   const platformTint = useMemo(() => {
     // subtle tints (you asked: YT light red, IG light purple, TT darker metallic)
@@ -428,7 +428,14 @@ export default function SettingsPage() {
       setTimeout(() => setSaveMsg(""), 2000);
     }
   };
-
+  
+    if (loadingSettings || !s) {
+      return (
+        <div style={{ padding: 32, color: "#fff" }}>
+          Loading settings…
+        </div>
+      );
+    }
 
   return (
     <div
