@@ -601,7 +601,7 @@ export default function SettingsPage() {
             }}
             title={s.headingText}
           >
-            {(s.headingText || "Loading...").toUpperCase()}
+            {(s.headingText || "Your Clipping Campaign").toUpperCase()}
           </span>
         </div>
 
