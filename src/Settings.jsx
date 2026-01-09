@@ -431,8 +431,63 @@ export default function SettingsPage() {
 
   if (loadingSettings || !s) {
     return (
-      <div style={{ minHeight: "100vh", background: "#070c12", color: "#fff", padding: 32 }}>
-        Loading settings…
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "radial-gradient(circle at top, #141414 0, #020202 55%)",
+          display: "flex",
+          overflowX: "hidden",
+          overflowY: "auto",
+          color: "#fff",
+          fontFamily:
+            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          padding: "32px",
+          paddingTop: "40px",
+          paddingBottom: "40px",
+          boxSizing: "border-box",
+        }}
+      >
+        {/* Sidebar placeholder (keeps layout identical) */}
+        <div
+          style={{
+            width: sidebarOpen ? 190 : 54,
+            transition: "width 180ms ease",
+            marginRight: 22,
+            position: "relative",
+            zIndex: 2,
+          }}
+        >
+          <div
+            style={{
+              borderRadius: 18,
+              background: "rgba(0,0,0,0.8)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              boxShadow: "0 18px 45px rgba(0,0,0,0.8)",
+              padding: 10,
+              height: "100%",
+            }}
+          />
+        </div>
+
+        {/* Main content loading card */}
+        <div style={{ flex: 1, position: "relative", zIndex: 2 }}>
+          <div
+            style={{
+              borderRadius: 18,
+              background: "rgba(0,0,0,0.55)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 18px 45px rgba(0,0,0,0.6)",
+              padding: 18,
+              maxWidth: 1100,
+            }}
+          >
+            <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 8 }}>
+              Settings
+            </div>
+            <div style={{ opacity: 0.75 }}>Loading settings…</div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -455,7 +510,7 @@ export default function SettingsPage() {
         boxSizing: "border-box",
       }}
     >
-      
+
       {/* WATERMARK */}
       <div
         style={{
