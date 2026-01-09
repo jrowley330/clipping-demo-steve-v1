@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 
+import { useBranding } from "./branding/BrandingContext";
+
 // NEW performance API (Cloud Run)
 const PERF_API_BASE_URL = "https://clipper-performance-api-xidmvbbcza-uc.a.run.app";
 
@@ -245,6 +247,11 @@ const fallbackSummarize = (text) => {
 // ---------- component ----------
 export default function PerformancePage() {
   const navigate = useNavigate();
+
+  const { headingText, loading, defaults } = useBranding();
+
+  const brandText =
+    (loading ? defaults.headingText : headingText) || defaults.headingText;
 
   // sidebar (match other pages)
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -622,7 +629,7 @@ export default function PerformancePage() {
         }
       `}</style>
 
-      {/* WATERMARK */}
+      {/* WATERMARK 
       <div
         style={{
           position: "fixed",
@@ -642,7 +649,7 @@ export default function PerformancePage() {
         }}
       >
         STEVEWILLDOIT
-      </div>
+      </div> */}
 
       {/* SIDEBAR */}
       <div
@@ -879,7 +886,7 @@ export default function PerformancePage() {
               textShadow: "0 3px 12px rgba(0,0,0,0.7)",
             }}
           >
-            STEVEWILLDOIT, LLC
+            {brandText}
           </span>
         </div>
 
