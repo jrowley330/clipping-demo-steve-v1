@@ -3,6 +3,8 @@ import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 
+import { useBranding } from "./branding/BrandingContext";
+
 /**
  * Leaderboards (revamped)
  * - NO AI-derived analysis text (only metrics you can compute from: videos posted, publish times, views, likes, comments)
@@ -285,6 +287,12 @@ function MiniCard({ title, main, sub, tone = "neutral" }) {
 export default function Leaderboards() {
   const navigate = useNavigate();
   const boardRef = useRef(null);
+
+  export default function PayoutsPage() {
+
+  const { headingText, loading, defaults } = useBranding();
+  const brandText =
+    (loading ? defaults.headingText : headingText) || defaults.headingText;
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [toast, setToast] = useState("");
@@ -583,7 +591,7 @@ export default function Leaderboards() {
         }
       `}</style>
 
-      {/* Watermark */}
+      {/* Watermark 
       <div
         className="no-print"
         style={{
@@ -604,7 +612,7 @@ export default function Leaderboards() {
         }}
       >
         STEVEWILLDOIT
-      </div>
+      </div> */}
 
       {/* Sidebar */}
       <div
@@ -752,7 +760,7 @@ export default function Leaderboards() {
               textShadow: "0 3px 12px rgba(0,0,0,0.7)",
             }}
           >
-            STEVEWILLDOIT, LLC
+            {brandText}
           </span>
         </div>
 
