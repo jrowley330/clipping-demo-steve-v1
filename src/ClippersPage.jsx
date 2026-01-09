@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
+import { useBranding } from "./branding/BrandingContext";
+
 const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
@@ -23,6 +25,12 @@ const makeId = () => {
 export default function ClippersPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const { headingText, loading, defaults } = useBranding();
+
+  const brandText =
+    (loading ? defaults.headingText : headingText) || defaults.headingText;
+
 
   const [clippers, setClippers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -327,7 +335,7 @@ export default function ClippersPage() {
         paddingBottom: '40px',
       }}
     >
-      {/* WATERMARK */}
+      {/* WATERMARK 
       <div
         style={{
           position: 'fixed',
@@ -347,7 +355,7 @@ export default function ClippersPage() {
         }}
       >
         STEVEWILLDOIT
-      </div>
+      </div> */}
 
       {/* SIDEBAR */}
       <div
@@ -608,7 +616,7 @@ export default function ClippersPage() {
             textShadow: '0 3px 12px rgba(0,0,0,0.7)',
           }}
         >
-          STEVEWILLDOIT, LLC
+          {brandText}
         </span>
       </div>
 
