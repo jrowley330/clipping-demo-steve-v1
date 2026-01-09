@@ -288,8 +288,6 @@ export default function Leaderboards() {
   const navigate = useNavigate();
   const boardRef = useRef(null);
 
-  export default function PayoutsPage() {
-
   const { headingText, loading, defaults } = useBranding();
   const brandText =
     (loading ? defaults.headingText : headingText) || defaults.headingText;
