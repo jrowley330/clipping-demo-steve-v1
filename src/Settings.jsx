@@ -397,33 +397,16 @@ export default function SettingsPage() {
         platforms: norm.platforms,
         budgetUsd: norm.budgetUsd,
         deadline: norm.deadline || null,
-        requirements: norm.requirements,
 
-        // FLAT payout fields (per platform)
-        payoutsInstagramViewsPerDollar: norm.payouts.instagram.viewsPerDollar,
-        payoutsInstagramMaxPayEnabled: norm.payouts.instagram.maxPayEnabled,
-        payoutsInstagramMaxPayPerVideoUsd: norm.payouts.instagram.maxPayPerVideoUsd,
-        payoutsInstagramMinViewsEnabled: norm.payouts.instagram.minViewsEnabled,
-        payoutsInstagramMinViewCountEligibility: norm.payouts.instagram.minViewCountEligibility,
-        payoutsInstagramMonthlyRetainerEnabled: norm.payouts.instagram.monthlyRetainerEnabled,
-        payoutsInstagramMonthlyRetainerUsd: norm.payouts.instagram.monthlyRetainerUsd,
+        // IMPORTANT: allow empty requirements
+        requirements: Array.isArray(norm.requirements) ? norm.requirements : [],
 
-        payoutsYoutubeViewsPerDollar: norm.payouts.youtube.viewsPerDollar,
-        payoutsYoutubeMaxPayEnabled: norm.payouts.youtube.maxPayEnabled,
-        payoutsYoutubeMaxPayPerVideoUsd: norm.payouts.youtube.maxPayPerVideoUsd,
-        payoutsYoutubeMinViewsEnabled: norm.payouts.youtube.minViewsEnabled,
-        payoutsYoutubeMinViewCountEligibility: norm.payouts.youtube.minViewCountEligibility,
-        payoutsYoutubeMonthlyRetainerEnabled: norm.payouts.youtube.monthlyRetainerEnabled,
-        payoutsYoutubeMonthlyRetainerUsd: norm.payouts.youtube.monthlyRetainerUsd,
+        // ✅ what your API expects
+        payoutsInstagram: norm.payouts.instagram,
+        payoutsYoutube: norm.payouts.youtube,
+        payoutsTiktok: norm.payouts.tiktok,
+        };
 
-        payoutsTiktokViewsPerDollar: norm.payouts.tiktok.viewsPerDollar,
-        payoutsTiktokMaxPayEnabled: norm.payouts.tiktok.maxPayEnabled,
-        payoutsTiktokMaxPayPerVideoUsd: norm.payouts.tiktok.maxPayPerVideoUsd,
-        payoutsTiktokMinViewsEnabled: norm.payouts.tiktok.minViewsEnabled,
-        payoutsTiktokMinViewCountEligibility: norm.payouts.tiktok.minViewCountEligibility,
-        payoutsTiktokMonthlyRetainerEnabled: norm.payouts.tiktok.monthlyRetainerEnabled,
-        payoutsTiktokMonthlyRetainerUsd: norm.payouts.tiktok.monthlyRetainerUsd,
-      };
 
 
     const resp = await fetch(`${API_BASE_URL}/settings`, {
