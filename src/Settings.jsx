@@ -66,48 +66,43 @@ const fmt = (n) => {
 const mapApiToUi = (row) => {
   if (!row) return null;
 
-  const mkPayout = (prefix, fallback) => ({
-    ...fallback,
-    viewsPerDollar:
-      row[`${prefix}_views_per_dollar`] ?? fallback.viewsPerDollar,
-    maxPayEnabled:
-      row[`${prefix}_max_pay_enabled`] ?? fallback.maxPayEnabled,
-    maxPayPerVideoUsd:
-      row[`${prefix}_max_pay_per_video_usd`] ?? fallback.maxPayPerVideoUsd,
-    minViewsEnabled:
-      row[`${prefix}_min_views_enabled`] ?? fallback.minViewsEnabled,
-    minViewCountEligibility:
-      row[`${prefix}_min_view_count_eligibility`] ?? fallback.minViewCountEligibility,
-    monthlyRetainerEnabled:
-      row[`${prefix}_monthly_retainer_enabled`] ?? fallback.monthlyRetainerEnabled,
-    monthlyRetainerUsd:
-      row[`${prefix}_monthly_retainer_usd`] ?? fallback.monthlyRetainerUsd,
-  });
-
-  // deadline might come back like "2026-01-13" or full timestamp; keep YYYY-MM-DD
-  const deadlineStr = row.deadline
-    ? String(row.deadline).slice(0, 10)
-    : DEFAULTS.deadline;
+  const normPayout = (p) => {
+    const x = p || {};
+    return {
+      ...DEFAULT_PAYOUT,
+      viewsPerDollar: Number.isFinite(Number(x.viewsPerDollar)) ? Number(x.viewsPerDollar) : DEFAULT_PAYOUT.viewsPerDollar,
+      maxPayEnabled: !!x.maxPayEnabled,
+      maxPayPerVideoUsd: Number.isFinite(Number(x.maxPayPerVideoUsd)) ? Number(x.maxPayPerVideoUsd) : DEFAULT_PAYOUT.maxPayPerVideoUsd,
+      minViewsEnabled: !!x.minViewsEnabled,
+      minViewCountEligibility: Number.isFinite(Number(x.minViewCountEligibility)) ? Number(x.minViewCountEligibility) : DEFAULT_PAYOUT.minViewCountEligibility,
+      monthlyRetainerEnabled: !!x.monthlyRetainerEnabled,
+      monthlyRetainerUsd: Number.isFinite(Number(x.monthlyRetainerUsd)) ? Number(x.monthlyRetainerUsd) : DEFAULT_PAYOUT.monthlyRetainerUsd,
+    };
+  };
 
   return {
     ...DEFAULTS,
 
-    headingText: row.heading_text ?? DEFAULTS.headingText,
-    watermarkText: row.watermark_text ?? DEFAULTS.watermarkText,
+    // App Branding
+    headingText: row.headingText ?? DEFAULTS.headingText,
+    watermarkText: row.watermarkText ?? DEFAULTS.watermarkText,
 
-    campaignName: row.campaign_name ?? DEFAULTS.campaignName,
-    platforms: row.platforms ?? DEFAULTS.platforms,
-    budgetUsd: row.budget_usd ?? DEFAULTS.budgetUsd,
-    deadline: deadlineStr,
-    requirements: row.requirements ?? DEFAULTS.requirements,
+    // Campaign Details
+    campaignName: row.campaignName ?? DEFAULTS.campaignName,
+    platforms: Array.isArray(row.platforms) ? row.platforms : DEFAULTS.platforms,
+    budgetUsd: row.budgetUsd == null ? 0 : Number(row.budgetUsd),
+    deadline: row.deadline ? String(row.deadline) : "",
+    requirements: Array.isArray(row.requirements) ? row.requirements : DEFAULTS.requirements,
 
+    // Payout configs
     payouts: {
-      instagram: mkPayout("payouts_instagram", DEFAULTS.payouts.instagram),
-      youtube: mkPayout("payouts_youtube", DEFAULTS.payouts.youtube),
-      tiktok: mkPayout("payouts_tiktok", DEFAULTS.payouts.tiktok),
+      instagram: normPayout(row.payoutsInstagram),
+      youtube: normPayout(row.payoutsYoutube),
+      tiktok: normPayout(row.payoutsTiktok),
     },
   };
 };
+
 
 
 const Label = ({ children }) => (
@@ -430,7 +425,7 @@ export default function SettingsPage() {
         payoutsTiktokMonthlyRetainerUsd: norm.payouts.tiktok.monthlyRetainerUsd,
       };
 
-      
+
     const resp = await fetch(`${API_BASE_URL}/settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
