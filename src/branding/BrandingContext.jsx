@@ -86,13 +86,8 @@ export function BrandingProvider({ clientId, children }) {
   const updateBranding = (partial) => {
     setBranding((prev) => {
       const next = {
-        headingText: loading
-          ? "Loading..."
-          : branding?.headingText || DEFAULTS.headingText,
-
-        watermarkText: loading
-          ? "LOADING"
-          : branding?.watermarkText || DEFAULTS.watermarkText,
+        headingText: String(partial?.headingText ?? prev?.headingText ?? DEFAULTS.headingText),
+        watermarkText: String(partial?.watermarkText ?? prev?.watermarkText ?? DEFAULTS.watermarkText),
       };
       localStorage.setItem(storageKey, JSON.stringify(next));
       return next;
@@ -104,9 +99,13 @@ export function BrandingProvider({ clientId, children }) {
       clientId: clientIdRef.current,
       loading,
       error,
-      headingText: branding?.headingText || DEFAULTS.headingText,
-      watermarkText: branding?.watermarkText || DEFAULTS.watermarkText,
-      refresh,
+      headingText: loading
+        ? "Loading..."
+        : branding?.headingText || DEFAULTS.headingText,
+
+      watermarkText: loading
+        ? "Loading..."
+        : branding?.watermarkText || DEFAULTS.watermarkText,
       updateBranding,
       defaults: DEFAULTS,
     }),
