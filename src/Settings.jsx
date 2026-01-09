@@ -1019,12 +1019,12 @@ export default function SettingsPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <div>
                 <Label>Heading Text</Label>
-                <Input value={s.headingText} onChange={(e) => setS((p) => ({ ...p, headingText: e.target.value }))} placeholder="Your Clipping Campaign" />
+                <Input value={s.headingText} onChange={(e) => setS((p) => ({ ...p, headingText: e.target.value }))} placeholder="Loading...z" />
               </div>
 
               <div>
                 <Label>Watermark Text</Label>
-                <Input value={s.watermarkText} onChange={(e) => setS((p) => ({ ...p, watermarkText: e.target.value }))} placeholder="CLIPPING" />
+                <Input value={s.watermarkText} onChange={(e) => setS((p) => ({ ...p, watermarkText: e.target.value }))} placeholder="Loading...z" />
               </div>
             </div>
           </SectionCard>
