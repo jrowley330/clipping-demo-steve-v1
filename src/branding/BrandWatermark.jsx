@@ -3,10 +3,11 @@ import React from "react";
 import { useBranding } from "./BrandingContext";
 
 export default function BrandWatermark() {
-  const { watermarkText, loading, defaults } = useBranding();
+  const { watermarkText, defaults } = useBranding();
 
-  // while loading, use defaults (so layout doesn't jump)
-  const text = (loading ? defaults.watermarkText : watermarkText) || defaults.watermarkText;
+  // IMPORTANT: BrandingContext already returns "Loading..." while loading.
+  // So do NOT override with defaults based on loading here.
+  const text = watermarkText || defaults.watermarkText;
 
   return (
     <div
