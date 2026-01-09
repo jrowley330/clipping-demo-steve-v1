@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
+import { useBranding } from "./branding/BrandingContext";
+
 // Keep consistent with your other pages
 const formatNumber = (value) => {
   const num = Number(value);
@@ -48,6 +50,12 @@ const placeholderThumb = (seed = 1) =>
 export default function Gallery() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const { headingText, loading, defaults } = useBranding();
+
+  const brandText =
+    (loading ? defaults.headingText : headingText) || defaults.headingText;
+
 
   // UI filters (placeholder — you’ll wire to BigQuery view later)
   const [platformFilter, setPlatformFilter] = useState('all');
@@ -174,7 +182,7 @@ export default function Gallery() {
         paddingBottom: '40px',
       }}
     >
-      {/* WATERMARK */}
+      {/* WATERMARK 
       <div
         style={{
           position: 'fixed',
@@ -194,7 +202,7 @@ export default function Gallery() {
         }}
       >
         STEVEWILLDOIT
-      </div>
+      </div>*/}
 
       {/* SIDEBAR */}
       <div
@@ -439,7 +447,7 @@ export default function Gallery() {
             textShadow: '0 3px 12px rgba(0,0,0,0.7)',
           }}
         >
-          STEVEWILLDOIT, LLC
+          {brandText}
         </span>
       </div>
       

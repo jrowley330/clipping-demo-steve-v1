@@ -26,10 +26,10 @@ export default function ClippersPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const { headingText, loading, defaults } = useBranding();
+  const { headingText, loading: brandingLoading, defaults } = useBranding();
 
   const brandText =
-    (loading ? defaults.headingText : headingText) || defaults.headingText;
+  (brandingLoading ? defaults.headingText : headingText) || defaults.headingText;
 
 
   const [clippers, setClippers] = useState([]);
