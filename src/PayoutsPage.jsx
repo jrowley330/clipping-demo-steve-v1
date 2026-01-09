@@ -54,10 +54,8 @@ export default function PayoutsPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const { headingText, loading, defaults } = useBranding();
-
-  const brandText =
-    (loading ? defaults.headingText : headingText) || defaults.headingText;
+  const { headingText, defaults } = useBranding();
+  const brandText = headingText || defaults.headingText;
 
   const [activeTab, setActiveTab] = useState('upcoming'); // 'upcoming' | 'due' | 'history'
 

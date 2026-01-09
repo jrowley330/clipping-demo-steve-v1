@@ -288,9 +288,8 @@ export default function Leaderboards() {
   const navigate = useNavigate();
   const boardRef = useRef(null);
 
-  const { headingText, loading, defaults } = useBranding();
-  const brandText =
-    (loading ? defaults.headingText : headingText) || defaults.headingText;
+  const { headingText, defaults } = useBranding();
+  const brandText = headingText || defaults.headingText;
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [toast, setToast] = useState("");
