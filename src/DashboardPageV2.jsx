@@ -76,9 +76,8 @@ const unwrapValue = (v) => {
 export default function DashboardsPageV2() {
   const navigate = useNavigate();
 
-  const { headingText, loading, defaults } = useBranding();
-  const brandText =
-  (loading ? defaults.headingText : headingText) || defaults.headingText;
+  const { headingText, defaults } = useBranding();
+  const brandText = headingText || defaults.headingText;
 
 
 
