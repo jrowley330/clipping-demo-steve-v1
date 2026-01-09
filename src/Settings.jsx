@@ -62,22 +62,32 @@ const fmt = (n) => {
   return x.toLocaleString();
 };
 
-// ✅ map API row -> UI state (handles JSON coming back as object or string)
+// ✅ map API row -> UI state (FLAT payout columns -> nested UI payouts)
 const mapApiToUi = (row) => {
   if (!row) return null;
 
-  const parseJsonMaybe = (val, fallbackObj) => {
-    if (!val) return { ...fallbackObj };
-    if (typeof val === "string") {
-      try {
-        return JSON.parse(val);
-      } catch {
-        return { ...fallbackObj };
-      }
-    }
-    if (typeof val === "object") return val;
-    return { ...fallbackObj };
-  };
+  const mkPayout = (prefix, fallback) => ({
+    ...fallback,
+    viewsPerDollar:
+      row[`${prefix}_views_per_dollar`] ?? fallback.viewsPerDollar,
+    maxPayEnabled:
+      row[`${prefix}_max_pay_enabled`] ?? fallback.maxPayEnabled,
+    maxPayPerVideoUsd:
+      row[`${prefix}_max_pay_per_video_usd`] ?? fallback.maxPayPerVideoUsd,
+    minViewsEnabled:
+      row[`${prefix}_min_views_enabled`] ?? fallback.minViewsEnabled,
+    minViewCountEligibility:
+      row[`${prefix}_min_view_count_eligibility`] ?? fallback.minViewCountEligibility,
+    monthlyRetainerEnabled:
+      row[`${prefix}_monthly_retainer_enabled`] ?? fallback.monthlyRetainerEnabled,
+    monthlyRetainerUsd:
+      row[`${prefix}_monthly_retainer_usd`] ?? fallback.monthlyRetainerUsd,
+  });
+
+  // deadline might come back like "2026-01-13" or full timestamp; keep YYYY-MM-DD
+  const deadlineStr = row.deadline
+    ? String(row.deadline).slice(0, 10)
+    : DEFAULTS.deadline;
 
   return {
     ...DEFAULTS,
@@ -88,16 +98,17 @@ const mapApiToUi = (row) => {
     campaignName: row.campaign_name ?? DEFAULTS.campaignName,
     platforms: row.platforms ?? DEFAULTS.platforms,
     budgetUsd: row.budget_usd ?? DEFAULTS.budgetUsd,
-    deadline: row.deadline ?? DEFAULTS.deadline,
+    deadline: deadlineStr,
     requirements: row.requirements ?? DEFAULTS.requirements,
 
     payouts: {
-      instagram: parseJsonMaybe(row.payouts_instagram, DEFAULTS.payouts.instagram),
-      youtube: parseJsonMaybe(row.payouts_youtube, DEFAULTS.payouts.youtube),
-      tiktok: parseJsonMaybe(row.payouts_tiktok, DEFAULTS.payouts.tiktok),
+      instagram: mkPayout("payouts_instagram", DEFAULTS.payouts.instagram),
+      youtube: mkPayout("payouts_youtube", DEFAULTS.payouts.youtube),
+      tiktok: mkPayout("payouts_tiktok", DEFAULTS.payouts.tiktok),
     },
   };
 };
+
 
 const Label = ({ children }) => (
   <div
@@ -393,30 +404,32 @@ export default function SettingsPage() {
         deadline: norm.deadline || null,
         requirements: norm.requirements,
 
-        payoutsInstagram: norm.payouts.instagram,
-        payoutsYoutube: norm.payouts.youtube,
-        payoutsTiktok: norm.payouts.tiktok,
+        // FLAT payout fields (per platform)
+        payoutsInstagramViewsPerDollar: norm.payouts.instagram.viewsPerDollar,
+        payoutsInstagramMaxPayEnabled: norm.payouts.instagram.maxPayEnabled,
+        payoutsInstagramMaxPayPerVideoUsd: norm.payouts.instagram.maxPayPerVideoUsd,
+        payoutsInstagramMinViewsEnabled: norm.payouts.instagram.minViewsEnabled,
+        payoutsInstagramMinViewCountEligibility: norm.payouts.instagram.minViewCountEligibility,
+        payoutsInstagramMonthlyRetainerEnabled: norm.payouts.instagram.monthlyRetainerEnabled,
+        payoutsInstagramMonthlyRetainerUsd: norm.payouts.instagram.monthlyRetainerUsd,
+
+        payoutsYoutubeViewsPerDollar: norm.payouts.youtube.viewsPerDollar,
+        payoutsYoutubeMaxPayEnabled: norm.payouts.youtube.maxPayEnabled,
+        payoutsYoutubeMaxPayPerVideoUsd: norm.payouts.youtube.maxPayPerVideoUsd,
+        payoutsYoutubeMinViewsEnabled: norm.payouts.youtube.minViewsEnabled,
+        payoutsYoutubeMinViewCountEligibility: norm.payouts.youtube.minViewCountEligibility,
+        payoutsYoutubeMonthlyRetainerEnabled: norm.payouts.youtube.monthlyRetainerEnabled,
+        payoutsYoutubeMonthlyRetainerUsd: norm.payouts.youtube.monthlyRetainerUsd,
+
+        payoutsTiktokViewsPerDollar: norm.payouts.tiktok.viewsPerDollar,
+        payoutsTiktokMaxPayEnabled: norm.payouts.tiktok.maxPayEnabled,
+        payoutsTiktokMaxPayPerVideoUsd: norm.payouts.tiktok.maxPayPerVideoUsd,
+        payoutsTiktokMinViewsEnabled: norm.payouts.tiktok.minViewsEnabled,
+        payoutsTiktokMinViewCountEligibility: norm.payouts.tiktok.minViewCountEligibility,
+        payoutsTiktokMonthlyRetainerEnabled: norm.payouts.tiktok.monthlyRetainerEnabled,
+        payoutsTiktokMonthlyRetainerUsd: norm.payouts.tiktok.monthlyRetainerUsd,
       };
 
-      const resp = await fetch(`${API_BASE_URL}/settings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!resp.ok) {
-        const txt = await resp.text().catch(() => "");
-        throw new Error(txt || `POST /settings failed (${resp.status})`);
-      }
-
-      setSaveMsg("Saved.");
-    } catch (e) {
-      setSettingsError(e?.message || "Failed to save settings");
-    } finally {
-      setSaving(false);
-      setTimeout(() => setSaveMsg(""), 2000);
-    }
-  };
 
   return (
     <div
