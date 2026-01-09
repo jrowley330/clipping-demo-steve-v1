@@ -430,6 +430,27 @@ export default function SettingsPage() {
         payoutsTiktokMonthlyRetainerUsd: norm.payouts.tiktok.monthlyRetainerUsd,
       };
 
+      
+    const resp = await fetch(`${API_BASE_URL}/settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        throw new Error(txt || `POST /settings failed (${resp.status})`);
+      }
+
+      setSaveMsg("Saved.");
+    } catch (e) {
+      setSettingsError(e?.message || "Failed to save settings");
+    } finally {
+      setSaving(false);
+      setTimeout(() => setSaveMsg(""), 2000);
+    }
+  };
+
 
   return (
     <div
