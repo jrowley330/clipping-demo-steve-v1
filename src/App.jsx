@@ -5,6 +5,8 @@ import { supabase } from "./supabaseClient";
 
 import { BrandingProvider } from "./branding/BrandingContext";
 import BrandWatermark from "./branding/BrandWatermark";
+import BrandHeading from "./branding/BrandHeading";
+
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -47,6 +49,19 @@ export default function App() {
   return (
     <BrandingProvider clientId={clientId}>
       <BrandWatermark />
+      {/* Global brand heading (matches the “STEVEWILLDOIT, LLC” spot) */}
+      <div style={{ position: "relative", zIndex: 2, minHeight: 44, }}>
+        <BrandHeading
+          style={{
+            fontSize: 34,
+            fontWeight: 900,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            margin: "22px 0 0 88px", // adjust if needed
+            color: "#fff",
+          }}
+        />
+      </div>
       <Outlet />
     </BrandingProvider>
   );
