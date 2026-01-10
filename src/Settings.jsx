@@ -61,14 +61,12 @@ const fmt = (n) => {
   if (!Number.isFinite(x)) return "—";
   return x.toLocaleString();
 };
-
 const normalizeDateForInput = (v) => {
   if (!v) return "";
   const s = String(v);
   const m = s.match(/^\d{4}-\d{2}-\d{2}/); // grab YYYY-MM-DD at start
   return m ? m[0] : "";
 };
-
 
 // ✅ map API row -> UI state (FLAT payout columns -> nested UI payouts)
 const mapApiToUi = (row) => {
