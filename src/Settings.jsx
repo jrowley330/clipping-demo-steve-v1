@@ -2,7 +2,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
-import { useBranding } from "./branding/BrandingContext";
 
 // ✅ match your other pages (Cloud Run base)
 const API_BASE_URL =
@@ -240,13 +239,6 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
 
-  const { updateBranding } = useBranding();
-
-    useEffect(() => {
-      return () => clearPreview();
-    }, [clearPreview]);
-
-
   // ✅ load state + error
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [settingsError, setSettingsError] = useState("");
@@ -463,11 +455,6 @@ export default function SettingsPage() {
         throw new Error(txt || `POST /settings failed (${resp.status})`);
       }
 
-      updateBranding({
-        headingText: norm.headingText,
-        watermarkText: norm.watermarkText,
-      });
-
       setSaveMsg("Saved.");
     } catch (e) {
       setSettingsError(e?.message || "Failed to save settings");
@@ -504,7 +491,7 @@ export default function SettingsPage() {
         boxSizing: "border-box",
       }}
     >
-      {/* WATERMARK 
+      {/* WATERMARK */}
       <div
         style={{
           position: "fixed",
@@ -524,7 +511,7 @@ export default function SettingsPage() {
         }}
       >
         {previewWatermark}
-      </div> */}
+      </div>
 
       {/* SIDEBAR */}
       <div
@@ -1386,7 +1373,7 @@ export default function SettingsPage() {
                     onChange={(e) =>
                       setS((p) => ({ ...p, headingText: e.target.value }))
                     }
-                    placeholder="Heading Text..."
+                    placeholder="Loading...z"
                   />
                 </div>
 
@@ -1394,11 +1381,10 @@ export default function SettingsPage() {
                   <Label>Watermark Text</Label>
                   <Input
                     value={s.watermarkText}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setS((p) => ({ ...p, watermarkText: v }));
-                    }}
-                    placeholder="Watermark Text..."
+                    onChange={(e) =>
+                      setS((p) => ({ ...p, watermarkText: e.target.value }))
+                    }
+                    placeholder="Loading...z"
                   />
                 </div>
               </div>
