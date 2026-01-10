@@ -2,6 +2,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
+import { useBranding } from "./branding/BrandingContext";
 
 // ✅ match your other pages (Cloud Run base)
 const API_BASE_URL =
@@ -238,6 +239,15 @@ export default function SettingsPage() {
   const [s, setS] = useState(DEFAULTS);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
+
+  const { setPreview, clearPreview } = useBranding();
+
+  import { useEffect } from "react";
+
+    useEffect(() => {
+      return () => clearPreview();
+    }, [clearPreview]);
+
 
   // ✅ load state + error
   const [loadingSettings, setLoadingSettings] = useState(true);
@@ -1381,10 +1391,14 @@ export default function SettingsPage() {
                   <Label>Watermark Text</Label>
                   <Input
                     value={s.watermarkText}
-                    onChange={(e) =>
-                      setS((p) => ({ ...p, watermarkText: e.target.value }))
-                    }
-                    placeholder="Loading...z"
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setS((p) => ({ ...p, watermarkText: v }));
+
+                      // 🔥 live preview (does NOT save)
+                      setPreview({ watermarkText: v });
+                    }}
+                    placeholder="CLIPPING"
                   />
                 </div>
               </div>
