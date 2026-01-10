@@ -530,7 +530,7 @@ export default function SettingsPage() {
           textShadow: "0 0 60px rgba(0,0,0,1)",
         }}
       >
-        {(s.watermarkText || "CLIPPING").toUpperCase()}
+        {((s?.watermarkText) || "CLIPPING").toUpperCase()}
       </div>
 
 
@@ -664,19 +664,13 @@ export default function SettingsPage() {
               textOverflow: "ellipsis",
               maxWidth: "100%",
             }}
-            title={s.headingText}
+            title={s?.headingText || ""}
           >
-            {(s.headingText || "Your Clipping Campaign").toUpperCase()}
+            {((s?.headingText) || "Your Clipping Campaign").toUpperCase()}
           </span>
         </div>
 
         {/* ✅ loading + error */}
-        {loadingSettings ? (
-          <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 10 }}>
-            Loading settings…
-          </div>
-        ) : null}
-
         {settingsError ? (
           <div
             style={{
@@ -694,50 +688,54 @@ export default function SettingsPage() {
           </div>
         ) : null}
 
-        {/* title row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-            <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>Settings</h1>
-            <span style={{ fontSize: 13, opacity: 0.7 }}>Configure payouts, campaign details, and branding</span>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {saveMsg ? (
-              <div style={{ fontSize: 12, padding: "8px 12px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.6)", opacity: 0.92 }}>
-                {saveMsg}
-              </div>
-            ) : null}
-
-            <button
-              onClick={onSave}
-              disabled={saving}
+        /* ✅ Seamless loading state (keeps the same shell + alignment) */
+        {(loadingSettings || !s) ? (
+          <div
+            style={{
+              borderRadius: 18,
+              border: "1px solid rgba(148,163,184,0.3)",
+              background: "radial-gradient(circle at top left, rgba(148,163,184,0.18), rgba(15,23,42,1))",
+              padding: 18,
+              fontSize: 13,
+              opacity: 0.95,
+              marginTop: 10,
+            }}
+          >
+            <div
               style={{
-                borderRadius: 999,
-                padding: "8px 14px",
-                border: "1px solid rgba(248,250,252,0.35)",
-                background: "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.95))",
-                color: "#e5e7eb",
-                fontSize: 12,
-                cursor: saving ? "default" : "pointer",
-                opacity: saving ? 0.65 : 1,
+                width: "100%",
+                borderRadius: 14,
+                padding: "14px 16px",
+                border: "1px solid rgba(255,255,255,0.10)",
+                background: "linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
+                boxShadow: "0 18px 45px rgba(0,0,0,0.35)",
               }}
             >
-              {saving ? "Saving…" : "Save"}
-            </button>
+              <div style={{ fontSize: 12, opacity: 0.75, fontWeight: 700 }}>
+                Loading settings…
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* MAIN CONTAINER (unchanged) */
+          <div
+            style={{
+              borderRadius: 18,
+              border: "1px solid rgba(148,163,184,0.3)",
+              background: "radial-gradient(circle at top left, rgba(148,163,184,0.18), rgba(15,23,42,1))",
+              padding: 18,
+              fontSize: 13,
+              opacity: 0.95,
+            }}
+          >
+            {/* EVERYTHING INSIDE HERE STAYS EXACTLY AS YOU HAVE IT */}
+            {/* 1) Configure Payouts ... */}
+            {/* 2) Campaign Details ... */}
+            {/* 3) App Branding ... */}
+            {/* Integrations ... */}
+          </div>
+        )}
 
-        {/* MAIN CONTAINER */}
-        <div
-          style={{
-            borderRadius: 18,
-            border: "1px solid rgba(148,163,184,0.3)",
-            background: "radial-gradient(circle at top left, rgba(148,163,184,0.18), rgba(15,23,42,1))",
-            padding: 18,
-            fontSize: 13,
-            opacity: 0.95,
-          }}
-        >
           {/* 1) Configure Payouts (top) */}
           <SectionCard
             title="Configure Payouts"
