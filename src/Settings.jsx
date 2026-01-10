@@ -62,6 +62,14 @@ const fmt = (n) => {
   return x.toLocaleString();
 };
 
+const normalizeDateForInput = (v) => {
+  if (!v) return "";
+  const s = String(v);
+  const m = s.match(/^\d{4}-\d{2}-\d{2}/); // grab YYYY-MM-DD at start
+  return m ? m[0] : "";
+};
+
+
 // ✅ map API row -> UI state (FLAT payout columns -> nested UI payouts)
 const mapApiToUi = (row) => {
   if (!row) return null;
@@ -99,7 +107,7 @@ const mapApiToUi = (row) => {
     campaignName: row.campaignName ?? DEFAULTS.campaignName,
     platforms: Array.isArray(row.platforms) ? row.platforms : DEFAULTS.platforms,
     budgetUsd: row.budgetUsd == null ? 0 : Number(row.budgetUsd),
-    deadline: row.deadline ? String(row.deadline) : "",
+    deadline: normalizeDateForInput(row.deadline),
     requirements: Array.isArray(row.requirements)
       ? row.requirements
       : DEFAULTS.requirements,
