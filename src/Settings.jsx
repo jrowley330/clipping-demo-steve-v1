@@ -668,7 +668,6 @@ export default function SettingsPage() {
           >
             {((s?.headingText) || "Your Clipping Campaign").toUpperCase()}
           </span>
-        </div>
 
         {/* ✅ loading + error */}
         {settingsError ? (
