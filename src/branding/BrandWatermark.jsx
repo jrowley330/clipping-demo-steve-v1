@@ -12,7 +12,7 @@ export default function BrandWatermark() {
 
   return (
     <div
-      data-wm="global" --??????????
+      data-wm="global"
       style={{
         position: "fixed",
         inset: 0,
