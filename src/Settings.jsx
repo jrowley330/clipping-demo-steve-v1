@@ -499,7 +499,7 @@ export default function SettingsPage() {
         boxSizing: "border-box",
       }}
     >
-      {/* WATERMARK */}
+      {/* WATERMARK 
       <div
         style={{
           position: "fixed",
@@ -519,7 +519,7 @@ export default function SettingsPage() {
         }}
       >
         {previewWatermark}
-      </div>
+      </div> */}
 
       {/* SIDEBAR */}
       <div
