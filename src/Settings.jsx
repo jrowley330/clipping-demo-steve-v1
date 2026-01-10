@@ -242,8 +242,6 @@ export default function SettingsPage() {
 
   const { setPreview, clearPreview } = useBranding();
 
-  import { useEffect } from "react";
-
     useEffect(() => {
       return () => clearPreview();
     }, [clearPreview]);
