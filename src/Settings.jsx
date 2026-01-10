@@ -331,6 +331,10 @@ export default function SettingsPage() {
         }
 
         const row = await resp.json();
+        /* remove */
+        console.log("GET /settings deadline raw:", row.deadline);
+        console.log("deadline keys:", row.deadline && Object.keys(row.deadline));
+        /*remove ^*/
         const mapped = mapApiToUi(row);
         if (mapped) setS(mapped);
       } catch (e) {
