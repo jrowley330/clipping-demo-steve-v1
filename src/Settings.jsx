@@ -240,7 +240,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
 
-  const { setPreview, clearPreview } = useBranding();
+  const { updateBranding } = useBranding();
 
     useEffect(() => {
       return () => clearPreview();
@@ -462,6 +462,11 @@ export default function SettingsPage() {
         const txt = await resp.text().catch(() => "");
         throw new Error(txt || `POST /settings failed (${resp.status})`);
       }
+
+      updateBranding({
+        headingText: norm.headingText,
+        watermarkText: norm.watermarkText,
+      });
 
       setSaveMsg("Saved.");
     } catch (e) {
@@ -1381,7 +1386,7 @@ export default function SettingsPage() {
                     onChange={(e) =>
                       setS((p) => ({ ...p, headingText: e.target.value }))
                     }
-                    placeholder="Loading...z"
+                    placeholder="Heading Text..."
                   />
                 </div>
 
@@ -1392,11 +1397,8 @@ export default function SettingsPage() {
                     onChange={(e) => {
                       const v = e.target.value;
                       setS((p) => ({ ...p, watermarkText: v }));
-
-                      // 🔥 live preview (does NOT save)
-                      setPreview({ watermarkText: v });
                     }}
-                    placeholder="CLIPPING"
+                    placeholder="Watermark Text..."
                   />
                 </div>
               </div>

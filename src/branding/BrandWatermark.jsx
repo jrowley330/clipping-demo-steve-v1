@@ -3,10 +3,9 @@ import React from "react";
 import { useBranding } from "./BrandingContext";
 
 export default function BrandWatermark() {
-  const { watermarkText, preview } = useBranding();
+  const { watermarkText } = useBranding();
+  const text = watermarkText;
 
-  // if preview exists (Settings typing), use it — otherwise saved value
-  const text = preview?.watermarkText ?? watermarkText;
 
   if (!text) return null;
 
