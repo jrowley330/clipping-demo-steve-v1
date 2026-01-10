@@ -3,11 +3,12 @@ import React from "react";
 import { useBranding } from "./BrandingContext";
 
 export default function BrandWatermark() {
-  const { watermarkText, defaults } = useBranding();
+  const { watermarkText, preview } = useBranding();
 
-  // IMPORTANT: BrandingContext already returns "Loading..." while loading.
-  // So do NOT override with defaults based on loading here.
-  const text = watermarkText || defaults.watermarkText;
+  // if preview exists (Settings typing), use it — otherwise saved value
+  const text = preview?.watermarkText ?? watermarkText;
+
+  if (!text) return null;
 
   return (
     <div
@@ -18,7 +19,7 @@ export default function BrandWatermark() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        opacity: 0.03,
+        opacity: 0.035,
         fontFamily: "Impact, Haettenschweiler, Arial Black, sans-serif",
         fontSize: 140,
         letterSpacing: 2,
@@ -29,7 +30,7 @@ export default function BrandWatermark() {
         zIndex: 1,
       }}
     >
-      {text}
+      {String(text)}
     </div>
   );
 }

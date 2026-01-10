@@ -23,6 +23,15 @@ export function BrandingProvider({ clientId, children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [branding, setBranding] = useState(DEFAULTS);
+  /* added 1/9 8:15pm */
+  const [preview, setPreviewState] = useState(null);
+  // preview controls (DO NOT write localStorage)
+  const setPreview = (partial) => {
+    setPreviewState((prev) => ({ ...(prev || {}), ...(partial || {}) }));
+  };
+  const clearPreview = () => setPreviewState(null);
+  /* added 1/9 8:15pm */
+
 
   const clientIdRef = useRef(clientId || "default");
   clientIdRef.current = clientId || "default";
@@ -108,8 +117,13 @@ export function BrandingProvider({ clientId, children }) {
         : branding?.watermarkText || DEFAULTS.watermarkText,
       updateBranding,
       defaults: DEFAULTS,
+
+      // ✅ preview override added 1/9 8:15
+      preview,
+      setPreview,
+      clearPreview,
     }),
-    [loading, error, branding]
+    [loading, error, branding, preview] // added 1/9 8:15 - preview
   );
 
   return <BrandingContext.Provider value={value}>{children}</BrandingContext.Provider>;
