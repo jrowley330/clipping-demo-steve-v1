@@ -1379,11 +1379,12 @@ export default function SettingsPage() {
 
                 <div>
                   <Label>Watermark Text</Label>
-                  <input
+                  <Input
                     value={s.watermarkText}
                     onChange={(e) =>
                       setS((p) => ({ ...p, watermarkText: e.target.value }))
                     }
+                    placeholder="Loading...z"
                   />
                 </div>
               </div>
