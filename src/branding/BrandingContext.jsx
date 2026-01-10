@@ -112,17 +112,13 @@ export function BrandingProvider({ clientId, children }) {
       clientId: clientIdRef.current,
       loading,
       error,
-      headingText: loading
-        ? "Loading..."
-        : branding?.headingText || DEFAULTS.headingText,
-      watermarkText: loading
-        ? "Loading..."
-        : branding?.watermarkText || DEFAULTS.watermarkText,
-      updateBranding,
+      headingText: branding?.headingText || DEFAULTS.headingText,
+      watermarkText: branding?.watermarkText || DEFAULTS.watermarkText,
       refresh,
+      updateBranding,
       defaults: DEFAULTS,
     }),
-    [loading, error, branding]
+    [loading, error, branding, storageKey]
   );
 
   return (
