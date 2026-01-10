@@ -1,7 +1,15 @@
 // src/branding/BrandingContext.jsx
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-const API_BASE_URL = "https://clipper-payouts-api-810712855216.us-central1.run.app";
+const API_BASE_URL =
+  "https://clipper-payouts-api-810712855216.us-central1.run.app";
 
 // sensible defaults (used during loading + if API returns blanks)
 const DEFAULTS = {
@@ -27,7 +35,10 @@ export function BrandingProvider({ clientId, children }) {
   const clientIdRef = useRef(clientId || "default");
   clientIdRef.current = clientId || "default";
 
-  const storageKey = useMemo(() => `branding:${clientIdRef.current}`, [clientIdRef.current]);
+  const storageKey = useMemo(
+    () => `branding:${clientIdRef.current}`,
+    [clientIdRef.current]
+  );
 
   // load cached immediately (fast paint), then refresh in background
   useEffect(() => {
@@ -39,7 +50,6 @@ export function BrandingProvider({ clientId, children }) {
       });
       setLoading(false);
     }
-    // always refresh at least once on mount/client change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
@@ -69,7 +79,6 @@ export function BrandingProvider({ clientId, children }) {
       localStorage.setItem(storageKey, JSON.stringify(next));
     } catch (e) {
       setError(e?.message || "Failed to load branding");
-      // fall back to whatever we already had (cached or defaults)
       setBranding((prev) => prev || DEFAULTS);
     } finally {
       setLoading(false);
@@ -86,8 +95,12 @@ export function BrandingProvider({ clientId, children }) {
   const updateBranding = (partial) => {
     setBranding((prev) => {
       const next = {
-        headingText: String(partial?.headingText ?? prev?.headingText ?? DEFAULTS.headingText),
-        watermarkText: String(partial?.watermarkText ?? prev?.watermarkText ?? DEFAULTS.watermarkText),
+        headingText: String(
+          partial?.headingText ?? prev?.headingText ?? DEFAULTS.headingText
+        ),
+        watermarkText: String(
+          partial?.watermarkText ?? prev?.watermarkText ?? DEFAULTS.watermarkText
+        ),
       };
       localStorage.setItem(storageKey, JSON.stringify(next));
       return next;
@@ -102,23 +115,26 @@ export function BrandingProvider({ clientId, children }) {
       headingText: loading
         ? "Loading..."
         : branding?.headingText || DEFAULTS.headingText,
-
       watermarkText: loading
         ? "Loading..."
         : branding?.watermarkText || DEFAULTS.watermarkText,
       updateBranding,
+      refresh,
       defaults: DEFAULTS,
     }),
-    [loading, error, branding, preview] // added 1/9 8:15 - preview
+    [loading, error, branding]
   );
 
-  return <BrandingContext.Provider value={value}>{children}</BrandingContext.Provider>;
+  return (
+    <BrandingContext.Provider value={value}>
+      {children}
+    </BrandingContext.Provider>
+  );
 }
 
 export function useBranding() {
   const ctx = useContext(BrandingContext);
   if (!ctx) {
-    // fail-safe so app doesn't crash if you forget the provider
     return {
       clientId: "default",
       loading: false,

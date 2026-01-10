@@ -4,9 +4,8 @@ import { useBranding } from "./BrandingContext";
 
 export default function BrandWatermark() {
   const { watermarkText } = useBranding();
+
   const text = watermarkText;
-
-
   if (!text) return null;
 
   return (
