@@ -63,42 +63,6 @@ const fmt = (n) => {
 };
 
 
-const normalizeDateForInput = (v) => {
-  if (!v) return "";
-
-  // BigQuery/JSON sometimes wraps values
-  if (typeof v === "object") {
-    // { value: "2026-01-16" } or similar
-    if (v.value) return normalizeDateForInput(v.value);
-
-    // JS Date
-    if (v instanceof Date && !isNaN(v.getTime())) {
-      return v.toISOString().slice(0, 10);
-    }
-
-    // unknown object
-    const s = String(v);
-    const m = s.match(/\d{4}-\d{2}-\d{2}/);
-    return m ? m[0] : "";
-  }
-
-  const s = String(v).trim();
-
-  // ISO anywhere in string (handles "2026-01-16T00:00:00.000Z", "2026-01-16 00:00:00 UTC", etc.)
-  let m = s.match(/\d{4}-\d{2}-\d{2}/);
-  if (m) return m[0];
-
-  // US format: M/D/YYYY or MM/DD/YYYY
-  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) {
-    const mm = String(m[1]).padStart(2, "0");
-    const dd = String(m[2]).padStart(2, "0");
-    const yyyy = m[3];
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  return "";
-};
 
 // ✅ map API row -> UI state (FLAT payout columns -> nested UI payouts)
 const mapApiToUi = (row) => {
@@ -137,7 +101,7 @@ const mapApiToUi = (row) => {
     campaignName: row.campaignName ?? DEFAULTS.campaignName,
     platforms: Array.isArray(row.platforms) ? row.platforms : DEFAULTS.platforms,
     budgetUsd: row.budgetUsd == null ? 0 : Number(row.budgetUsd),
-    deadline: normalizeDateForInput(row.deadline),
+    deadline: row.deadline || "",
     requirements: Array.isArray(row.requirements)
       ? row.requirements
       : DEFAULTS.requirements,
