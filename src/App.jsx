@@ -1,19 +1,11 @@
-// src/App.jsx
-import React, { useEffect, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
-import { supabase } from "./supabaseClient";
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from './supabaseClient';
 
-import { BrandingProvider } from "./branding/BrandingContext";
-import BrandWatermark from "./branding/BrandWatermark";
-
-
-export default function App() {
+export default function App({ children }) {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
   const navigate = useNavigate();
-
-  // later: set this from user/session
-  const clientId = "default";
 
   useEffect(() => {
     const init = async () => {
@@ -21,8 +13,9 @@ export default function App() {
       setSession(data.session || null);
       setLoading(false);
 
+      // if not logged in, send to login
       if (!data.session) {
-        navigate("/login", { replace: true });
+        navigate('/login', { replace: true });
       }
     };
 
@@ -30,13 +23,15 @@ export default function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
 
-      if (!nextSession) {
-        navigate("/login", { replace: true });
+      if (!session) {
+        // logged out → go to login
+        navigate('/login', { replace: true });
       }
-      // IMPORTANT: do NOT force redirect on login
+      // ❌ IMPORTANT: do NOT force /dashboard here
+      // if there *is* a session, just stay on whatever route we're on
     });
 
     return () => subscription.unsubscribe();
@@ -45,10 +40,6 @@ export default function App() {
   if (loading) return <div>Loading…</div>;
   if (!session) return null; // redirect handled above
 
-  return (
-    <BrandingProvider clientId={clientId}>
-      <BrandWatermark />
-      <Outlet />
-    </BrandingProvider>
-  );
+  // render whichever page was wrapped in <App> ... </App>
+  return <>{children}</>;
 }

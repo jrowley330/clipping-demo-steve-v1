@@ -51,8 +51,10 @@ export default function Gallery() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const { headingText, defaults } = useBranding();
+  //BRANDING
+  const { headingText, watermarkText, defaults } = useBranding();
   const brandText = headingText || defaults.headingText;
+  const wmText = watermarkText || defaults.watermarkText;
 
   // UI filters (placeholder — you’ll wire to BigQuery view later)
   const [platformFilter, setPlatformFilter] = useState('all');
@@ -179,7 +181,7 @@ export default function Gallery() {
         paddingBottom: '40px',
       }}
     >
-      {/* WATERMARK 
+      {/* WATERMARK */}
       <div
         style={{
           position: 'fixed',
@@ -198,8 +200,8 @@ export default function Gallery() {
           textShadow: '0 0 60px rgba(0,0,0,1)',
         }}
       >
-        STEVEWILLDOIT
-      </div>*/}
+        {wmText}
+      </div>
 
       {/* SIDEBAR */}
       <div

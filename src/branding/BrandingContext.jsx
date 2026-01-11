@@ -1,145 +1,76 @@
-// src/branding/BrandingContext.jsx
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
-const API_BASE_URL =
-  "https://clipper-payouts-api-810712855216.us-central1.run.app";
-
-// sensible defaults (used during loading + if API returns blanks)
-const DEFAULTS = {
-  headingText: "YOUR CLIPPING CAMPAIGN",
-  watermarkText: "CLIPPING",
-};
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 const BrandingContext = createContext(null);
 
-function safeJsonParse(v) {
-  try {
-    return JSON.parse(v);
-  } catch {
-    return null;
-  }
-}
+const DEFAULTS = {
+  headingText: "Loading...",
+  watermarkText: "Loading...",
+};
 
-export function BrandingProvider({ clientId, children }) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [branding, setBranding] = useState(DEFAULTS);
+const API_BASE = "https://clipper-payouts-api-810712855216.us-central1.run.app";
 
-  const clientIdRef = useRef(clientId || "default");
-  clientIdRef.current = clientId || "default";
-
-  const storageKey = useMemo(
-    () => `branding:${clientIdRef.current}`,
-    [clientIdRef.current]
-  );
-
-  // load cached immediately (fast paint), then refresh in background
-  useEffect(() => {
-    const cached = safeJsonParse(localStorage.getItem(storageKey));
-    if (cached?.headingText || cached?.watermarkText) {
-      setBranding({
-        headingText: String(cached.headingText || DEFAULTS.headingText),
-        watermarkText: String(cached.watermarkText || DEFAULTS.watermarkText),
-      });
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
+export function BrandingProvider({ clientId = "default", children }) {
+  const [headingText, setHeadingText] = useState("");
+  const [watermarkText, setWatermarkText] = useState("");
+  const [loadingBranding, setLoadingBranding] = useState(false);
+  const [brandingError, setBrandingError] = useState("");
 
   const refresh = async () => {
-    const cid = clientIdRef.current;
-
-    setError("");
-    setLoading(true);
+    setLoadingBranding(true);
+    setBrandingError("");
 
     try {
-      const qs = new URLSearchParams({ clientId: cid });
-      const res = await fetch(`${API_BASE_URL}/settings?${qs.toString()}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
+      const url = `${API_BASE}/settings?clientId=${encodeURIComponent(clientId)}`;
+      const res = await fetch(url);
 
-      if (!res.ok) throw new Error(`Settings API ${res.status}`);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`GET /settings failed: ${res.status} ${text}`);
+      }
 
-      const data = await res.json().catch(() => null);
+      const raw = await res.json();
+      const data = Array.isArray(raw) ? raw[0] : raw;
 
-      const next = {
-        headingText: String(data?.headingText || DEFAULTS.headingText),
-        watermarkText: String(data?.watermarkText || DEFAULTS.watermarkText),
-      };
+      // Support BOTH camelCase (current API) and snake_case (if you ever switch)
+      const h = data?.headingText ?? data?.heading_text ?? "";
+      const w = data?.watermarkText ?? data?.watermark_text ?? "";
 
-      setBranding(next);
-      localStorage.setItem(storageKey, JSON.stringify(next));
+      setHeadingText(String(h || ""));
+      setWatermarkText(String(w || ""));
     } catch (e) {
-      setError(e?.message || "Failed to load branding");
-      setBranding((prev) => prev || DEFAULTS);
+      setBrandingError(e?.message || "Failed to load branding");
     } finally {
-      setLoading(false);
+      setLoadingBranding(false);
     }
   };
 
-  // run refresh once per clientId change
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
-
-  // lets Settings.jsx update instantly after save (no wait)
-  const updateBranding = (partial) => {
-    setBranding((prev) => {
-      const next = {
-        headingText: String(
-          partial?.headingText ?? prev?.headingText ?? DEFAULTS.headingText
-        ),
-        watermarkText: String(
-          partial?.watermarkText ?? prev?.watermarkText ?? DEFAULTS.watermarkText
-        ),
-      };
-      localStorage.setItem(storageKey, JSON.stringify(next));
-      return next;
-    });
-  };
+  }, [clientId]);
 
   const value = useMemo(
     () => ({
-      clientId: clientIdRef.current,
-      loading,
-      error,
-      headingText: branding?.headingText || DEFAULTS.headingText,
-      watermarkText: branding?.watermarkText || DEFAULTS.watermarkText,
-      refresh,
-      updateBranding,
+      headingText,
+      watermarkText,
       defaults: DEFAULTS,
+      loadingBranding,
+      brandingError,
+      refresh,
+      clientId,
+      setBrandingLocal: ({ headingText: h, watermarkText: w }) => {
+        if (h !== undefined) setHeadingText(String(h ?? ""));
+        if (w !== undefined) setWatermarkText(String(w ?? ""));
+      },
     }),
-    [loading, error, branding, storageKey]
+    [headingText, watermarkText, loadingBranding, brandingError, clientId]
   );
 
-  return (
-    <BrandingContext.Provider value={value}>
-      {children}
-    </BrandingContext.Provider>
-  );
+  return <BrandingContext.Provider value={value}>{children}</BrandingContext.Provider>;
 }
 
 export function useBranding() {
   const ctx = useContext(BrandingContext);
-  if (!ctx) {
-    return {
-      clientId: "default",
-      loading: false,
-      error: "",
-      ...DEFAULTS,
-      refresh: async () => {},
-      updateBranding: () => {},
-      defaults: DEFAULTS,
-    };
-  }
+  if (!ctx) throw new Error("useBranding must be used inside <BrandingProvider>");
   return ctx;
 }

@@ -288,8 +288,10 @@ export default function Leaderboards() {
   const navigate = useNavigate();
   const boardRef = useRef(null);
 
-  const { headingText, defaults } = useBranding();
+  //BRANDING
+  const { headingText, watermarkText, defaults } = useBranding();
   const brandText = headingText || defaults.headingText;
+  const wmText = watermarkText || defaults.watermarkText;
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [toast, setToast] = useState("");
@@ -588,7 +590,7 @@ export default function Leaderboards() {
         }
       `}</style>
 
-      {/* Watermark 
+      {/* Watermark */}
       <div
         className="no-print"
         style={{
@@ -608,8 +610,8 @@ export default function Leaderboards() {
           textShadow: "0 0 60px rgba(0,0,0,1)",
         }}
       >
-        STEVEWILLDOIT
-      </div> */}
+        {wmText}
+      </div>
 
       {/* Sidebar */}
       <div

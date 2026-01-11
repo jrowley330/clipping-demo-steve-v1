@@ -248,8 +248,10 @@ const fallbackSummarize = (text) => {
 export default function PerformancePage() {
   const navigate = useNavigate();
 
-  const { headingText, defaults } = useBranding();
+  //BRANDING
+  const { headingText, watermarkText, defaults } = useBranding();
   const brandText = headingText || defaults.headingText;
+  const wmText = watermarkText || defaults.watermarkText;
 
   // sidebar (match other pages)
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -627,7 +629,7 @@ export default function PerformancePage() {
         }
       `}</style>
 
-      {/* WATERMARK 
+      {/* WATERMARK */}
       <div
         style={{
           position: "fixed",
@@ -646,8 +648,8 @@ export default function PerformancePage() {
           textShadow: "0 0 60px rgba(0,0,0,1)",
         }}
       >
-        STEVEWILLDOIT
-      </div> */}
+        {wmText}
+      </div>
 
       {/* SIDEBAR */}
       <div

@@ -76,10 +76,10 @@ const unwrapValue = (v) => {
 export default function DashboardsPageV2() {
   const navigate = useNavigate();
 
-  const { headingText, defaults } = useBranding();
+  //BRANDING
+  const { headingText, watermarkText, defaults } = useBranding();
   const brandText = headingText || defaults.headingText;
-
-
+  const wmText = watermarkText || defaults.watermarkText;
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'details'
@@ -453,7 +453,7 @@ export default function DashboardsPageV2() {
         paddingBottom: '40px',
       }}
     >
-      {/* WATERMARK 
+      {/* WATERMARK */}
       <div
         style={{
           position: 'fixed',
@@ -472,8 +472,8 @@ export default function DashboardsPageV2() {
           textShadow: '0 0 60px rgba(0,0,0,1)',
         }}
       >
-        STEVEWILLDOIT
-      </div> */}
+        {wmText}
+      </div> 
 
       {/* SIDEBAR */}
       <div
