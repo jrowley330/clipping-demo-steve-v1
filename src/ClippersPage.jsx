@@ -1301,7 +1301,7 @@ export default function ClippersPage() {
                       borderRadius: 9,
                       border: '1px solid rgba(148,163,184,0.85)',
                       background: 'rgba(15,23,42,0.9)',
-                      color: '#ff0000',
+                      color: '#ffffff',
                       fontSize: 12,
                       appearance: 'none',
                     }}
