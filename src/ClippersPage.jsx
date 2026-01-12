@@ -56,6 +56,10 @@ export default function ClippersPage() {
   // delete state
   const [deletingId, setDeletingId] = useState(null);
 
+  // ✅ Delete confirmation modal (replaces window.confirm)
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
@@ -186,36 +190,45 @@ export default function ClippersPage() {
   };
 
   // -------------------------------------------------------
-  // DELETE
+  // DELETE (UI confirm modal)
   // -------------------------------------------------------
-  const deleteClipper = async (clipper) => {
+  const requestDelete = (clipper) => {
     if (!clipper?.id) return;
-
-    // Don’t allow delete during edit/add to avoid weird state
     if (savingEdit || savingAdd) return;
 
-    const ok = window.confirm(
-      `Delete "${clipper.clipperName}"?\n\nThis will remove the clipper from BigQuery and cannot be undone.`
-    );
-    if (!ok) return;
+    setDeleteTarget(clipper);
+    setDeleteOpen(true);
+  };
+
+  const closeDelete = () => {
+    if (deletingId) return; // don’t close while deleting
+    setDeleteOpen(false);
+    setDeleteTarget(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget?.id) return;
 
     try {
-      setDeletingId(clipper.id);
+      setDeletingId(deleteTarget.id);
 
-      const res = await fetch(`${API_BASE_URL}/clippers/${clipper.id}`, {
+      const res = await fetch(`${API_BASE_URL}/clippers/${deleteTarget.id}`, {
         method: 'DELETE',
       });
 
       if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
 
-      setClippers((prev) => prev.filter((c) => c.id !== clipper.id));
+      setClippers((prev) => prev.filter((c) => c.id !== deleteTarget.id));
 
       // clean up UI state
-      if (expandedId === clipper.id) setExpandedId(null);
-      if (editingId === clipper.id) {
+      if (expandedId === deleteTarget.id) setExpandedId(null);
+      if (editingId === deleteTarget.id) {
         setEditingId(null);
         setEditDraft(null);
       }
+
+      setDeleteOpen(false);
+      setDeleteTarget(null);
     } catch (err) {
       console.error('DELETE failed:', err);
       alert('Failed to delete clipper');
@@ -1056,10 +1069,10 @@ export default function ClippersPage() {
                         >
                           {!isEditing ? (
                             <>
-                              {/* ✅ Delete */}
+                              {/* ✅ Delete (opens modal) */}
                               <button
                                 type="button"
-                                onClick={() => deleteClipper(clipper)}
+                                onClick={() => requestDelete(clipper)}
                                 disabled={deletingId === clipper.id}
                                 style={{
                                   borderRadius: 999,
@@ -1402,6 +1415,152 @@ export default function ClippersPage() {
                   {savingAdd ? 'Creating…' : 'Create clipper'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ DELETE CONFIRM MODAL */}
+      {deleteOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 60,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(15,23,42,0.72)',
+            backdropFilter: 'blur(7px)',
+          }}
+          onMouseDown={(e) => {
+            // click outside closes (unless deleting)
+            if (e.target === e.currentTarget) closeDelete();
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 520,
+              borderRadius: 20,
+              padding: 18,
+              background:
+                'radial-gradient(circle at top left, rgba(15,23,42,1), rgba(15,23,42,0.96))',
+              border: '1px solid rgba(148,163,184,0.6)',
+              boxShadow: '0 24px 80px rgba(15,23,42,0.92)',
+              color: '#e5e7eb',
+              fontSize: 13,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: 12,
+                marginBottom: 10,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 650, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 999,
+                      background: 'rgba(248,113,113,0.9)',
+                      boxShadow: '0 0 0 4px rgba(248,113,113,0.18)',
+                      display: 'inline-block',
+                    }}
+                  />
+                  Delete clipper
+                </div>
+                <div style={{ fontSize: 11, opacity: 0.75, marginTop: 4 }}>
+                  This will remove the clipper from BigQuery. This action cannot be undone.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeDelete}
+                disabled={!!deletingId}
+                style={{
+                  borderRadius: 999,
+                  border: '1px solid rgba(148,163,184,0.7)',
+                  background: 'rgba(15,23,42,0.9)',
+                  color: '#e5e7eb',
+                  fontSize: 11,
+                  padding: '4px 10px',
+                  cursor: deletingId ? 'default' : 'pointer',
+                  opacity: deletingId ? 0.6 : 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              style={{
+                marginTop: 10,
+                padding: 12,
+                borderRadius: 14,
+                border: '1px solid rgba(248,113,113,0.28)',
+                background: 'rgba(248,113,113,0.08)',
+              }}
+            >
+              <div style={{ fontSize: 11, opacity: 0.8, textTransform: 'uppercase', letterSpacing: 0.06 }}>
+                You are deleting
+              </div>
+              <div style={{ marginTop: 6, fontSize: 14, fontWeight: 600 }}>
+                {deleteTarget?.clipperName || 'This clipper'}
+              </div>
+              <div style={{ marginTop: 4, fontSize: 11, opacity: 0.75 }}>
+                TikTok: <span style={{ fontFamily: 'monospace' }}>{deleteTarget?.tiktokUsername || 'none'}</span> · Instagram:{' '}
+                <span style={{ fontFamily: 'monospace' }}>{deleteTarget?.instagramUsername || 'none'}</span> · YouTube:{' '}
+                <span style={{ fontFamily: 'monospace' }}>{deleteTarget?.youtubeUsername || 'none'}</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
+              <button
+                type="button"
+                onClick={closeDelete}
+                disabled={!!deletingId}
+                style={{
+                  borderRadius: 999,
+                  padding: '6px 12px',
+                  border: '1px solid rgba(148,163,184,0.7)',
+                  background: 'rgba(15,23,42,0.95)',
+                  color: '#e5e7eb',
+                  fontSize: 11,
+                  cursor: deletingId ? 'default' : 'pointer',
+                  opacity: deletingId ? 0.7 : 1,
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={!!deletingId}
+                style={{
+                  borderRadius: 999,
+                  padding: '6px 16px',
+                  border: 'none',
+                  background:
+                    'linear-gradient(135deg, rgba(248,113,113,0.95), rgba(239,68,68,0.95))',
+                  color: '#2a0b0b',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: deletingId ? 'default' : 'pointer',
+                  boxShadow:
+                    '0 0 0 1px rgba(248,113,113,0.35), 0 14px 40px rgba(239,68,68,0.35)',
+                  opacity: deletingId ? 0.85 : 1,
+                }}
+              >
+                {deletingId ? 'Deleting…' : 'Delete clipper'}
+              </button>
             </div>
           </div>
         </div>
