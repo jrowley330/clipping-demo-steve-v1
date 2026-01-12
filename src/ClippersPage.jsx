@@ -2,23 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
-import { useBranding } from "./branding/BrandingContext";
+import { useBranding } from './branding/BrandingContext';
 
 const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
 const unwrapValue = (v) => {
-  if (v && typeof v === 'object' && 'value' in v) {
-    return v.value;
-  }
+  if (v && typeof v === 'object' && 'value' in v) return v.value;
   return v;
 };
 
-// simple UUID fallback if crypto.randomUUID isn't available
+// UUID fallback
 const makeId = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return 'clipper_' + Math.random().toString(36).slice(2);
 };
 
@@ -26,11 +22,10 @@ export default function ClippersPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  //BRANDING
+  // BRANDING
   const { headingText, watermarkText, defaults } = useBranding();
   const brandText = headingText || defaults.headingText;
   const wmText = watermarkText || defaults.watermarkText;
-
 
   const [clippers, setClippers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -58,35 +53,20 @@ export default function ClippersPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [savingAdd, setSavingAdd] = useState(false);
 
+  // delete state
+  const [deletingId, setDeletingId] = useState(null);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
   };
 
-  const handleGoDashV2 = () => {
-    navigate('/dashboard-v2');
-  };
-
-  const handleGoPayouts = () => {
-    navigate('/payouts');
-  };
-
-  const handleGoPerformance = () => {
-    navigate('/performance');
-  };
-
-    const goLeaderboards = () => {
-    navigate('/leaderboards');
-  };
-
-    const goGallery = () => {
-    navigate('/gallery');
-};
-
-    const goSettings = () => {
-    navigate('/settings');
-};
-
+  const handleGoDashV2 = () => navigate('/dashboard-v2');
+  const handleGoPayouts = () => navigate('/payouts');
+  const handleGoPerformance = () => navigate('/performance');
+  const goLeaderboards = () => navigate('/leaderboards');
+  const goGallery = () => navigate('/gallery');
+  const goSettings = () => navigate('/settings');
 
   // -------------------------------------------------------
   // FETCH CLIPPERS FROM API
@@ -98,9 +78,7 @@ export default function ClippersPage() {
         setError('');
 
         const res = await fetch(`${API_BASE_URL}/clippers`);
-        if (!res.ok) {
-          throw new Error(`Clippers API ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`Clippers API ${res.status}`);
 
         const data = await res.json();
 
@@ -109,27 +87,17 @@ export default function ClippersPage() {
           return {
             id, // internal only
             clipperName:
-              unwrapValue(row.clipper_name ?? row.clipperName) ||
-              `Clipper ${i + 1}`,
+              unwrapValue(row.clipper_name ?? row.clipperName) || `Clipper ${i + 1}`,
             clientId: unwrapValue(row.client_id ?? row.clientId) || '',
-            tiktokUsername: unwrapValue(
-              row.tiktok_username ?? row.tiktokUsername
-            ) || '',
-            instagramUsername: unwrapValue(
-              row.instagram_username ?? row.instagramUsername
-            ) || '',
-            youtubeUsername: unwrapValue(
-              row.youtube_username ?? row.youtubeUsername
-            ) || '',
+            tiktokUsername: unwrapValue(row.tiktok_username ?? row.tiktokUsername) || '',
+            instagramUsername:
+              unwrapValue(row.instagram_username ?? row.instagramUsername) || '',
+            youtubeUsername: unwrapValue(row.youtube_username ?? row.youtubeUsername) || '',
             isActive:
-              typeof row.is_active === 'boolean'
-                ? row.is_active
-                : !!row.isActive,
-            paymentProcessor: unwrapValue(
-              row.payment_processor ?? row.paymentProcessor
-            ) || '',
-            processorKey:
-              unwrapValue(row.processor_key ?? row.processorKey) || '',
+              typeof row.is_active === 'boolean' ? row.is_active : !!row.isActive,
+            paymentProcessor:
+              unwrapValue(row.payment_processor ?? row.paymentProcessor) || '',
+            processorKey: unwrapValue(row.processor_key ?? row.processorKey) || '',
             createdAt: unwrapValue(row.created_at ?? row.createdAt),
             updatedAt: unwrapValue(row.updated_at ?? row.updatedAt),
           };
@@ -152,11 +120,11 @@ export default function ClippersPage() {
   };
 
   // -------------------------------------------------------
-  // EDIT / SAVE / CANCEL (local state only for now)
+  // EDIT / SAVE / CANCEL
   // -------------------------------------------------------
   const startEdit = (clipper) => {
     setEditingId(clipper.id);
-    setExpandedId(clipper.id); // auto-expand when editing
+    setExpandedId(clipper.id);
     setEditDraft({
       clipperName: clipper.clipperName || '',
       tiktokUsername: clipper.tiktokUsername || '',
@@ -173,62 +141,91 @@ export default function ClippersPage() {
     setEditDraft(null);
   };
 
-  const saveEdit = async () => {
-  if (!editingId || !editDraft) return;
-  try {
-    setSavingEdit(true);
-
-    const payload = {
-      clipperName: editDraft.clipperName.trim(),
-      clientId: '', // you removed client ID logic
-      tiktokUsername: editDraft.tiktokUsername.trim(),
-      instagramUsername: editDraft.instagramUsername.trim(),
-      youtubeUsername: editDraft.youtubeUsername.trim(),
-      isActive: !!editDraft.isActive,
-      paymentProcessor: editDraft.paymentProcessor.trim(),
-      processorKey: editDraft.processorKey.trim(),
-    };
-
-    const res = await fetch(`${API_BASE_URL}/clippers/${editingId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Update failed: ${res.status}`);
-    }
-
-    // Update locally on success
-    setClippers((prev) =>
-      prev.map((c) =>
-        c.id === editingId
-          ? {
-              ...c,
-              ...payload,
-              updatedAt: new Date().toISOString(),
-            }
-          : c
-      )
-    );
-
-    setEditingId(null);
-    setEditDraft(null);
-  } catch (err) {
-    console.error('PUT failed:', err);
-    alert('Failed to save changes');
-  } finally {
-    setSavingEdit(false);
-  }
-};
-
-
   const updateEditDraftField = (field, value) => {
     setEditDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
   };
 
+  const saveEdit = async () => {
+    if (!editingId || !editDraft) return;
+    try {
+      setSavingEdit(true);
+
+      const payload = {
+        clipperName: editDraft.clipperName.trim(),
+        clientId: '', // removed client ID logic
+        tiktokUsername: editDraft.tiktokUsername.trim(),
+        instagramUsername: editDraft.instagramUsername.trim(),
+        youtubeUsername: editDraft.youtubeUsername.trim(),
+        isActive: !!editDraft.isActive,
+        paymentProcessor: editDraft.paymentProcessor.trim(),
+        processorKey: editDraft.processorKey.trim(),
+      };
+
+      const res = await fetch(`${API_BASE_URL}/clippers/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error(`Update failed: ${res.status}`);
+
+      setClippers((prev) =>
+        prev.map((c) =>
+          c.id === editingId ? { ...c, ...payload, updatedAt: new Date().toISOString() } : c
+        )
+      );
+
+      setEditingId(null);
+      setEditDraft(null);
+    } catch (err) {
+      console.error('PUT failed:', err);
+      alert('Failed to save changes');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   // -------------------------------------------------------
-  // ADD CLIPPER (local state only for now)
+  // DELETE
+  // -------------------------------------------------------
+  const deleteClipper = async (clipper) => {
+    if (!clipper?.id) return;
+
+    // Don’t allow delete during edit/add to avoid weird state
+    if (savingEdit || savingAdd) return;
+
+    const ok = window.confirm(
+      `Delete "${clipper.clipperName}"?\n\nThis will remove the clipper from BigQuery and cannot be undone.`
+    );
+    if (!ok) return;
+
+    try {
+      setDeletingId(clipper.id);
+
+      const res = await fetch(`${API_BASE_URL}/clippers/${clipper.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+
+      setClippers((prev) => prev.filter((c) => c.id !== clipper.id));
+
+      // clean up UI state
+      if (expandedId === clipper.id) setExpandedId(null);
+      if (editingId === clipper.id) {
+        setEditingId(null);
+        setEditDraft(null);
+      }
+    } catch (err) {
+      console.error('DELETE failed:', err);
+      alert('Failed to delete clipper');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // -------------------------------------------------------
+  // ADD CLIPPER
   // -------------------------------------------------------
   const openAdd = () => {
     setAddOpen(true);
@@ -252,71 +249,63 @@ export default function ClippersPage() {
     setAddDraft((prev) => ({ ...prev, [field]: value }));
   };
 
-
-  
   const submitAdd = async () => {
-  if (!addDraft.clipperName.trim()) {
-    alert('Please enter a clipper name.');
-    return;
-  }
-
-  try {
-    setSavingAdd(true);
-
-    const newId = crypto.randomUUID();
-
-    const payload = {
-      id: newId,
-      clipperName: addDraft.clipperName.trim(),
-      clientId: '',
-      tiktokUsername: addDraft.tiktokUsername.trim(),
-      instagramUsername: addDraft.instagramUsername.trim(),
-      youtubeUsername: addDraft.youtubeUsername.trim(),
-      isActive: !!addDraft.isActive,
-      paymentProcessor: addDraft.paymentProcessor.trim(),
-      processorKey: addDraft.processorKey.trim(),
-    };
-
-    const res = await fetch(`${API_BASE_URL}/clippers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Create failed: ${res.status}`);
+    if (!addDraft.clipperName.trim()) {
+      alert('Please enter a clipper name.');
+      return;
     }
 
-    // Update UI locally after success
-    setClippers((prev) => [
-      ...prev,
-      {
-        ...payload,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ]);
+    try {
+      setSavingAdd(true);
 
-    setAddOpen(false);
-    setAddDraft({
-      clipperName: '',
-      tiktokUsername: '',
-      instagramUsername: '',
-      youtubeUsername: '',
-      paymentProcessor: '',
-      processorKey: '',
-      isActive: true,
-    });
-  } catch (err) {
-    console.error('POST failed:', err);
-    alert('Failed to create clipper');
-  } finally {
-    setSavingAdd(false);
-  }
-};
+      const newId = makeId();
 
+      const payload = {
+        id: newId,
+        clipperName: addDraft.clipperName.trim(),
+        clientId: '',
+        tiktokUsername: addDraft.tiktokUsername.trim(),
+        instagramUsername: addDraft.instagramUsername.trim(),
+        youtubeUsername: addDraft.youtubeUsername.trim(),
+        isActive: !!addDraft.isActive,
+        paymentProcessor: addDraft.paymentProcessor.trim(),
+        processorKey: addDraft.processorKey.trim(),
+      };
 
-  
+      const res = await fetch(`${API_BASE_URL}/clippers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error(`Create failed: ${res.status}`);
+
+      setClippers((prev) => [
+        ...prev,
+        {
+          ...payload,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ]);
+
+      setAddOpen(false);
+      setAddDraft({
+        clipperName: '',
+        tiktokUsername: '',
+        instagramUsername: '',
+        youtubeUsername: '',
+        paymentProcessor: '',
+        processorKey: '',
+        isActive: true,
+      });
+    } catch (err) {
+      console.error('POST failed:', err);
+      alert('Failed to create clipper');
+    } finally {
+      setSavingAdd(false);
+    }
+  };
 
   return (
     <div
@@ -355,7 +344,7 @@ export default function ClippersPage() {
         }}
       >
         {wmText}
-      </div> 
+      </div>
 
       {/* SIDEBAR */}
       <div
@@ -380,7 +369,6 @@ export default function ClippersPage() {
             gap: 10,
           }}
         >
-          {/* Collapse button */}
           <button
             onClick={() => setSidebarOpen((v) => !v)}
             style={{
@@ -412,7 +400,6 @@ export default function ClippersPage() {
                 Navigation
               </div>
 
-              {/* Dashboards V2 */}
               <button
                 onClick={handleGoDashV2}
                 style={{
@@ -430,7 +417,6 @@ export default function ClippersPage() {
                 Dashboards
               </button>
 
-              {/* Payouts */}
               <button
                 onClick={handleGoPayouts}
                 style={{
@@ -449,7 +435,6 @@ export default function ClippersPage() {
                 Payouts
               </button>
 
-              {/* Clippers – active page (3rd) */}
               <button
                 style={{
                   border: 'none',
@@ -469,48 +454,45 @@ export default function ClippersPage() {
               >
                 Clippers
               </button>
-              
-              {/* Performance */}
+
               <button
-                  onClick={handleGoPerformance}
-                  style={{
-                    border: 'none',
-                    outline: 'none',
-                    borderRadius: 12,
-                    padding: '7px 10px',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    background: 'transparent',
-                    color: 'rgba(255,255,255,0.55)',
-                    marginTop: 2,
-                    marginBottom: 2,
-                  }}
-                >
-                  Performance
-              </button>
-              
-              {/* Leaderboards */}
-              <button
-                  onClick={goLeaderboards}
-                  style={{
-                    border: 'none',
-                    outline: 'none',
-                    borderRadius: 12,
-                    padding: '7px 10px',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    background: 'transparent',
-                    color: 'rgba(255,255,255,0.55)',
-                    marginTop: 2,
-                    marginBottom: 2,
-                  }}
-                >
-                  Leaderboards
+                onClick={handleGoPerformance}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.55)',
+                  marginTop: 2,
+                  marginBottom: 2,
+                }}
+              >
+                Performance
               </button>
 
-              {/* Gallery */}
+              <button
+                onClick={goLeaderboards}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.55)',
+                  marginTop: 2,
+                  marginBottom: 2,
+                }}
+              >
+                Leaderboards
+              </button>
+
               <button
                 onClick={goGallery}
                 style={{
@@ -528,7 +510,6 @@ export default function ClippersPage() {
                 Gallery
               </button>
 
-              {/* Settings */}
               <button
                 onClick={goSettings}
                 style={{
@@ -546,11 +527,8 @@ export default function ClippersPage() {
                 Settings
               </button>
 
-              {/* push bottom cluster down */}
               <div style={{ flexGrow: 1 }} />
 
-
-              {/* Logout – same style as other pages */}
               <button
                 onClick={handleLogout}
                 style={{
@@ -588,38 +566,30 @@ export default function ClippersPage() {
         </div>
       </div>
 
-
       {/* MAIN CONTENT */}
-      <div
-        style={{
-          flex: 1,
-          position: 'relative',
-          zIndex: 3,
-        }}
-      >
-      {/* Branding */}
-      <div
-        style={{
-          marginBottom: 12,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}
-      >
-        <span
+      <div style={{ flex: 1, position: 'relative', zIndex: 3 }}>
+        {/* Branding */}
+        <div
           style={{
-            fontFamily: 'Impact, Haettenschweiler, Arial Black, sans-serif',
-            fontSize: 34,
-            letterSpacing: 0.5,
-            color: '#ffffff',
-            textTransform: 'uppercase',
-            textShadow: '0 3px 12px rgba(0,0,0,0.7)',
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
           }}
         >
-          {brandText}
-        </span>
-      </div>
-
+          <span
+            style={{
+              fontFamily: 'Impact, Haettenschweiler, Arial Black, sans-serif',
+              fontSize: 34,
+              letterSpacing: 0.5,
+              color: '#ffffff',
+              textTransform: 'uppercase',
+              textShadow: '0 3px 12px rgba(0,0,0,0.7)',
+            }}
+          >
+            {brandText}
+          </span>
+        </div>
 
         {/* Header / title */}
         <div
@@ -631,9 +601,7 @@ export default function ClippersPage() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-            <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>
-              Clippers
-            </h1>
+            <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>Clippers</h1>
             <span style={{ fontSize: 13, opacity: 0.7 }}>
               Configure clipper accounts & payment routing
             </span>
@@ -656,7 +624,7 @@ export default function ClippersPage() {
           </button>
         </div>
 
-        {/* Clipper list with dropdowns */}
+        {/* List */}
         <div
           style={{
             borderRadius: 18,
@@ -671,13 +639,11 @@ export default function ClippersPage() {
           {loading ? (
             <div style={{ opacity: 0.85 }}>Loading clippers…</div>
           ) : error ? (
-            <div style={{ color: '#fecaca' }}>
-              Error loading clippers: {error}
-            </div>
+            <div style={{ color: '#fecaca' }}>Error loading clippers: {error}</div>
           ) : clippers.length === 0 ? (
             <div style={{ opacity: 0.8 }}>
-              No clippers configured yet. Use <strong>+ Add clipper</strong> to
-              create your first one.
+              No clippers configured yet. Use <strong>+ Add clipper</strong> to create
+              your first one.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -697,7 +663,7 @@ export default function ClippersPage() {
                       boxShadow: '0 14px 30px rgba(15,23,42,0.9)',
                     }}
                   >
-                    {/* Row header: name + status + dropdown arrow */}
+                    {/* Row header */}
                     <div
                       style={{
                         display: 'flex',
@@ -706,7 +672,6 @@ export default function ClippersPage() {
                         gap: 10,
                       }}
                     >
-                      {/* Left side: arrow + clipper name + quick summary */}
                       <button
                         onClick={() => toggleExpanded(clipper.id)}
                         style={{
@@ -733,28 +698,11 @@ export default function ClippersPage() {
                         >
                           ▶
                         </span>
-                        <div
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 3,
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 500,
-                              letterSpacing: 0.1,
-                            }}
-                          >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <div style={{ fontSize: 14, fontWeight: 500, letterSpacing: 0.1 }}>
                             {clipper.clipperName}
                           </div>
-                          <div
-                            style={{
-                              fontSize: 11,
-                              opacity: 0.75,
-                            }}
-                          >
+                          <div style={{ fontSize: 11, opacity: 0.75 }}>
                             TikTok:{' '}
                             <span style={{ opacity: 0.9 }}>
                               {clipper.tiktokUsername || <em>none</em>}
@@ -771,15 +719,7 @@ export default function ClippersPage() {
                         </div>
                       </button>
 
-                      {/* Right side: status pill */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'flex-end',
-                          gap: 4,
-                        }}
-                      >
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                         <span
                           style={{
                             borderRadius: 999,
@@ -799,21 +739,16 @@ export default function ClippersPage() {
                         >
                           {clipper.isActive ? 'Active' : 'Inactive'}
                         </span>
+
                         {clipper.createdAt && (
-                          <span
-                            style={{
-                              fontSize: 10,
-                              opacity: 0.6,
-                            }}
-                          >
-                            Created:{' '}
-                            {String(clipper.createdAt).slice(0, 10)}
+                          <span style={{ fontSize: 10, opacity: 0.6 }}>
+                            Created: {String(clipper.createdAt).slice(0, 10)}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Expanded section */}
+                    {/* Expanded */}
                     {isExpanded && (
                       <div
                         style={{
@@ -826,14 +761,8 @@ export default function ClippersPage() {
                           fontSize: 12,
                         }}
                       >
-                        {/* Row 0: clipper name inline editable */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 4,
-                          }}
-                        >
+                        {/* Clipper name */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                           <div
                             style={{
                               opacity: 0.65,
@@ -851,13 +780,7 @@ export default function ClippersPage() {
                             <input
                               type="text"
                               value={draft?.clipperName ?? ''}
-                              onChange={(e) =>
-                                updateEditDraftField(
-                                  'clipperName',
-                                  e.target.value
-                                )
-                              }
-                              placeholder=""
+                              onChange={(e) => updateEditDraftField('clipperName', e.target.value)}
                               style={{
                                 width: '100%',
                                 boxSizing: 'border-box',
@@ -885,237 +808,89 @@ export default function ClippersPage() {
                           )}
                         </div>
 
-                        {/* Row 1: accounts */}
+                        {/* Accounts */}
                         <div
                           style={{
                             display: 'grid',
-                            gridTemplateColumns:
-                              'repeat(auto-fit, minmax(180px, 1fr))',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                             gap: 12,
                           }}
                         >
-                          {/* TikTok */}
-                          <div>
-                            <div
-                              style={{
-                                opacity: 0.65,
-                                marginBottom: 3,
-                                fontSize: 11,
-                                textTransform: 'uppercase',
-                                letterSpacing: 0.04,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                            >
-                              TikTok username
-                            </div>
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={draft?.tiktokUsername ?? ''}
-                                onChange={(e) =>
-                                  updateEditDraftField(
-                                    'tiktokUsername',
-                                    e.target.value
-                                  )
-                                }
-                                placeholder=""
-                                style={{
-                                  width: '100%',
-                                  boxSizing: 'border-box',
-                                  padding: '6px 8px',
-                                  borderRadius: 8,
-                                  border:
-                                    '1px solid rgba(148,163,184,0.85)',
-                                  background: 'rgba(15,23,42,0.9)',
-                                  color: '#e5e7eb',
-                                  fontFamily: 'monospace',
-                                  fontSize: 12,
-                                }}
-                              />
-                            ) : (
+                          {[
+                            ['TikTok username', 'tiktokUsername'],
+                            ['Instagram username', 'instagramUsername'],
+                            ['YouTube channel ID', 'youtubeUsername'],
+                          ].map(([label, field]) => (
+                            <div key={field}>
                               <div
                                 style={{
-                                  padding: '6px 8px',
-                                  borderRadius: 8,
-                                  background: 'rgba(15,23,42,0.9)',
-                                  border: '1px solid rgba(51,65,85,0.9)',
-                                  fontFamily: 'monospace',
-                                  fontSize: 12,
-                                  opacity: clipper.tiktokUsername ? 0.95 : 0.6,
+                                  opacity: 0.65,
+                                  marginBottom: 3,
+                                  fontSize: 11,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: 0.04,
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
                                 }}
                               >
-                                {clipper.tiktokUsername || 'none'}
+                                {label}
                               </div>
-                            )}
-                          </div>
 
-                          {/* Instagram */}
-                          <div>
-                            <div
-                              style={{
-                                opacity: 0.65,
-                                marginBottom: 3,
-                                fontSize: 11,
-                                textTransform: 'uppercase',
-                                letterSpacing: 0.04,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                            >
-                              Instagram username
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={draft?.[field] ?? ''}
+                                  onChange={(e) => updateEditDraftField(field, e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    boxSizing: 'border-box',
+                                    padding: '6px 8px',
+                                    borderRadius: 8,
+                                    border: '1px solid rgba(148,163,184,0.85)',
+                                    background: 'rgba(15,23,42,0.9)',
+                                    color: '#e5e7eb',
+                                    fontFamily: 'monospace',
+                                    fontSize: 12,
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    padding: '6px 8px',
+                                    borderRadius: 8,
+                                    background: 'rgba(15,23,42,0.9)',
+                                    border: '1px solid rgba(51,65,85,0.9)',
+                                    fontFamily: 'monospace',
+                                    fontSize: 12,
+                                    opacity: clipper[field] ? 0.95 : 0.6,
+                                  }}
+                                >
+                                  {clipper[field] || 'none'}
+                                </div>
+                              )}
                             </div>
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={draft?.instagramUsername ?? ''}
-                                onChange={(e) =>
-                                  updateEditDraftField(
-                                    'instagramUsername',
-                                    e.target.value
-                                  )
-                                }
-                                placeholder=""
-                                style={{
-                                  width: '100%',
-                                  boxSizing: 'border-box',
-                                  padding: '6px 8px',
-                                  borderRadius: 8,
-                                  border:
-                                    '1px solid rgba(148,163,184,0.85)',
-                                  background: 'rgba(15,23,42,0.9)',
-                                  color: '#e5e7eb',
-                                  fontFamily: 'monospace',
-                                  fontSize: 12,
-                                }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  padding: '6px 8px',
-                                  borderRadius: 8,
-                                  background: 'rgba(15,23,42,0.9)',
-                                  border: '1px solid rgba(51,65,85,0.9)',
-                                  fontFamily: 'monospace',
-                                  fontSize: 12,
-                                  opacity: clipper.instagramUsername
-                                    ? 0.95
-                                    : 0.6,
-                                }}
-                              >
-                                {clipper.instagramUsername || 'none'}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* YouTube */}
-                          <div>
-                            <div
-                              style={{
-                                opacity: 0.65,
-                                marginBottom: 3,
-                                fontSize: 11,
-                                textTransform: 'uppercase',
-                                letterSpacing: 0.04,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                            >
-                              YouTube channel ID
-                            </div>
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={draft?.youtubeUsername ?? ''}
-                                onChange={(e) =>
-                                  updateEditDraftField(
-                                    'youtubeUsername',
-                                    e.target.value
-                                  )
-                                }
-                                placeholder=""
-                                style={{
-                                  width: '100%',
-                                  boxSizing: 'border-box',
-                                  padding: '6px 8px',
-                                  borderRadius: 8,
-                                  border:
-                                    '1px solid rgba(148,163,184,0.85)',
-                                  background: 'rgba(15,23,42,0.9)',
-                                  color: '#e5e7eb',
-                                  fontFamily: 'monospace',
-                                  fontSize: 12,
-                                }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  padding: '6px 8px',
-                                  borderRadius: 8,
-                                  background: 'rgba(15,23,42,0.9)',
-                                  border: '1px solid rgba(51,65,85,0.9)',
-                                  fontFamily: 'monospace',
-                                  fontSize: 12,
-                                  opacity: clipper.youtubeUsername ? 0.95 : 0.6,
-                                }}
-                              >
-                                {clipper.youtubeUsername || 'none'}
-                              </div>
-                            )}
-                          </div>
+                          ))}
                         </div>
 
-                        {/* Row 2: payment + key + status */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: 12,
-                            alignItems: 'flex-start',
-                          }}
-                        >
+                        {/* Payment + key + status */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start' }}>
                           {/* Payment processor */}
-                          <div
-                            style={{
-                              flex: '1 1 180px',
-                              minWidth: 0,
-                            }}
-                          >
-                            <div
-                              style={{
-                                opacity: 0.65,
-                                marginBottom: 3,
-                                fontSize: 11,
-                                textTransform: 'uppercase',
-                                letterSpacing: 0.04,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                            >
+                          <div style={{ flex: '1 1 180px', minWidth: 0 }}>
+                            <div style={{ opacity: 0.65, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               Payment processor
                             </div>
                             {isEditing ? (
                               <input
                                 type="text"
                                 value={draft?.paymentProcessor ?? ''}
-                                onChange={(e) =>
-                                  updateEditDraftField(
-                                    'paymentProcessor',
-                                    e.target.value
-                                  )
-                                }
-                                placeholder=""
+                                onChange={(e) => updateEditDraftField('paymentProcessor', e.target.value)}
                                 style={{
                                   width: '100%',
                                   boxSizing: 'border-box',
                                   padding: '6px 8px',
                                   borderRadius: 8,
-                                  border:
-                                    '1px solid rgba(148,163,184,0.85)',
+                                  border: '1px solid rgba(148,163,184,0.85)',
                                   background: 'rgba(15,23,42,0.9)',
                                   color: '#e5e7eb',
                                   fontSize: 12,
@@ -1129,9 +904,7 @@ export default function ClippersPage() {
                                   background: 'rgba(15,23,42,0.9)',
                                   border: '1px solid rgba(51,65,85,0.9)',
                                   fontSize: 12,
-                                  opacity: clipper.paymentProcessor
-                                    ? 0.95
-                                    : 0.6,
+                                  opacity: clipper.paymentProcessor ? 0.95 : 0.6,
                                 }}
                               >
                                 {clipper.paymentProcessor || 'none'}
@@ -1140,44 +913,21 @@ export default function ClippersPage() {
                           </div>
 
                           {/* Processor key */}
-                          <div
-                            style={{
-                              flex: '2 1 260px',
-                              minWidth: 0,
-                            }}
-                          >
-                            <div
-                              style={{
-                                opacity: 0.65,
-                                marginBottom: 3,
-                                fontSize: 11,
-                                textTransform: 'uppercase',
-                                letterSpacing: 0.04,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                            >
+                          <div style={{ flex: '2 1 260px', minWidth: 0 }}>
+                            <div style={{ opacity: 0.65, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               Processor key / customer ID
                             </div>
                             {isEditing ? (
                               <input
                                 type="text"
                                 value={draft?.processorKey ?? ''}
-                                onChange={(e) =>
-                                  updateEditDraftField(
-                                    'processorKey',
-                                    e.target.value
-                                  )
-                                }
-                                placeholder=""
+                                onChange={(e) => updateEditDraftField('processorKey', e.target.value)}
                                 style={{
                                   width: '100%',
                                   boxSizing: 'border-box',
                                   padding: '6px 8px',
                                   borderRadius: 8,
-                                  border:
-                                    '1px solid rgba(148,163,184,0.85)',
+                                  border: '1px solid rgba(148,163,184,0.85)',
                                   background: 'rgba(15,23,42,0.9)',
                                   color: '#e5e7eb',
                                   fontFamily: 'monospace',
@@ -1203,35 +953,14 @@ export default function ClippersPage() {
                           </div>
 
                           {/* Status */}
-                          <div
-                            style={{
-                              flex: '0 0 auto',
-                              minWidth: 120,
-                            }}
-                          >
-                            <div
-                              style={{
-                                opacity: 0.65,
-                                marginBottom: 3,
-                                fontSize: 11,
-                                textTransform: 'uppercase',
-                                letterSpacing: 0.04,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                            >
+                          <div style={{ flex: '0 0 auto', minWidth: 120 }}>
+                            <div style={{ opacity: 0.65, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               Status
                             </div>
                             {isEditing ? (
                               <button
                                 type="button"
-                                onClick={() =>
-                                  updateEditDraftField(
-                                    'isActive',
-                                    !draft?.isActive
-                                  )
-                                }
+                                onClick={() => updateEditDraftField('isActive', !draft?.isActive)}
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
@@ -1259,8 +988,6 @@ export default function ClippersPage() {
                                       ? 'rgba(34,197,94,0.3)'
                                       : 'rgba(148,163,184,0.4)',
                                     position: 'relative',
-                                    transition:
-                                      'background 120ms ease, box-shadow 120ms ease',
                                   }}
                                 >
                                   <span
@@ -1275,8 +1002,7 @@ export default function ClippersPage() {
                                       background: draft?.isActive
                                         ? 'rgb(74,222,128)'
                                         : 'rgba(148,163,184,0.95)',
-                                      transition:
-                                        'left 120ms ease, background 120ms ease',
+                                      transition: 'left 120ms ease',
                                     }}
                                   />
                                 </span>
@@ -1319,7 +1045,7 @@ export default function ClippersPage() {
                           </div>
                         </div>
 
-                        {/* Row 3: Edit / Save / Cancel buttons */}
+                        {/* Actions */}
                         <div
                           style={{
                             display: 'flex',
@@ -1329,21 +1055,43 @@ export default function ClippersPage() {
                           }}
                         >
                           {!isEditing ? (
-                            <button
-                              type="button"
-                              onClick={() => startEdit(clipper)}
-                              style={{
-                                borderRadius: 999,
-                                padding: '6px 12px',
-                                border: '1px solid rgba(148,163,184,0.9)',
-                                background: 'rgba(15,23,42,0.95)',
-                                color: '#e5e7eb',
-                                fontSize: 11,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Edit
-                            </button>
+                            <>
+                              {/* ✅ Delete */}
+                              <button
+                                type="button"
+                                onClick={() => deleteClipper(clipper)}
+                                disabled={deletingId === clipper.id}
+                                style={{
+                                  borderRadius: 999,
+                                  padding: '6px 12px',
+                                  border: '1px solid rgba(248,113,113,0.65)',
+                                  background: 'rgba(15,23,42,0.95)',
+                                  color: 'rgba(248,113,113,0.95)',
+                                  fontSize: 11,
+                                  cursor: deletingId === clipper.id ? 'default' : 'pointer',
+                                  opacity: deletingId === clipper.id ? 0.7 : 1,
+                                }}
+                              >
+                                {deletingId === clipper.id ? 'Deleting…' : 'Delete'}
+                              </button>
+
+                              {/* Edit */}
+                              <button
+                                type="button"
+                                onClick={() => startEdit(clipper)}
+                                style={{
+                                  borderRadius: 999,
+                                  padding: '6px 12px',
+                                  border: '1px solid rgba(148,163,184,0.9)',
+                                  background: 'rgba(15,23,42,0.95)',
+                                  color: '#e5e7eb',
+                                  fontSize: 11,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Edit
+                              </button>
+                            </>
                           ) : (
                             <>
                               <button
@@ -1353,8 +1101,7 @@ export default function ClippersPage() {
                                 style={{
                                   borderRadius: 999,
                                   padding: '6px 12px',
-                                  border:
-                                    '1px solid rgba(148,163,184,0.65)',
+                                  border: '1px solid rgba(148,163,184,0.65)',
                                   background: 'rgba(15,23,42,0.95)',
                                   color: '#e5e7eb',
                                   fontSize: 11,
@@ -1364,6 +1111,7 @@ export default function ClippersPage() {
                               >
                                 Cancel
                               </button>
+
                               <button
                                 type="button"
                                 onClick={saveEdit}
@@ -1426,29 +1174,10 @@ export default function ClippersPage() {
               fontSize: 13,
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 10,
-              }}
-            >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div>
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 600,
-                  }}
-                >
-                  Add clipper
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    opacity: 0.7,
-                  }}
-                >
+                <div style={{ fontSize: 16, fontWeight: 600 }}>Add clipper</div>
+                <div style={{ fontSize: 11, opacity: 0.7 }}>
                   Create a new clipper and map their accounts & payout routing.
                 </div>
               </div>
@@ -1471,36 +1200,16 @@ export default function ClippersPage() {
               </button>
             </div>
 
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-                marginTop: 4,
-              }}
-            >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
               {/* Clipper name */}
               <div>
-                <div
-                  style={{
-                    opacity: 0.7,
-                    marginBottom: 3,
-                    fontSize: 11,
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.04,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
+                <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   Clipper name
                 </div>
                 <input
                   type="text"
                   value={addDraft.clipperName}
-                  onChange={(e) =>
-                    updateAddDraftField('clipperName', e.target.value)
-                  }
+                  onChange={(e) => updateAddDraftField('clipperName', e.target.value)}
                   placeholder=""
                   style={{
                     width: '100%',
@@ -1516,164 +1225,47 @@ export default function ClippersPage() {
               </div>
 
               {/* Accounts row */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns:
-                    'repeat(auto-fit, minmax(150px, 1fr))',
-                  gap: 10,
-                }}
-              >
-                {/* TikTok */}
-                <div>
-                  <div
-                    style={{
-                      opacity: 0.7,
-                      marginBottom: 3,
-                      fontSize: 11,
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.04,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    TikTok username
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+                {[
+                  ['TikTok username', 'tiktokUsername'],
+                  ['Instagram username', 'instagramUsername'],
+                  ['YouTube channel ID', 'youtubeUsername'],
+                ].map(([label, field]) => (
+                  <div key={field}>
+                    <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {label}
+                    </div>
+                    <input
+                      type="text"
+                      value={addDraft[field]}
+                      onChange={(e) => updateAddDraftField(field, e.target.value)}
+                      placeholder=""
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '7px 9px',
+                        borderRadius: 9,
+                        border: '1px solid rgba(148,163,184,0.85)',
+                        background: 'rgba(15,23,42,0.9)',
+                        color: '#e5e7eb',
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                      }}
+                    />
                   </div>
-                  <input
-                    type="text"
-                    value={addDraft.tiktokUsername}
-                    onChange={(e) =>
-                      updateAddDraftField('tiktokUsername', e.target.value)
-                    }
-                    placeholder=""
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '7px 9px',
-                      borderRadius: 9,
-                      border: '1px solid rgba(148,163,184,0.85)',
-                      background: 'rgba(15,23,42,0.9)',
-                      color: '#e5e7eb',
-                      fontSize: 12,
-                      fontFamily: 'monospace',
-                    }}
-                  />
-                </div>
-
-                {/* Instagram */}
-                <div>
-                  <div
-                    style={{
-                      opacity: 0.7,
-                      marginBottom: 3,
-                      fontSize: 11,
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.04,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    Instagram username
-                  </div>
-                  <input
-                    type="text"
-                    value={addDraft.instagramUsername}
-                    onChange={(e) =>
-                      updateAddDraftField(
-                        'instagramUsername',
-                        e.target.value
-                      )
-                    }
-                    placeholder=""
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '7px 9px',
-                      borderRadius: 9,
-                      border: '1px solid rgba(148,163,184,0.85)',
-                      background: 'rgba(15,23,42,0.9)',
-                      color: '#e5e7eb',
-                      fontSize: 12,
-                      fontFamily: 'monospace',
-                    }}
-                  />
-                </div>
-
-                {/* YouTube */}
-                <div>
-                  <div
-                    style={{
-                      opacity: 0.7,
-                      marginBottom: 3,
-                      fontSize: 11,
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.04,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    YouTube channel ID
-                  </div>
-                  <input
-                    type="text"
-                    value={addDraft.youtubeUsername}
-                    onChange={(e) =>
-                      updateAddDraftField('youtubeUsername', e.target.value)
-                    }
-                    placeholder=""
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '7px 9px',
-                      borderRadius: 9,
-                      border: '1px solid rgba(148,163,184,0.85)',
-                      background: 'rgba(15,23,42,0.9)',
-                      color: '#e5e7eb',
-                      fontSize: 12,
-                      fontFamily: 'monospace',
-                    }}
-                  />
-                </div>
+                ))}
               </div>
 
               {/* Payment row */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 10,
-                  alignItems: 'flex-start',
-                }}
-              >
-                <div
-                  style={{
-                    flex: '1 1 160px',
-                    minWidth: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      opacity: 0.7,
-                      marginBottom: 3,
-                      fontSize: 11,
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.04,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-start' }}>
+                <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+                  <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     Payment processor
                   </div>
                   <input
                     type="text"
                     value={addDraft.paymentProcessor}
-                    onChange={(e) =>
-                      updateAddDraftField('paymentProcessor', e.target.value)
-                    }
+                    onChange={(e) => updateAddDraftField('paymentProcessor', e.target.value)}
                     placeholder=""
                     style={{
                       width: '100%',
@@ -1688,32 +1280,14 @@ export default function ClippersPage() {
                   />
                 </div>
 
-                <div
-                  style={{
-                    flex: '2 1 230px',
-                    minWidth: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      opacity: 0.7,
-                      marginBottom: 3,
-                      fontSize: 11,
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.04,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
+                <div style={{ flex: '2 1 230px', minWidth: 0 }}>
+                  <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     Processor key / customer ID
                   </div>
                   <input
                     type="text"
                     value={addDraft.processorKey}
-                    onChange={(e) =>
-                      updateAddDraftField('processorKey', e.target.value)
-                    }
+                    onChange={(e) => updateAddDraftField('processorKey', e.target.value)}
                     placeholder=""
                     style={{
                       width: '100%',
@@ -1730,31 +1304,13 @@ export default function ClippersPage() {
                 </div>
 
                 {/* Active toggle */}
-                <div
-                  style={{
-                    flex: '0 0 auto',
-                    minWidth: 120,
-                  }}
-                >
-                  <div
-                    style={{
-                      opacity: 0.7,
-                      marginBottom: 3,
-                      fontSize: 11,
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.04,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
+                <div style={{ flex: '0 0 auto', minWidth: 120 }}>
+                  <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     Status
                   </div>
                   <button
                     type="button"
-                    onClick={() =>
-                      updateAddDraftField('isActive', !addDraft.isActive)
-                    }
+                    onClick={() => updateAddDraftField('isActive', !addDraft.isActive)}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -1782,8 +1338,6 @@ export default function ClippersPage() {
                           ? 'rgba(34,197,94,0.3)'
                           : 'rgba(148,163,184,0.4)',
                         position: 'relative',
-                        transition:
-                          'background 120ms ease, box-shadow 120ms ease',
                       }}
                     >
                       <span
@@ -1798,8 +1352,7 @@ export default function ClippersPage() {
                           background: addDraft.isActive
                             ? 'rgb(74,222,128)'
                             : 'rgba(148,163,184,0.95)',
-                          transition:
-                            'left 120ms ease, background 120ms ease',
+                          transition: 'left 120ms ease',
                         }}
                       />
                     </span>
@@ -1808,15 +1361,8 @@ export default function ClippersPage() {
                 </div>
               </div>
 
-              {/* Footer buttons */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: 8,
-                  marginTop: 8,
-                }}
-              >
+              {/* Footer */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
                 <button
                   type="button"
                   onClick={closeAdd}
