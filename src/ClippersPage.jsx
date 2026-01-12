@@ -918,7 +918,7 @@ export default function ClippersPage() {
                                 }}
                               >
                                 {PAYMENT_PROCESSOR_OPTIONS.map((opt) => (
-                                  <option key={opt.value} value={opt.value} style={{ color: '#0b1220' }}>
+                                  <option key={opt.value} value={opt.value} style={{ color: '#c8cace' }}>
                                     {opt.label}
                                   </option>
                                 ))}
