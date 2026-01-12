@@ -950,7 +950,11 @@ export default function ClippersPage() {
                               <input
                                 type="text"
                                 value={draft?.processorKey ?? ''}
-                                onChange={(e) => updateEditDraftField('processorKey', e.target.value)}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  updateEditDraftField('paymentProcessor', v);
+                                  updateEditDraftField('processorKey', ''); // clear key when processor changes
+                                }}
                                 style={{
                                   width: '100%',
                                   boxSizing: 'border-box',
@@ -1267,7 +1271,11 @@ export default function ClippersPage() {
                     <input
                       type="text"
                       value={addDraft[field]}
-                      onChange={(e) => updateAddDraftField(field, e.target.value)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        updateAddDraftField('paymentProcessor', v);
+                        updateAddDraftField('processorKey', ''); // clear key when processor changes
+                      }}
                       placeholder=""
                       style={{
                         width: '100%',
