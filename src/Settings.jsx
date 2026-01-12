@@ -16,8 +16,6 @@ const DEFAULT_PAYOUT = {
   maxPayPerVideoUsd: 200,
   minViewsEnabled: false,
   minViewCountEligibility: 50000,
-  monthlyRetainerEnabled: false,
-  monthlyRetainerUsd: 0,
 };
 
 const ALL_PLATFORMS = ["Instagram", "YouTube", "TikTok"];
@@ -37,6 +35,10 @@ const DEFAULTS = {
     "Must tag @whop in bio",
     "Must have whop youtube linked in bio",
   ],
+
+  // ✅ GLOBAL retainer (one value across all platforms)
+  monthlyRetainerEnabled: false,
+  monthlyRetainerUsd: 0,
 
   // Payout configs (per platform)
   payouts: {
@@ -62,7 +64,7 @@ const fmt = (n) => {
   return x.toLocaleString();
 };
 
-// ✅ map API row -> UI state (FLAT payout columns -> nested UI payouts)
+// ✅ map API row -> UI state
 const mapApiToUi = (row) => {
   if (!row) return null;
 
@@ -81,10 +83,6 @@ const mapApiToUi = (row) => {
       minViewCountEligibility: Number.isFinite(Number(x.minViewCountEligibility))
         ? Number(x.minViewCountEligibility)
         : DEFAULT_PAYOUT.minViewCountEligibility,
-      monthlyRetainerEnabled: !!x.monthlyRetainerEnabled,
-      monthlyRetainerUsd: Number.isFinite(Number(x.monthlyRetainerUsd))
-        ? Number(x.monthlyRetainerUsd)
-        : DEFAULT_PAYOUT.monthlyRetainerUsd,
     };
   };
 
@@ -103,6 +101,10 @@ const mapApiToUi = (row) => {
     requirements: Array.isArray(row.requirements)
       ? row.requirements
       : DEFAULTS.requirements,
+
+    // ✅ GLOBAL retainer
+    monthlyRetainerEnabled: !!row.monthlyRetainerEnabled,
+    monthlyRetainerUsd: row.monthlyRetainerUsd == null ? 0 : Number(row.monthlyRetainerUsd),
 
     // Payout configs
     payouts: {
@@ -215,7 +217,6 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // ✅ KEY CHANGE:
   // start as null so we don't flash DEFAULTS placeholders
   const [s, setS] = useState(null);
 
@@ -280,7 +281,6 @@ export default function SettingsPage() {
         if (mapped) setS(mapped);
       } catch (e) {
         setSettingsError(e?.message || "Failed to load settings");
-        // if error, still avoid flashing DEFAULTS UI; keep s null
       } finally {
         setLoadingSettings(false);
       }
@@ -382,27 +382,29 @@ export default function SettingsPage() {
       requirements: (s.requirements || [])
         .map((x) => String(x || "").trim())
         .filter(Boolean),
+
+      // ✅ GLOBAL retainer normalize
+      monthlyRetainerEnabled: !!s.monthlyRetainerEnabled,
+      monthlyRetainerUsd: Math.max(0, toMoney(s.monthlyRetainerUsd, 0)),
+
       payouts: {
         instagram: {
           ...s.payouts.instagram,
           viewsPerDollar: Math.max(1, toInt(s.payouts.instagram.viewsPerDollar, 1000)),
           maxPayPerVideoUsd: Math.max(0, toMoney(s.payouts.instagram.maxPayPerVideoUsd, 0)),
           minViewCountEligibility: Math.max(0, toInt(s.payouts.instagram.minViewCountEligibility, 0)),
-          monthlyRetainerUsd: Math.max(0, toMoney(s.payouts.instagram.monthlyRetainerUsd, 0)),
         },
         youtube: {
           ...s.payouts.youtube,
           viewsPerDollar: Math.max(1, toInt(s.payouts.youtube.viewsPerDollar, 1000)),
           maxPayPerVideoUsd: Math.max(0, toMoney(s.payouts.youtube.maxPayPerVideoUsd, 0)),
           minViewCountEligibility: Math.max(0, toInt(s.payouts.youtube.minViewCountEligibility, 0)),
-          monthlyRetainerUsd: Math.max(0, toMoney(s.payouts.youtube.monthlyRetainerUsd, 0)),
         },
         tiktok: {
           ...s.payouts.tiktok,
           viewsPerDollar: Math.max(1, toInt(s.payouts.tiktok.viewsPerDollar, 1000)),
           maxPayPerVideoUsd: Math.max(0, toMoney(s.payouts.tiktok.maxPayPerVideoUsd, 0)),
           minViewCountEligibility: Math.max(0, toInt(s.payouts.tiktok.minViewCountEligibility, 0)),
-          monthlyRetainerUsd: Math.max(0, toMoney(s.payouts.tiktok.monthlyRetainerUsd, 0)),
         },
       },
     };
@@ -426,6 +428,10 @@ export default function SettingsPage() {
         deadline: norm.deadline || null,
 
         requirements: Array.isArray(norm.requirements) ? norm.requirements : [],
+
+        // ✅ GLOBAL retainer
+        monthlyRetainerEnabled: norm.monthlyRetainerEnabled,
+        monthlyRetainerUsd: norm.monthlyRetainerUsd,
 
         payoutsInstagram: norm.payouts.instagram,
         payoutsYoutube: norm.payouts.youtube,
@@ -473,7 +479,7 @@ export default function SettingsPage() {
         boxSizing: "border-box",
       }}
     >
-      {/* WATERMARK (live preview once loaded; hidden during initial load to avoid placeholder flash) */}
+      {/* WATERMARK */}
       {s ? (
         <div
           style={{
@@ -621,7 +627,7 @@ export default function SettingsPage() {
 
       {/* MAIN */}
       <div style={{ flex: 1, position: "relative", zIndex: 3 }}>
-        {/* BIG HEADER (live preview once loaded; no placeholder flash) */}
+        {/* BIG HEADER */}
         <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 12, minHeight: 44 }}>
           {s ? (
             <span
@@ -679,7 +685,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* ✅ show "Loading settings..." seamlessly INSIDE the page (no placeholder flash) */}
         {loadingSettings ? (
           <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 10 }}>
             Loading settings…
@@ -714,14 +719,13 @@ export default function SettingsPage() {
             opacity: 0.95,
           }}
         >
-          {/* ✅ if not loaded yet, don't render the form with DEFAULTS; keep it seamless */}
           {!s ? (
             <div style={{ fontSize: 12, opacity: 0.75 }}>
               {settingsError ? "Couldn’t load settings." : "Loading…"}
             </div>
           ) : (
             <>
-              {/* 1) Configure Payouts (top) */}
+              {/* 1) Configure Payouts */}
               <SectionCard
                 title="Configure Payouts"
                 subtitle={`Define earnings rules for clippers (${platformTint.name})`}
@@ -794,7 +798,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* B/C/D rows */}
+                {/* B/C rows */}
                 <div
                   style={{
                     display: "grid",
@@ -859,35 +863,69 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
+                {/* ✅ GLOBAL Monthly Retainer box (neutral; does NOT change with platform) */}
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "240px 1fr",
-                    gap: 12,
-                    alignItems: "center",
-                    marginTop: 12,
-                    paddingTop: 12,
+                    marginTop: 14,
+                    paddingTop: 14,
                     borderTop: "1px solid rgba(148,163,184,0.18)",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <Toggle
-                      on={s.payouts[activePlatform].monthlyRetainerEnabled}
-                      setOn={(fn) => updatePayout({ monthlyRetainerEnabled: fn(s.payouts[activePlatform].monthlyRetainerEnabled) })}
-                    />
-                    <div>
-                      <div style={{ fontWeight: 800 }}>Monthly Retainer</div>
-                      <div style={{ fontSize: 12, opacity: 0.65 }}>Optional flat monthly amount</div>
-                    </div>
-                  </div>
+                  <div
+                    style={{
+                      borderRadius: 14,
+                      border: "1px solid rgba(148,163,184,0.28)",
+                      background:
+                        "radial-gradient(circle at top left, rgba(148,163,184,0.14), rgba(255,255,255,0.02))",
+                      padding: 14,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 10 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                        <div style={{ fontWeight: 900 }}>Monthly Retainer</div>
+                        <div style={{ fontSize: 12, opacity: 0.7 }}>
+                          Global — applies across Instagram / YouTube / TikTok
+                        </div>
+                      </div>
 
-                  <div>
-                    <Input
-                      value={s.payouts[activePlatform].monthlyRetainerUsd}
-                      onChange={(e) => updatePayout({ monthlyRetainerUsd: e.target.value })}
-                      placeholder="0"
-                      disabled={!s.payouts[activePlatform].monthlyRetainerEnabled}
-                    />
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 900,
+                          letterSpacing: 0.08,
+                          textTransform: "uppercase",
+                          border: "1px solid rgba(148,163,184,0.28)",
+                          background: "rgba(2,6,23,0.35)",
+                          padding: "6px 10px",
+                          borderRadius: 999,
+                          color: "rgba(226,232,240,0.85)",
+                        }}
+                      >
+                        Not platform-specific
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 12, alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <Toggle
+                          on={s.monthlyRetainerEnabled}
+                          setOn={(fn) => setS((prev) => (prev ? { ...prev, monthlyRetainerEnabled: fn(prev.monthlyRetainerEnabled) } : prev))}
+                        />
+                        <div>
+                          <div style={{ fontWeight: 800 }}>Enable Retainer</div>
+                          <div style={{ fontSize: 12, opacity: 0.65 }}>Optional flat monthly amount</div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Input
+                          value={s.monthlyRetainerUsd}
+                          onChange={(e) => setS((prev) => (prev ? { ...prev, monthlyRetainerUsd: e.target.value } : prev))}
+                          placeholder="0"
+                          disabled={!s.monthlyRetainerEnabled}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </SectionCard>
