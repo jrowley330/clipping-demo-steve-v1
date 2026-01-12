@@ -955,7 +955,6 @@ export default function ClippersPage() {
                                 type="text"
                                 value={draft?.processorKey ?? ''}
                                 onChange={(e) => updateEditDraftField('processorKey', e.target.value)}
-                                }}
                                 style={{
                                   width: '100%',
                                   boxSizing: 'border-box',
