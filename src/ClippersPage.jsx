@@ -12,6 +12,14 @@ const unwrapValue = (v) => {
   return v;
 };
 
+const PAYMENT_PROCESSOR_OPTIONS = [
+  { value: '', label: 'Select…' },
+  { value: 'stripe', label: 'Stripe' },
+  { value: 'revolut', label: 'Revolut' },
+  { value: 'wise', label: 'Wise' },
+  { value: 'manual', label: 'Manual (No Integration)' },
+];
+
 // UUID fallback
 const makeId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -894,8 +902,7 @@ export default function ClippersPage() {
                               Payment processor
                             </div>
                             {isEditing ? (
-                              <input
-                                type="text"
+                              <select
                                 value={draft?.paymentProcessor ?? ''}
                                 onChange={(e) => updateEditDraftField('paymentProcessor', e.target.value)}
                                 style={{
@@ -907,8 +914,15 @@ export default function ClippersPage() {
                                   background: 'rgba(15,23,42,0.9)',
                                   color: '#e5e7eb',
                                   fontSize: 12,
+                                  appearance: 'none',
                                 }}
-                              />
+                              >
+                                {PAYMENT_PROCESSOR_OPTIONS.map((opt) => (
+                                  <option key={opt.value} value={opt.value} style={{ color: '#0b1220' }}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
                             ) : (
                               <div
                                 style={{
@@ -920,7 +934,9 @@ export default function ClippersPage() {
                                   opacity: clipper.paymentProcessor ? 0.95 : 0.6,
                                 }}
                               >
-                                {clipper.paymentProcessor || 'none'}
+                                {PAYMENT_PROCESSOR_OPTIONS.find(o => o.value === clipper.paymentProcessor)?.label ||
+                                  clipper.paymentProcessor ||
+                                  'none'}
                               </div>
                             )}
                           </div>
@@ -1275,11 +1291,9 @@ export default function ClippersPage() {
                   <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     Payment processor
                   </div>
-                  <input
-                    type="text"
+                  <select
                     value={addDraft.paymentProcessor}
                     onChange={(e) => updateAddDraftField('paymentProcessor', e.target.value)}
-                    placeholder=""
                     style={{
                       width: '100%',
                       boxSizing: 'border-box',
@@ -1289,8 +1303,15 @@ export default function ClippersPage() {
                       background: 'rgba(15,23,42,0.9)',
                       color: '#e5e7eb',
                       fontSize: 12,
+                      appearance: 'none',
                     }}
-                  />
+                  >
+                    {PAYMENT_PROCESSOR_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value} style={{ color: '#0b1220' }}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div style={{ flex: '2 1 230px', minWidth: 0 }}>
