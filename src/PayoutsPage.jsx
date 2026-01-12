@@ -46,7 +46,9 @@ function formatDateTime(dateLike) {
 
 const CURRENT_MONTH_LABEL = new Date().toLocaleString('en-US', {
   month: 'long',
+  year: 'numeric',
 });
+
 
 // ---------- component -----------
 
