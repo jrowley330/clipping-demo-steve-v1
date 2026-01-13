@@ -21,7 +21,7 @@ export default function LoginPage() {
       password,
     });
 
-    setLoading(false);
+    setLoading(false); // nothing
 
     if (error) {
       const msg = (error.message || "").toLowerCase();
