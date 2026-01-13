@@ -255,12 +255,15 @@ export default function PayoutsPage() {
     setPayAmount(outstanding.toFixed(2));
     setEditingAmount(false);
 
-    const proc = String(row.payment_processor || '').toLowerCase();
-    if (proc === 'manual') {
-      setPaymentMethod('Wise'); // default suggestion, user can change
+    const proc = String(row.payment_processor || '').trim().toLowerCase();
+    // If NOT manual, lock Paid With to whatever processor is on the row (stripe/wise/revolut)
+    if (proc && proc !== 'manual') {
+      setPaymentMethod(proc.charAt(0).toUpperCase() + proc.slice(1));
     } else {
-      setPaymentMethod('Stripe');
+      // Manual: leave it EMPTY so user must choose
+      setPaymentMethod('');
     }
+
     setPaymentNotes('');
 
     setPayError('');
@@ -278,7 +281,7 @@ export default function PayoutsPage() {
     setPayAmount('0.00');
     setEditingAmount(false);
 
-    setPaymentMethod('Stripe');
+    setPaymentMethod('');
     setPaymentNotes('');
 
     if (hadSuccess) {
