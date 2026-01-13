@@ -1,22 +1,24 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+// src/main.jsx
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import { BrandingProvider } from "./branding/BrandingContext";
 
-import App from './App.jsx';
-import LoginPage from './LoginPage.jsx';
+import App from "./App.jsx";
+import LoginPage from "./LoginPage.jsx";
 import SetPasswordPage from "./SetPasswordPage.jsx";
+import AuthCallback from "./AuthCallback.jsx";
 
-import PayoutsPage from './PayoutsPage.jsx';
-import DashboardsPageV2 from './DashboardPageV2.jsx';
-import ClippersPage from './ClippersPage.jsx';
+import PayoutsPage from "./PayoutsPage.jsx";
+import DashboardsPageV2 from "./DashboardPageV2.jsx";
+import ClippersPage from "./ClippersPage.jsx";
 import Performance from "./Performance.jsx";
-import Leaderboards from './Leaderboards.jsx';
-import Gallery from './Gallery.jsx';
+import Leaderboards from "./Leaderboards.jsx";
+import Gallery from "./Gallery.jsx";
 import Settings from "./Settings.jsx";
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <HashRouter>
       <Routes>
@@ -26,7 +28,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         {/* login (unprotected) */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* set password for new user invite flow */}
+        {/* auth callback (unprotected) — invite/magic link lands here */}
+        <Route path="/auth/callback" element={<AuthCallback />} />
+
+        {/* set password for new user invite flow (protected) */}
         <Route
           path="/set-password"
           element={
@@ -113,7 +118,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           path="/settings"
           element={
             <App>
-                <Settings />
+              <Settings />
             </App>
           }
         />
