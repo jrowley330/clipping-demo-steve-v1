@@ -95,7 +95,7 @@ export default function PayoutsPage() {
   const [editingAmount, setEditingAmount] = useState(false);
 
   // manual fields (also allowed for stripe as optional notes)
-  const [paymentMethod, setPaymentMethod] = useState('Stripe');
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
 
   // history details modal
@@ -246,6 +246,9 @@ export default function PayoutsPage() {
     [filteredHistory]
   );
 
+ 
+
+
   // ---------- modal handlers ----------
 
   const handlePayClick = (row) => {
@@ -256,12 +259,10 @@ export default function PayoutsPage() {
     setEditingAmount(false);
 
     const proc = String(row.payment_processor || '').trim().toLowerCase();
-    // If NOT manual, lock Paid With to whatever processor is on the row (stripe/wise/revolut)
     if (proc && proc !== 'manual') {
-      setPaymentMethod(proc.charAt(0).toUpperCase() + proc.slice(1));
+      setPaymentMethod(prettyProc(proc)); // optional now (since display uses modalProc)
     } else {
-      // Manual: leave it EMPTY so user must choose
-      setPaymentMethod('');
+      setPaymentMethod(''); // manual should start empty
     }
 
     setPaymentNotes('');
