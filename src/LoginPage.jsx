@@ -23,8 +23,18 @@ export default function LoginPage() {
 
     setLoading(false);
 
-    if (error) setError(error.message);
-    else navigate('/dashboard-v2');
+    if (error) {
+      const msg = (error.message || "").toLowerCase();
+
+      if (msg.includes("invalid login credentials")) {
+        setError("No password set yet. Please accept your invite email first, then set a password.");
+      } else {
+        setError(error.message);
+      }
+    } else {
+      navigate("/dashboard-v2");
+    }
+
   };
 
   return (
