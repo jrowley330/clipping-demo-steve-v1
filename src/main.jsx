@@ -6,6 +6,8 @@ import { BrandingProvider } from "./branding/BrandingContext";
 
 import App from './App.jsx';
 import LoginPage from './LoginPage.jsx';
+import SetPasswordPage from "./SetPasswordPage.jsx";
+
 import PayoutsPage from './PayoutsPage.jsx';
 import DashboardsPageV2 from './DashboardPageV2.jsx';
 import ClippersPage from './ClippersPage.jsx';
@@ -24,6 +26,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         {/* login (unprotected) */}
         <Route path="/login" element={<LoginPage />} />
 
+        {/* set password for new user invite flow */}
+        <Route
+          path="/set-password"
+          element={
+            <App>
+              <SetPasswordPage />
+            </App>
+          }
+        />
+
         {/* Dashboards V2 – NEW (BigQuery-powered) */}
         <Route
           path="/dashboard-v2"
@@ -35,7 +47,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             </App>
           }
         />
-
 
         {/* Payouts */}
         <Route
