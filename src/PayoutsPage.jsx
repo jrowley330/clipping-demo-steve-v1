@@ -2,7 +2,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
-
 import { useBranding } from "./branding/BrandingContext";
 
 const API_BASE_URL =
@@ -18,9 +17,7 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 });
 
 const unwrapValue = (v) => {
-  if (v && typeof v === 'object' && 'value' in v) {
-    return v.value;
-  }
+  if (v && typeof v === 'object' && 'value' in v) return v.value;
   return v;
 };
 
@@ -94,8 +91,8 @@ export default function PayoutsPage() {
   const [payAmount, setPayAmount] = useState('0.00');
   const [editingAmount, setEditingAmount] = useState(false);
 
-  // manual fields (also allowed for stripe as optional notes)
-  const [paymentMethod, setPaymentMethod] = useState('');
+  // manual fields (notes allowed for any processor)
+  const [paymentMethod, setPaymentMethod] = useState(''); // manual dropdown only
   const [paymentNotes, setPaymentNotes] = useState('');
 
   // history details modal
@@ -246,8 +243,16 @@ export default function PayoutsPage() {
     [filteredHistory]
   );
 
- 
+  const prettyProc = (p) => {
+    const s = String(p || '').trim().toLowerCase();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+  };
 
+  const modalProcRaw = String(modalClipper?.payment_processor || '')
+    .trim()
+    .toLowerCase();
+  const modalProc = prettyProc(modalProcRaw);
+  const isManualModal = modalProcRaw === 'manual';
 
   // ---------- modal handlers ----------
 
@@ -258,15 +263,17 @@ export default function PayoutsPage() {
     setPayAmount(outstanding.toFixed(2));
     setEditingAmount(false);
 
-    const proc = String(row.payment_processor || '').trim().toLowerCase();
-    if (proc && proc !== 'manual') {
-      setPaymentMethod(prettyProc(proc)); // optional now (since display uses modalProc)
+    const procRaw = String(row.payment_processor || '').trim().toLowerCase();
+
+    // ✅ Manual: start EMPTY (user must choose)
+    if (procRaw === 'manual') {
+      setPaymentMethod('');
     } else {
-      setPaymentMethod(''); // manual should start empty
+      // not used for UI (read-only), but keep state clean
+      setPaymentMethod('');
     }
 
     setPaymentNotes('');
-
     setPayError('');
     setPayResult(null);
     setModalOpen(true);
@@ -285,9 +292,7 @@ export default function PayoutsPage() {
     setPaymentMethod('');
     setPaymentNotes('');
 
-    if (hadSuccess) {
-      window.location.reload();
-    }
+    if (hadSuccess) window.location.reload();
   };
 
   const openDetails = (row) => {
@@ -322,9 +327,8 @@ export default function PayoutsPage() {
       return;
     }
 
-    // if manual, require some method (notes optional)
-    const proc = String(modalClipper.payment_processor || '').toLowerCase();
-    if (proc === 'manual' && !String(paymentMethod || '').trim()) {
+    // manual requires a method
+    if (isManualModal && !String(paymentMethod || '').trim()) {
       setPayError('Please select how this manual payment was completed.');
       return;
     }
@@ -336,10 +340,11 @@ export default function PayoutsPage() {
 
       const body = {
         clipperId: modalClipper.clipper_id,
-        month: modalClipper.month_label, // e.g. "January 2026"
+        month: modalClipper.month_label, // "January 2026"
         amountUsd: desiredAmount,
         initiatedByUserId: 'demo-admin', // TODO: replace with real user id
-        paymentMethod: proc === 'manual' ? paymentMethod : 'Stripe',
+        // ✅ manual: user dropdown, else: use row processor (wise/revolut/stripe/etc)
+        paymentMethod: isManualModal ? paymentMethod : modalProc,
         paymentNotes: paymentNotes || '',
       };
 
@@ -897,6 +902,7 @@ export default function PayoutsPage() {
         {activeTab === 'upcoming' && renderUpcomingOrDueTable(upcomingRows)}
         {activeTab === 'due' && renderUpcomingOrDueTable(dueRows)}
 
+        {/* History tab (unchanged from your version except it supports manual details) */}
         {activeTab === 'history' && (
           <div
             style={{
@@ -1027,7 +1033,7 @@ export default function PayoutsPage() {
                     {filteredHistory.map((row, idx) => {
                       const proc = String(row.processor || '').toLowerCase();
                       const hasManualDetails =
-                        proc === 'manual' &&
+                        proc !== 'stripe' &&
                         (String(row.payment_method || '').trim() ||
                           String(row.payment_notes || '').trim());
 
@@ -1123,327 +1129,325 @@ export default function PayoutsPage() {
       </div>
 
       {/* Payout modal */}
-      {modalOpen && modalClipper && (() => {
-        const proc = String(modalClipper.payment_processor || '').toLowerCase();
-        const isManual = proc === 'manual';
-
-        return (
+      {modalOpen && modalClipper && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 40,
+          }}
+          onClick={closeModal}
+        >
           <div
+            onClick={(e) => e.stopPropagation()}
             style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.6)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 40,
+              width: 420,
+              maxWidth: '92vw',
+              borderRadius: 24,
+              padding: 20,
+              background:
+                'radial-gradient(circle at top left, rgba(15,23,42,0.98), rgba(15,23,42,0.95))',
+              border: '1px solid rgba(148,163,184,0.6)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
             }}
-            onClick={closeModal}
           >
             <div
-              onClick={(e) => e.stopPropagation()}
               style={{
-                width: 420,
-                maxWidth: '92vw',
-                borderRadius: 24,
-                padding: 20,
-                background:
-                  'radial-gradient(circle at top left, rgba(15,23,42,0.98), rgba(15,23,42,0.95))',
-                border: '1px solid rgba(148,163,184,0.6)',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 10,
               }}
             >
-              <div
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>
+                  Confirm payout
+                </div>
+                <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
+                  {isManualModal
+                    ? 'This will record a manual payout (no integration).'
+                    : `This will record a payout via ${modalProc || 'processor'} for this clipper.`}
+                </div>
+              </div>
+              <button
+                onClick={closeModal}
                 style={{
+                  border: 'none',
+                  background: 'rgba(15,23,42,0.9)',
+                  borderRadius: 999,
+                  width: 28,
+                  height: 28,
                   display: 'flex',
-                  justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 10,
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  color: '#e5e7eb',
                 }}
               >
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 700 }}>
-                    Confirm payout
-                  </div>
-                  <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
-                    {isManual
-                      ? 'This will record a manual payout (no integration).'
-                      : 'This will trigger a payout via Stripe for this clipper.'}
-                  </div>
-                </div>
-                <button
-                  onClick={closeModal}
-                  style={{
-                    border: 'none',
-                    background: 'rgba(15,23,42,0.9)',
-                    borderRadius: 999,
-                    width: 28,
-                    height: 28,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    fontSize: 16,
-                    color: '#e5e7eb',
-                  }}
-                >
-                  ×
-                </button>
+                ×
+              </button>
+            </div>
+
+            <div style={{ marginBottom: 12, fontSize: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ opacity: 0.7 }}>Clipper</span>
+                <strong>{modalClipper.clipper_name}</strong>
               </div>
 
-              <div style={{ marginBottom: 12, fontSize: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ opacity: 0.7 }}>Clipper</span>
-                  <strong>{modalClipper.clipper_name}</strong>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ opacity: 0.7 }}>Month</span>
+                <strong>{modalClipper.month_label}</strong>
+              </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ opacity: 0.7 }}>Month</span>
-                  <strong>{modalClipper.month_label}</strong>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ opacity: 0.7 }}>Outstanding amount</span>
+                <span>{formatCurrency(modalClipper.outstanding_usd || 0)}</span>
+              </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ opacity: 0.7 }}>Outstanding amount</span>
-                  <span>{formatCurrency(modalClipper.outstanding_usd || 0)}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                  <div><span style={{ opacity: 0.7 }}>This payout</span></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {editingAmount ? (
-                      <input
-                        type="text"
-                        value={payAmount}
-                        onChange={(e) => {
-                          const raw = e.target.value || '';
-                          const cleaned = raw.replace(/[^0-9.]/g, '');
-                          const validPattern = /^(\d+(\.\d{0,2})?)?$/;
-                          if (cleaned === '' || validPattern.test(cleaned)) {
-                            setPayAmount(cleaned);
-                          }
-                        }}
-                        style={{
-                          width: 90,
-                          padding: '4px 8px',
-                          borderRadius: 999,
-                          border: '1px solid rgba(148,163,184,0.7)',
-                          background: 'rgba(15,23,42,0.9)',
-                          color: '#e5e7eb',
-                          fontSize: 13,
-                          textAlign: 'right',
-                        }}
-                      />
-                    ) : (
-                      <strong>{formatCurrency(Number(payAmount || 0))}</strong>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => setEditingAmount((prev) => !prev)}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                <div><span style={{ opacity: 0.7 }}>This payout</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {editingAmount ? (
+                    <input
+                      type="text"
+                      value={payAmount}
+                      onChange={(e) => {
+                        const raw = e.target.value || '';
+                        const cleaned = raw.replace(/[^0-9.]/g, '');
+                        const validPattern = /^(\d+(\.\d{0,2})?)?$/;
+                        if (cleaned === '' || validPattern.test(cleaned)) {
+                          setPayAmount(cleaned);
+                        }
+                      }}
                       style={{
-                        border: 'none',
-                        borderRadius: 999,
+                        width: 90,
                         padding: '4px 8px',
-                        fontSize: 11,
-                        cursor: 'pointer',
-                        background: 'rgba(15,23,42,0.9)',
-                        color: '#9ca3af',
-                      }}
-                    >
-                      {editingAmount ? 'Done' : 'Edit'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Manual fields */}
-              <div
-                style={{
-                  borderRadius: 16,
-                  border: '1px solid rgba(148,163,184,0.25)',
-                  background: 'rgba(2,6,23,0.35)',
-                  padding: 12,
-                  marginBottom: 12,
-                }}
-              >
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <div style={{ flex: '1 1 160px', minWidth: 0 }}>
-                    <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap' }}>
-                      Paid with
-                    </div>
-
-                    {isManual ? (
-                      <select
-                        value={paymentMethod}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                        style={{
-                          width: '100%',
-                          boxSizing: 'border-box',
-                          padding: '7px 9px',
-                          borderRadius: 9,
-                          border: '1px solid rgba(148,163,184,0.85)',
-                          background: 'rgba(15,23,42,0.9)',
-                          color: '#e5e7eb',
-                          fontSize: 12,
-                          appearance: 'none',
-                        }}
-                      >
-                        {MANUAL_METHOD_OPTIONS.map((m) => (
-                          <option key={m} value={m} style={{ color: '#cbd5e1' }}>
-                            {m}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div
-                        style={{
-                          width: '100%',
-                          boxSizing: 'border-box',
-                          padding: '7px 9px',
-                          borderRadius: 9,
-                          border: '1px solid rgba(148,163,184,0.35)',
-                          background: 'rgba(15,23,42,0.55)',
-                          color: '#e5e7eb',
-                          fontSize: 12,
-                          opacity: 0.9,
-                        }}
-                      >
-                        Stripe
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                    <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap' }}>
-                      Payment notes (optional)
-                    </div>
-                    <textarea
-                      value={paymentNotes}
-                      onChange={(e) => setPaymentNotes(e.target.value)}
-                      placeholder={isManual ? 'e.g. Paid via Wise to joey@email…' : 'e.g. Partial payout, adjustment, etc.'}
-                      rows={3}
-                      style={{
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        padding: '8px 10px',
-                        borderRadius: 12,
-                        border: '1px solid rgba(148,163,184,0.35)',
-                        background: 'rgba(15,23,42,0.75)',
-                        color: '#e5e7eb',
-                        fontSize: 12,
-                        resize: 'none',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Error message */}
-              {payError && (
-                <div style={{ marginBottom: 12, fontSize: 12, color: '#f97373' }}>
-                  {payError}
-                </div>
-              )}
-
-              {/* Success state */}
-              {payResult && (
-                <div
-                  style={{
-                    marginBottom: 12,
-                    padding: '8px 10px',
-                    borderRadius: 12,
-                    background: 'rgba(22,163,74,0.12)',
-                    border: '1px solid rgba(34,197,94,0.6)',
-                    fontSize: 12,
-                    color: '#bbf7d0',
-                  }}
-                >
-                  <div style={{ fontWeight: 600, marginBottom: 2 }}>
-                    Payout successful
-                  </div>
-                  <div style={{ opacity: 0.9 }}>
-                    Recorded{' '}
-                    <strong>{formatCurrency(Number(payAmount || 0))}</strong> for{' '}
-                    <strong>{modalClipper.clipper_name}</strong> ·{' '}
-                    <strong>{modalClipper.month_label}</strong>
-                    {isManual ? (
-                      <>
-                        {' '}· <span style={{ opacity: 0.9 }}>Paid with <strong>{paymentMethod}</strong></span>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-              )}
-
-              {/* Actions */}
-              {payResult ? (
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 4 }}>
-                  {!isManual && payResult.invoice_url && (
-                    <a
-                      href={payResult.invoice_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        flex: 1,
-                        textAlign: 'center',
-                        textDecoration: 'none',
-                        padding: '8px 12px',
                         borderRadius: 999,
-                        fontSize: 13,
-                        fontWeight: 500,
                         border: '1px solid rgba(148,163,184,0.7)',
                         background: 'rgba(15,23,42,0.9)',
                         color: '#e5e7eb',
+                        fontSize: 13,
+                        textAlign: 'right',
                       }}
-                    >
-                      View in Stripe
-                    </a>
+                    />
+                  ) : (
+                    <strong>{formatCurrency(Number(payAmount || 0))}</strong>
                   )}
 
                   <button
-                    onClick={closeModal}
+                    type="button"
+                    onClick={() => setEditingAmount((prev) => !prev)}
                     style={{
-                      flex: 1,
-                      padding: '8px 14px',
-                      borderRadius: 999,
                       border: 'none',
+                      borderRadius: 999,
+                      padding: '4px 8px',
+                      fontSize: 11,
                       cursor: 'pointer',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      background: 'linear-gradient(135deg, #22c55e, #4ade80, #bbf7d0)',
-                      color: '#022c22',
-                      boxShadow: '0 15px 35px rgba(34,197,94,0.5)',
+                      background: 'rgba(15,23,42,0.9)',
+                      color: '#9ca3af',
                     }}
                   >
-                    Close
+                    {editingAmount ? 'Done' : 'Edit'}
                   </button>
                 </div>
-              ) : (
+              </div>
+            </div>
+
+            {/* Paid with + notes */}
+            <div
+              style={{
+                borderRadius: 16,
+                border: '1px solid rgba(148,163,184,0.25)',
+                background: 'rgba(2,6,23,0.35)',
+                padding: 12,
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+                  <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap' }}>
+                    Paid with
+                  </div>
+
+                  {isManualModal ? (
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '7px 9px',
+                        borderRadius: 9,
+                        border: '1px solid rgba(148,163,184,0.85)',
+                        background: 'rgba(15,23,42,0.9)',
+                        color: '#e5e7eb',
+                        fontSize: 12,
+                        appearance: 'none',
+                      }}
+                    >
+                      {/* ✅ placeholder forces user choice */}
+                      <option value="" disabled style={{ color: '#94a3b8' }}>
+                        Select method…
+                      </option>
+
+                      {MANUAL_METHOD_OPTIONS.map((m) => (
+                        <option key={m} value={m} style={{ color: '#cbd5e1' }}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '7px 9px',
+                        borderRadius: 9,
+                        border: '1px solid rgba(148,163,184,0.35)',
+                        background: 'rgba(15,23,42,0.55)',
+                        color: '#e5e7eb',
+                        fontSize: 12,
+                        opacity: 0.9,
+                      }}
+                    >
+                      {/* ✅ THIS is the fix for Wise showing Stripe */}
+                      {modalProc || '—'}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                  <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap' }}>
+                    Payment notes (optional)
+                  </div>
+                  <textarea
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    placeholder={isManualModal ? 'e.g. Paid via Wise to joey@email…' : 'e.g. Partial payout, adjustment, etc.'}
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '8px 10px',
+                      borderRadius: 12,
+                      border: '1px solid rgba(148,163,184,0.35)',
+                      background: 'rgba(15,23,42,0.75)',
+                      color: '#e5e7eb',
+                      fontSize: 12,
+                      resize: 'none',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {payError && (
+              <div style={{ marginBottom: 12, fontSize: 12, color: '#f97373' }}>
+                {payError}
+              </div>
+            )}
+
+            {payResult && (
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: '8px 10px',
+                  borderRadius: 12,
+                  background: 'rgba(22,163,74,0.12)',
+                  border: '1px solid rgba(34,197,94,0.6)',
+                  fontSize: 12,
+                  color: '#bbf7d0',
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 2 }}>
+                  Payout successful
+                </div>
+                <div style={{ opacity: 0.9 }}>
+                  Recorded{' '}
+                  <strong>{formatCurrency(Number(payAmount || 0))}</strong> for{' '}
+                  <strong>{modalClipper.clipper_name}</strong> ·{' '}
+                  <strong>{modalClipper.month_label}</strong>
+                  {isManualModal ? (
+                    <>
+                      {' '}· <span style={{ opacity: 0.9 }}>Paid with <strong>{paymentMethod}</strong></span>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            )}
+
+            {payResult ? (
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 4 }}>
+                {!isManualModal && payResult.invoice_url && (
+                  <a
+                    href={payResult.invoice_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      flex: 1,
+                      textAlign: 'center',
+                      textDecoration: 'none',
+                      padding: '8px 12px',
+                      borderRadius: 999,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      border: '1px solid rgba(148,163,184,0.7)',
+                      background: 'rgba(15,23,42,0.9)',
+                      color: '#e5e7eb',
+                    }}
+                  >
+                    View receipt
+                  </a>
+                )}
+
                 <button
-                  onClick={handleConfirmPay}
-                  disabled={paying}
+                  onClick={closeModal}
                   style={{
-                    width: '100%',
+                    flex: 1,
                     padding: '8px 14px',
                     borderRadius: 999,
                     border: 'none',
-                    cursor: paying ? 'default' : 'pointer',
+                    cursor: 'pointer',
                     fontSize: 14,
                     fontWeight: 600,
                     background: 'linear-gradient(135deg, #22c55e, #4ade80, #bbf7d0)',
                     color: '#022c22',
                     boxShadow: '0 15px 35px rgba(34,197,94,0.5)',
-                    opacity: paying ? 0.7 : 1,
                   }}
                 >
-                  {paying ? (isManual ? 'Recording…' : 'Processing payout…') : (isManual ? 'Confirm manual payout' : 'Confirm payout')}
+                  Close
                 </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <button
+                onClick={handleConfirmPay}
+                disabled={paying}
+                style={{
+                  width: '100%',
+                  padding: '8px 14px',
+                  borderRadius: 999,
+                  border: 'none',
+                  cursor: paying ? 'default' : 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  background: 'linear-gradient(135deg, #22c55e, #4ade80, #bbf7d0)',
+                  color: '#022c22',
+                  boxShadow: '0 15px 35px rgba(34,197,94,0.5)',
+                  opacity: paying ? 0.7 : 1,
+                }}
+              >
+                {paying ? (isManualModal ? 'Recording…' : 'Processing…') : (isManualModal ? 'Confirm manual payout' : 'Confirm payout')}
+              </button>
+            )}
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* Manual details modal */}
       {detailsOpen && detailsRow && (
@@ -1473,7 +1477,7 @@ export default function PayoutsPage() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>Manual payment details</div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>Payment details</div>
               <button
                 onClick={closeDetails}
                 style={{
@@ -1509,7 +1513,7 @@ export default function PayoutsPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <span style={{ opacity: 0.7 }}>Paid with</span>
-                <strong>{detailsRow.payment_method || 'Manual'}</strong>
+                <strong>{detailsRow.payment_method || detailsRow.processor || '—'}</strong>
               </div>
             </div>
 
