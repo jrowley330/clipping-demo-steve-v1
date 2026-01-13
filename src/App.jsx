@@ -10,17 +10,42 @@ export default function App({ children }) {
 
   useEffect(() => {
     const init = async () => {
+      setLoading(true);
+
+      // ✅ 1) If we returned from an invite/magic link with ?code=..., exchange it for a session
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+        // Remove ?code=... from URL but KEEP hash route (#/whatever)
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname + window.location.hash
+        );
+
+        if (error) {
+          console.log("exchangeCodeForSession error:", error);
+          setLoading(false);
+          navigate("/login", { replace: true });
+          return;
+        }
+      }
+
+      // ✅ 2) Now check session normally
       const { data } = await supabase.auth.getSession();
       const s = data.session || null;
       setSession(s);
-      setLoading(false);
 
       if (!s) {
+        setLoading(false);
         navigate("/login", { replace: true });
         return;
       }
 
-      // ✅ Force set-password if user hasn't set it
+      // ✅ 3) Enforce "set password" for invited users
       const { data: u } = await supabase.auth.getUser();
       const user = u.user;
 
@@ -28,8 +53,12 @@ export default function App({ children }) {
       const onSetPwRoute = location.pathname === "/set-password";
 
       if (needsPw && !onSetPwRoute) {
+        setLoading(false);
         navigate("/set-password", { replace: true });
+        return;
       }
+
+      setLoading(false);
     };
 
     init();
@@ -44,9 +73,9 @@ export default function App({ children }) {
         return;
       }
 
-      // ✅ also enforce on auth changes
       const { data: u } = await supabase.auth.getUser();
       const user = u.user;
+
       const needsPw = !user?.user_metadata?.password_set;
       const onSetPwRoute = location.pathname === "/set-password";
 
