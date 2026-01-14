@@ -76,6 +76,9 @@ export default function App({ children }) {
       const { data: u } = await supabase.auth.getUser();
       const user = u.user;
 
+      console.log("USER META:", user?.user_metadata);
+
+
       const invited = !!user?.user_metadata?.invited;
       const needsPw = invited && !user?.user_metadata?.password_set;
 
