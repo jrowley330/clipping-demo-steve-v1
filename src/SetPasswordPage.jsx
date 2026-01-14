@@ -34,6 +34,8 @@ export default function SetPasswordPage() {
       password: pw1,
       data: { password_set: true },
     });
+    
+    window.localStorage.removeItem("force_set_password");
 
     setSaving(false);
 
