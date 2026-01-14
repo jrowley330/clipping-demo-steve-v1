@@ -22,20 +22,22 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <HashRouter>
       <Routes>
-        {/* default: go to Dashboards V2 */}
         <Route path="/" element={<Navigate to="/dashboard-v2" replace />} />
 
-        {/* login (unprotected) */}
+        {/* unprotected */}
         <Route path="/login" element={<LoginPage />} />
-
-        {/* auth callback (unprotected) — invite/magic link lands here */}
         <Route path="/auth/callback" element={<AuthCallback />} />
 
-        {/* set password for new user invite flow (protected) */}
-        <Route path="/set-password" element={<SetPasswordPage />} />
+        {/* protected */}
+        <Route
+          path="/set-password"
+          element={
+            <App>
+              <SetPasswordPage />
+            </App>
+          }
+        />
 
-
-        {/* Dashboards V2 – NEW (BigQuery-powered) */}
         <Route
           path="/dashboard-v2"
           element={
@@ -47,7 +49,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           }
         />
 
-        {/* Payouts */}
         <Route
           path="/payouts"
           element={
@@ -59,7 +60,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           }
         />
 
-        {/* Clippers */}
         <Route
           path="/clippers"
           element={
@@ -71,7 +71,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           }
         />
 
-        {/* Performance */}
         <Route
           path="/performance"
           element={
@@ -83,7 +82,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           }
         />
 
-        {/* Leaderboards */}
         <Route
           path="/leaderboards"
           element={
@@ -95,7 +93,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           }
         />
 
-        {/* Gallery */}
         <Route
           path="/gallery"
           element={
@@ -107,7 +104,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           }
         />
 
-        {/* Settings */}
         <Route
           path="/settings"
           element={
@@ -117,7 +113,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           }
         />
 
-        {/* any unknown hash -> Dashboards V2 */}
         <Route path="*" element={<Navigate to="/dashboard-v2" replace />} />
       </Routes>
     </HashRouter>

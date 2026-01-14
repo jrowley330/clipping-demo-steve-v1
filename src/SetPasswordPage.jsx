@@ -40,6 +40,7 @@ export default function SetPasswordPage() {
     if (error) return setError(error.message);
 
     // go to dashboards
+    window.localStorage.removeItem("force_set_password");
     navigate("/dashboard-v2", { replace: true });
   };
 

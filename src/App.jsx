@@ -1,40 +1,30 @@
-import React, { useEffect, useState } from "react";
+// src/App.jsx
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "./supabaseClient";
+
+const INVITE_FORCE_KEY = "force_set_password";
 
 export default function App({ children }) {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+
   const navigate = useNavigate();
   const location = useLocation();
+  const didInitRef = useRef(false);
+
+  const shouldForceSetPassword = () => {
+    // ONLY true when AuthCallback sets it (invite flow)
+    return window.localStorage.getItem(INVITE_FORCE_KEY) === "1";
+  };
 
   useEffect(() => {
-    const init = async () => {
+    if (didInitRef.current) return;
+    didInitRef.current = true;
+
+    (async () => {
       setLoading(true);
 
-      // ✅ 1) If we returned from an invite/magic link with ?code=..., exchange it for a session
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
-
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-        // Remove ?code=... from URL but KEEP hash route (#/whatever)
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname + window.location.hash
-        );
-
-        if (error) {
-          console.log("exchangeCodeForSession error:", error);
-          setLoading(false);
-          navigate("/login", { replace: true });
-          return;
-        }
-      }
-
-      // ✅ 2) Now check session normally
       const { data } = await supabase.auth.getSession();
       const s = data.session || null;
       setSession(s);
@@ -45,29 +35,17 @@ export default function App({ children }) {
         return;
       }
 
-      // ✅ 3) Enforce "set password" for invited users
-      const { data: u } = await supabase.auth.getUser();
-      const user = u.user;
-
-      const invited = !!user?.user_metadata?.invited;
-      const needsPw = invited && !user?.user_metadata?.password_set;
-
-      const onSetPwRoute = location.pathname === "/set-password";
-
-      if (needsPw && !onSetPwRoute) {
+      // If invite flow is active, send them to set-password once
+      if (shouldForceSetPassword() && location.pathname !== "/set-password") {
         setLoading(false);
         navigate("/set-password", { replace: true });
         return;
       }
 
       setLoading(false);
-    };
+    })();
 
-    init();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession);
 
       if (!newSession) {
@@ -75,23 +53,13 @@ export default function App({ children }) {
         return;
       }
 
-      const { data: u } = await supabase.auth.getUser();
-      const user = u.user;
-
-      console.log("USER META:", user?.user_metadata);
-
-
-      const invited = !!user?.user_metadata?.invited;
-      const needsPw = invited && !user?.user_metadata?.password_set;
-
-      const onSetPwRoute = location.pathname === "/set-password";
-
-      if (needsPw && !onSetPwRoute) {
+      // On any auth change, still honor invite force flag
+      if (shouldForceSetPassword() && location.pathname !== "/set-password") {
         navigate("/set-password", { replace: true });
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => sub.subscription.unsubscribe();
   }, [navigate, location.pathname]);
 
   if (loading) return <div>Loading…</div>;
