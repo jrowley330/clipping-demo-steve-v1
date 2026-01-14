@@ -17,6 +17,7 @@ import Performance from "./Performance.jsx";
 import Leaderboards from "./Leaderboards.jsx";
 import Gallery from "./Gallery.jsx";
 import Settings from "./Settings.jsx";
+import ContentApprovalPage from "./ContentApprovalPage.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
@@ -49,6 +50,17 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           }
         />
 
+        <Route
+          path="/content-approval"
+          element={
+            <App>
+              <BrandingProvider clientId="default">
+                <ContentApprovalPage />
+              </BrandingProvider>
+            </App>
+          }
+        />
+        
         <Route
           path="/payouts"
           element={
