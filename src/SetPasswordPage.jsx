@@ -34,17 +34,16 @@ export default function SetPasswordPage() {
       password: pw1,
       data: { password_set: true },
     });
-    
-    window.localStorage.removeItem("force_set_password");
 
     setSaving(false);
 
     if (error) return setError(error.message);
 
-    // go to dashboards
+    // ✅ only clear after success
     window.localStorage.removeItem("force_set_password");
     navigate("/dashboard-v2", { replace: true });
   };
+
 
   if (loading) return <div>Loading…</div>;
 
