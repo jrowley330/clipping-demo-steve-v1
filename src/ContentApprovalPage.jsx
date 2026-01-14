@@ -73,6 +73,13 @@ export default function ContentApprovalPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
+  // badge counts from API
+  const [apiCounts, setApiCounts] = useState({
+    pending_this_week: 0,
+    pending_overdue: 0,
+    pending_total: 0,
+  });
+
   // UI STATE
   const [activeTab, setActiveTab] = useState("this_week"); // this_week | past_due | done | all
   const [platformFilter, setPlatformFilter] = useState("all");
@@ -82,7 +89,6 @@ export default function ContentApprovalPage() {
   const [actionMsg, setActionMsg] = useState("");
 
   // Optional: if you’re already storing client_id somewhere, keep using that
-  // (this won’t break anything if you don’t).
   const clientId =
     safeStr(localStorage.getItem("client_id")) ||
     safeStr(sessionStorage.getItem("client_id")) ||
@@ -110,112 +116,95 @@ export default function ContentApprovalPage() {
       setErr("");
       setActionMsg("");
 
-      // EXPECTED API (adjust if your backend uses different route):
-      // GET  /content-approval?clientId=default
+      const bucketMap = {
+        this_week: "THIS_WEEK",
+        past_due: "OVERDUE",
+        done: "DONE",
+        all: "ALL",
+      };
+
+      const bucket = bucketMap[activeTab] || "ALL";
+
+      const qs = new URLSearchParams({
+        clientId,
+        bucket,
+      });
+
+      if (platformFilter !== "all") qs.set("platform", platformFilter);
+
       const res = await fetch(
-        `${API_BASE_URL}/content-approval?clientId=${encodeURIComponent(
-          clientId
-        )}`
+        `${API_BASE_URL}/content-review-queue?${qs.toString()}`
       );
 
       if (!res.ok) {
-        // Make it obvious why it fails (instead of “Missing VITE…” etc.)
         const txt = await res.text().catch(() => "");
         throw new Error(
-          `Content Approval API ${res.status}${
+          `Content Review Queue API ${res.status}${
             txt ? ` — ${txt.slice(0, 140)}` : ""
           }`
         );
       }
 
       const data = await res.json();
-      const normalized = (Array.isArray(data) ? data : []).map((r, i) => {
-        // Be flexible on column names (BigQuery / API variants)
-        const id =
-          safeStr(r.id) ||
-          safeStr(r.video_id) ||
-          safeStr(r.VIDEO_ID) ||
-          `${i}`;
+      const apiRows = Array.isArray(data?.rows) ? data.rows : [];
+      const counts =
+        data?.counts || {
+          pending_this_week: 0,
+          pending_overdue: 0,
+          pending_total: 0,
+        };
+
+      setApiCounts(counts);
+
+      const normalized = apiRows.map((r, i) => {
+        const id = safeStr(r.id) || safeStr(r.video_id) || `${i}`;
 
         const clipper =
-          safeStr(r.clipper_name) ||
-          safeStr(r.CLIPPER_NAME) ||
-          safeStr(r.clipper) ||
-          safeStr(r.CLIPPER) ||
-          "—";
+          safeStr(r.clipper_name) || safeStr(r.clipper) || "—";
 
         const account =
+          safeStr(r.account_name) ||
           safeStr(r.account) ||
-          safeStr(r.ACCOUNT) ||
           safeStr(r.creator) ||
-          safeStr(r.CREATOR) ||
           "";
 
-        const platform =
-          safeStr(r.platform) ||
-          safeStr(r.PLATFORM) ||
-          safeStr(r.source) ||
-          safeStr(r.SOURCE) ||
-          "—";
+        const accountKey = safeStr(r.account_key || r.accountKey || "");
+
+        const platform = safeStr(r.platform).toLowerCase();
 
         const title =
-          safeStr(r.title) ||
-          safeStr(r.TITLE) ||
-          safeStr(r.video_title) ||
-          safeStr(r.VIDEO_TITLE) ||
-          "";
+          safeStr(r.video_title) || safeStr(r.title) || "";
 
-        const videoId =
-          safeStr(r.video_id) ||
-          safeStr(r.VIDEO_ID) ||
-          safeStr(r.post_id) ||
-          safeStr(r.POST_ID) ||
-          id;
+        const videoId = safeStr(r.video_id || r.videoId || "");
 
         const videoUrl =
-          safeStr(r.video_url) ||
-          safeStr(r.VIDEO_URL) ||
-          safeStr(r.url) ||
-          safeStr(r.URL) ||
-          "";
+          safeStr(r.video_url) || safeStr(r.url) || "";
 
-        const eligible = toBool(r.eligible ?? r.ELIGIBLE ?? r.is_eligible);
+        const eligible = toBool(r.eligible ?? r.is_eligible ?? r.isEligible);
         const published = toBool(
-          r.published ?? r.PUBLISHED ?? r.is_published
+          r.published ?? r.is_published ?? r.isPublished
         );
 
         const status =
+          safeStr(r.review_status) ||
           safeStr(r.status) ||
-          safeStr(r.STATUS) ||
-          (published ? "PUBLISHED" : "PENDING");
+          "PENDING";
 
-        // Deadlines/buckets
-        const dueDate =
-          safeStr(r.due_date) ||
-          safeStr(r.DUE_DATE) ||
-          safeStr(r.deadline) ||
-          safeStr(r.DEADLINE) ||
-          "";
+        const dueDate = safeStr(r.due_date || r.deadline || "");
+        const weekStart = safeStr(r.week_start || r.week_of || "");
 
-        const weekStart =
-          safeStr(r.week_start) ||
-          safeStr(r.WEEK_START) ||
-          safeStr(r.week_of) ||
-          safeStr(r.WEEK_OF) ||
-          "";
+        const totalViews = Number(unwrapValue(r.total_views) ?? 0);
+        const payableViews = Number(unwrapValue(r.payable_views) ?? 0);
 
-        const totalViews = Number(unwrapValue(r.total_views ?? r.TOTAL_VIEWS) ?? 0);
-        const payableViews = Number(
-          unwrapValue(r.payable_views ?? r.PAYABLE_VIEWS) ?? 0
-        );
-
-        const approved = toBool(r.approved ?? r.APPROVED);
-        const rejected = toBool(r.rejected ?? r.REJECTED);
+        const reviewStatusUpper = safeStr(r.review_status).toUpperCase();
+        const approved = reviewStatusUpper === "APPROVED";
+        const rejected = reviewStatusUpper === "REJECTED";
 
         return {
           id,
           clipper,
           account,
+          accountKey, // REQUIRED for bulk endpoint
           platform,
           title,
           videoId,
@@ -229,6 +218,9 @@ export default function ContentApprovalPage() {
           payableViews,
           approved,
           rejected,
+          // keep queue-specific fields if present
+          queue_bucket: safeStr(r.queue_bucket || ""),
+          is_overdue: toBool(r.is_overdue),
           raw: r,
         };
       });
@@ -237,18 +229,20 @@ export default function ContentApprovalPage() {
       setSelectedIds(new Set());
     } catch (e) {
       console.error(e);
-      setErr(e.message || "Failed to load content approval rows.");
+      setErr(e.message || "Failed to load content review queue.");
       setRows([]);
       setSelectedIds(new Set());
+      setApiCounts({ pending_this_week: 0, pending_overdue: 0, pending_total: 0 });
     } finally {
       setLoading(false);
     }
   };
 
+  // refresh on tab/platform/client changes so API bucket matches UI
   useEffect(() => {
     fetchRows();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeTab, platformFilter, clientId]);
 
   // ---------- derived views ----------
   const platformOptions = useMemo(() => {
@@ -263,14 +257,23 @@ export default function ContentApprovalPage() {
   const now = Date.now();
 
   const enhancedRows = useMemo(() => {
-    // compute bucket flags without requiring backend changes
     return rows.map((r) => {
-      const due = r.dueDate ? new Date(r.dueDate).getTime() : NaN;
-      const isOverdue = Number.isFinite(due) ? due < now : false;
+      // Prefer API-provided bucket / overdue flags when present
+      const qb = safeStr(r.queue_bucket).toUpperCase();
+      const apiOverdue = toBool(r.is_overdue);
 
-      // if backend gives weekStart, use it; otherwise classify “this week” by dueDate
+      // fallback: compute overdue from dueDate
+      const due = r.dueDate ? new Date(r.dueDate).getTime() : NaN;
+      const computedOverdue = Number.isFinite(due) ? due < now : false;
+
+      const isOverdue = qb === "OVERDUE" ? true : apiOverdue || computedOverdue;
+
       const ws = r.weekStart ? new Date(r.weekStart).getTime() : NaN;
       const isThisWeek = (() => {
+        if (qb === "THIS_WEEK") return true;
+        if (qb === "OVERDUE") return false;
+        if (qb === "DONE") return false;
+
         if (Number.isFinite(ws)) {
           const start = new Date(ws);
           const end = new Date(ws);
@@ -279,7 +282,6 @@ export default function ContentApprovalPage() {
         }
         if (Number.isFinite(due)) {
           const d = new Date(due);
-          // “this week” heuristic: same ISO week as today
           const today = new Date();
           const day = (x) => (x.getDay() + 6) % 7; // monday=0
           const start = new Date(today);
@@ -289,7 +291,7 @@ export default function ContentApprovalPage() {
           end.setDate(start.getDate() + 7);
           return d.getTime() >= start.getTime() && d.getTime() < end.getTime();
         }
-        return true; // default bucket
+        return true;
       })();
 
       const isDone =
@@ -314,22 +316,17 @@ export default function ContentApprovalPage() {
     const s = search.trim().toLowerCase();
 
     return enhancedRows.filter((r) => {
-      // tab filter
       if (activeTab === "this_week" && !r.isThisWeek) return false;
       if (activeTab === "past_due" && !r.isOverdue) return false;
       if (activeTab === "done" && !r.isDone) return false;
-      if (activeTab === "all") {
-        // all
-      }
 
-      // platform filter
       if (platformFilter !== "all" && r.platform !== platformFilter) return false;
 
-      // search
       if (s) {
         const hay = [
           r.clipper,
           r.account,
+          r.accountKey,
           r.title,
           r.videoId,
           r.platform,
@@ -344,12 +341,11 @@ export default function ContentApprovalPage() {
     });
   }, [enhancedRows, activeTab, platformFilter, search]);
 
-  const counts = useMemo(() => {
-    const thisWeek = enhancedRows.filter((r) => r.isThisWeek && !r.isDone).length;
-    const pastDue = enhancedRows.filter((r) => r.isOverdue && !r.isDone).length;
+  // local counts for DONE/ALL (since API only returns pending counts)
+  const localCounts = useMemo(() => {
     const done = enhancedRows.filter((r) => r.isDone).length;
     const all = enhancedRows.length;
-    return { thisWeek, pastDue, done, all };
+    return { done, all };
   }, [enhancedRows]);
 
   const selectedCount = selectedIds.size;
@@ -384,32 +380,44 @@ export default function ContentApprovalPage() {
       setActionMsg("");
       setErr("");
 
-      // EXPECTED API (adjust if your backend uses different route):
-      // POST /content-approval/approve  { clientId, ids }
-      // POST /content-approval/reject   { clientId, ids }
-      const endpoint =
-        action === "approve"
-          ? `${API_BASE_URL}/content-approval/approve`
-          : `${API_BASE_URL}/content-approval/reject`;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const reviewedBy =
+        sessionData?.session?.user?.email ||
+        sessionData?.session?.user?.id ||
+        "";
 
-      const res = await fetch(endpoint, {
+      const reviewStatus = action === "approve" ? "APPROVED" : "REJECTED";
+
+      const selectedRows = rows.filter((r) => selectedIds.has(r.id));
+
+      const items = selectedRows.map((r) => ({
+        clientId,
+        platform: r.platform,
+        accountKey: r.accountKey,
+        videoId: r.videoId,
+        reviewStatus,
+        feedbackText: "",
+        reviewedBy,
+      }));
+
+      const bad = items.find((x) => !x.platform || !x.accountKey || !x.videoId);
+      if (bad) throw new Error("Some selected rows are missing platform/accountKey/videoId.");
+
+      const res = await fetch(`${API_BASE_URL}/content-reviews/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, ids }),
+        body: JSON.stringify({ items }),
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.error || `Action API ${res.status}`);
-      }
+      if (!res.ok) throw new Error(data.error || `Bulk review API ${res.status}`);
 
       setActionMsg(
-        action === "approve"
-          ? `Approved ${ids.length} item(s).`
-          : `Rejected ${ids.length} item(s).`
+        reviewStatus === "APPROVED"
+          ? `Approved ${items.length} item(s).`
+          : `Rejected ${items.length} item(s).`
       );
 
-      // refresh rows
       await fetchRows();
     } catch (e) {
       console.error(e);
@@ -590,7 +598,6 @@ export default function ContentApprovalPage() {
                 Dashboards
               </button>
 
-              {/* Content Approval (current) */}
               <button
                 onClick={goContentApproval}
                 style={{
@@ -808,25 +815,25 @@ export default function ContentApprovalPage() {
               onClick={() => setActiveTab("this_week")}
               style={pillBtnStyle(activeTab === "this_week")}
             >
-              This week ({counts.thisWeek})
+              This week ({apiCounts.pending_this_week})
             </button>
             <button
               onClick={() => setActiveTab("past_due")}
               style={pillBtnStyle(activeTab === "past_due")}
             >
-              Past due ({counts.pastDue})
+              Past due ({apiCounts.pending_overdue})
             </button>
             <button
               onClick={() => setActiveTab("done")}
               style={pillBtnStyle(activeTab === "done")}
             >
-              Done ({counts.done})
+              Done ({localCounts.done})
             </button>
             <button
               onClick={() => setActiveTab("all")}
               style={pillBtnStyle(activeTab === "all")}
             >
-              All ({counts.all})
+              All ({localCounts.all})
             </button>
             <button
               onClick={fetchRows}
@@ -841,10 +848,10 @@ export default function ContentApprovalPage() {
           </div>
         </div>
 
-        {/* Sub header line (matches your vibe) */}
+        {/* Sub header line */}
         <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 16 }}>
-          Pending this week: <strong>{counts.thisWeek}</strong> · Overdue:{" "}
-          <strong>{counts.pastDue}</strong>
+          Pending this week: <strong>{apiCounts.pending_this_week}</strong> ·
+          Overdue: <strong>{apiCounts.pending_overdue}</strong>
           <span style={{ marginLeft: 12, opacity: 0.6 }}>
             Client: <strong style={{ opacity: 0.95 }}>{clientId}</strong>
           </span>
@@ -915,12 +922,8 @@ export default function ContentApprovalPage() {
             </div>
 
             <div style={{ minHeight: 22, fontSize: 12, textAlign: "right" }}>
-              {loading && !err && (
-                <span style={{ opacity: 0.8 }}>Loading…</span>
-              )}
-              {!loading && err && (
-                <span style={{ color: "#fecaca" }}>{err}</span>
-              )}
+              {loading && !err && <span style={{ opacity: 0.8 }}>Loading…</span>}
+              {!loading && err && <span style={{ color: "#fecaca" }}>{err}</span>}
               {!loading && !err && actionMsg && (
                 <span style={{ color: "#bbf7d0" }}>{actionMsg}</span>
               )}
@@ -938,7 +941,7 @@ export default function ContentApprovalPage() {
             }}
           >
             <div style={{ fontSize: 13, opacity: 0.85, marginRight: 6 }}>
-              {selectedCount} selected
+              {selectedIds.size} selected
             </div>
 
             <button onClick={selectAllLoaded} style={actionBtn("neutral")}>
@@ -952,22 +955,26 @@ export default function ContentApprovalPage() {
             <div style={{ flexGrow: 1 }} />
 
             <button
-              disabled={acting || selectedCount === 0}
+              disabled={acting || selectedIds.size === 0}
               onClick={() => bulkAction("approve")}
               style={actionBtn("approve")}
               title={
-                selectedCount === 0 ? "Select at least one row" : "Approve selected"
+                selectedIds.size === 0
+                  ? "Select at least one row"
+                  : "Approve selected"
               }
             >
               {acting ? "Working…" : "Approve selected"}
             </button>
 
             <button
-              disabled={acting || selectedCount === 0}
+              disabled={acting || selectedIds.size === 0}
               onClick={() => bulkAction("reject")}
               style={actionBtn("reject")}
               title={
-                selectedCount === 0 ? "Select at least one row" : "Reject selected"
+                selectedIds.size === 0
+                  ? "Select at least one row"
+                  : "Reject selected"
               }
             >
               {acting ? "Working…" : "Reject selected"}
@@ -1004,10 +1011,7 @@ export default function ContentApprovalPage() {
                         opacity: 0.7,
                         width: 48,
                       }}
-                    >
-                      {/* checkbox col */}
-                    </th>
-
+                    />
                     {[
                       "BUCKET",
                       "CLIPPER",
@@ -1022,8 +1026,7 @@ export default function ContentApprovalPage() {
                       <th
                         key={h}
                         style={{
-                          textAlign:
-                            h.includes("VIEWS") ? "right" : "left",
+                          textAlign: h.includes("VIEWS") ? "right" : "left",
                           padding: "10px 12px",
                           borderBottom: "1px solid rgba(255,255,255,0.08)",
                           fontWeight: 500,
@@ -1040,10 +1043,7 @@ export default function ContentApprovalPage() {
                 <tbody>
                   {!loading && filteredRows.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={10}
-                        style={{ padding: 14, opacity: 0.8 }}
-                      >
+                      <td colSpan={10} style={{ padding: 14, opacity: 0.8 }}>
                         No rows for this filter.
                       </td>
                     </tr>
@@ -1160,15 +1160,32 @@ export default function ContentApprovalPage() {
 
                           <td style={{ padding: "12px 12px" }}>
                             <span style={bucketPill(bucket)}>{bucket}</span>
-                            <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                opacity: 0.6,
+                                marginTop: 4,
+                              }}
+                            >
                               {r.dueDate ? `Due: ${formatDate(r.dueDate)}` : " "}
                             </div>
                           </td>
 
                           <td style={{ padding: "12px 12px", fontWeight: 600 }}>
                             <div>{r.clipper}</div>
-                            <div style={{ fontSize: 11, opacity: 0.65, marginTop: 2 }}>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                opacity: 0.65,
+                                marginTop: 2,
+                              }}
+                            >
                               {r.account ? r.account : "—"}
+                              {r.accountKey ? (
+                                <span style={{ marginLeft: 8, opacity: 0.6 }}>
+                                  · key: {r.accountKey}
+                                </span>
+                              ) : null}
                             </div>
                           </td>
 
@@ -1180,7 +1197,13 @@ export default function ContentApprovalPage() {
                             <div style={{ fontWeight: 600 }}>
                               {r.title ? r.title : r.videoId}
                             </div>
-                            <div style={{ fontSize: 11, opacity: 0.65, marginTop: 2 }}>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                opacity: 0.65,
+                                marginTop: 2,
+                              }}
+                            >
                               ID: {r.videoId}
                               {r.videoUrl ? (
                                 <>
@@ -1214,11 +1237,15 @@ export default function ContentApprovalPage() {
                             </span>
                           </td>
 
-                          <td style={{ padding: "12px 12px", textAlign: "right" }}>
+                          <td
+                            style={{ padding: "12px 12px", textAlign: "right" }}
+                          >
                             {formatNumber(r.totalViews)}
                           </td>
 
-                          <td style={{ padding: "12px 12px", textAlign: "right" }}>
+                          <td
+                            style={{ padding: "12px 12px", textAlign: "right" }}
+                          >
                             {formatNumber(r.payableViews)}
                           </td>
 
@@ -1231,18 +1258,16 @@ export default function ContentApprovalPage() {
                                 fontSize: 11,
                                 fontWeight: 700,
                                 border: "1px solid rgba(148,163,184,0.4)",
-                                background:
-                                  r.isDone
-                                    ? "rgba(34,197,94,0.10)"
-                                    : r.isRejected
-                                    ? "rgba(248,113,113,0.10)"
-                                    : "rgba(2,6,23,0.35)",
-                                color:
-                                  r.isDone
-                                    ? "#bbf7d0"
-                                    : r.isRejected
-                                    ? "#fecaca"
-                                    : "rgba(255,255,255,0.82)",
+                                background: r.isDone
+                                  ? "rgba(34,197,94,0.10)"
+                                  : r.isRejected
+                                  ? "rgba(248,113,113,0.10)"
+                                  : "rgba(2,6,23,0.35)",
+                                color: r.isDone
+                                  ? "#bbf7d0"
+                                  : r.isRejected
+                                  ? "#fecaca"
+                                  : "rgba(255,255,255,0.82)",
                               }}
                             >
                               {safeStr(r.status).toUpperCase() || "PENDING"}
