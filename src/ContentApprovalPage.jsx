@@ -1,78 +1,119 @@
-// src/ContentApprovalPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
-import { useBranding } from "./branding/BrandingContext";
 
-const API_BASE_URL = "https://clipper-payouts-api-810712855216.us-central1.run.app";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const DEFAULT_CLIENT_ID = "default";
 
-const unwrapValue = (v) => (v && typeof v === "object" && "value" in v ? v.value : v);
-
-const formatNum = (v) => {
-  const n = Number(unwrapValue(v));
-  if (!Number.isFinite(n)) return "—";
-  return n.toLocaleString();
+const fmtInt = (n) => {
+  const x = Number(n || 0);
+  return x.toLocaleString(undefined, { maximumFractionDigits: 0 });
 };
 
-const formatDate = (v) => {
-  const raw = unwrapValue(v);
-  if (!raw) return "—";
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return String(raw);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const fmtDate = (v) => {
+  if (!v) return "—";
+  // BigQuery can come back as { value: "..." } or string
+  const s = typeof v === "object" && v?.value ? v.value : v;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return String(s).slice(0, 10);
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 };
+
+const keyOf = (r) => `${r.client_id}|${r.platform}|${r.account_key}|${r.video_id}`;
 
 export default function ContentApprovalPage() {
-  const navigate = useNavigate();
+  const nav = useNavigate();
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const { headingText, watermarkText, defaults } = useBranding();
-  const brandText = headingText || defaults.headingText;
-  const wmText = watermarkText || defaults.watermarkText;
+  const [clientId, setClientId] = useState(
+    String(localStorage.getItem("clientId") || DEFAULT_CLIENT_ID).trim() || DEFAULT_CLIENT_ID
+  );
+
+  const [headingText, setHeadingText] = useState("");
+  const [watermarkText, setWatermarkText] = useState("");
 
   const [bucket, setBucket] = useState("THIS_WEEK"); // THIS_WEEK | OVERDUE | DONE | ALL
+  const [platform, setPlatform] = useState("all"); // all | instagram | tiktok | youtube
+  const [search, setSearch] = useState("");
+
   const [rows, setRows] = useState([]);
   const [counts, setCounts] = useState({ pending_this_week: 0, pending_overdue: 0, pending_total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-
-  // selection + editing
-  const [selected, setSelected] = useState(() => new Set());
-  const [draftFeedback, setDraftFeedback] = useState({}); // key -> text
+  const [selected, setSelected] = useState(new Set());
+  const [draftFeedback, setDraftFeedback] = useState({});
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState("");
+  const [saveOk, setSaveOk] = useState("");
 
-  const keyOf = (r) => `${r.platform}__${r.account_key}__${r.video_id}`;
+  // --------- session guard ----------
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        nav("/login", { replace: true });
+        return;
+      }
+    })();
+  }, [nav]);
+
+  // --------- load settings (heading/watermark) ----------
+  useEffect(() => {
+    (async () => {
+      try {
+        const cid = String(localStorage.getItem("clientId") || DEFAULT_CLIENT_ID).trim() || DEFAULT_CLIENT_ID;
+        setClientId(cid);
+
+        const resp = await fetch(`${API_BASE_URL}/settings?clientId=${encodeURIComponent(cid)}`);
+        if (resp.ok) {
+          const j = await resp.json().catch(() => null);
+          const ht = (j?.headingText ?? j?.heading_text ?? "").toString();
+          const wt = (j?.watermarkText ?? j?.watermark_text ?? "").toString();
+          setHeadingText(ht);
+          setWatermarkText(wt);
+        } else {
+          setHeadingText("");
+          setWatermarkText("");
+        }
+      } catch {
+        setHeadingText("");
+        setWatermarkText("");
+      }
+    })();
+  }, []);
 
   const fetchQueue = async () => {
     setLoading(true);
-    setErr("");
+    setLoadErr("");
     try {
-      const url = new URL(`${API_BASE_URL}/content-review-queue`);
-      url.searchParams.set("clientId", "default");
-      url.searchParams.set("bucket", bucket);
+      const qs = new URLSearchParams();
+      qs.set("clientId", clientId || DEFAULT_CLIENT_ID);
+      qs.set("bucket", bucket);
+      if (platform && platform !== "all") qs.set("platform", platform);
 
-      const resp = await fetch(url.toString());
-      const json = await resp.json();
-      if (!resp.ok) throw new Error(json?.error || "Failed to load review queue");
+      const resp = await fetch(`${API_BASE_URL}/content-review-queue?${qs.toString()}`);
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        throw new Error(txt || `Failed (${resp.status})`);
+      }
+      const j = await resp.json().catch(() => null);
+      const r = Array.isArray(j?.rows) ? j.rows : [];
+      setRows(r);
+      setCounts(j?.counts || { pending_this_week: 0, pending_overdue: 0, pending_total: 0 });
 
-      setRows(Array.isArray(json.rows) ? json.rows : []);
-      setCounts(json.counts || { pending_this_week: 0, pending_overdue: 0, pending_total: 0 });
-
-      // init feedback drafts for visible rows (don’t overwrite if user already typed)
-      setDraftFeedback((prev) => {
-        const next = { ...prev };
-        for (const r of (json.rows || [])) {
-          const k = keyOf(r);
-          if (next[k] === undefined) next[k] = r.feedback_text || "";
-        }
+      // prune selections that no longer exist
+      setSelected((prev) => {
+        const next = new Set();
+        const keys = new Set(r.map(keyOf));
+        for (const k of prev) if (keys.has(k)) next.add(k);
         return next;
       });
-
-      setSelected(new Set());
     } catch (e) {
-      setErr(e.message || "Failed to load review queue");
+      setLoadErr(e?.message || "Failed to load");
+      setRows([]);
+      setCounts({ pending_this_week: 0, pending_overdue: 0, pending_total: 0 });
     } finally {
       setLoading(false);
     }
@@ -81,43 +122,40 @@ export default function ContentApprovalPage() {
   useEffect(() => {
     fetchQueue();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bucket]);
+  }, [clientId, bucket, platform]);
 
-  // nav
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/login");
-  };
-
-  const goDashV2 = () => navigate("/dashboard-v2");
-  const goPayouts = () => navigate("/payouts");
-  const goClippers = () => navigate("/clippers");
-  const goPerformance = () => navigate("/performance");
-  const goLeaderboards = () => navigate("/leaderboards");
-  const goGallery = () => navigate("/gallery");
-  const goSettings = () => navigate("/settings");
-  const goContentApproval = () => navigate("/content-approval");
-
-  const visibleRows = useMemo(() => rows, [rows]);
-
-  const allSelected = useMemo(() => {
-    if (!visibleRows.length) return false;
-    return visibleRows.every((r) => selected.has(keyOf(r)));
-  }, [visibleRows, selected]);
-
-  const toggleAll = () => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      const shouldSelectAll = !allSelected;
-      next.clear();
-      if (shouldSelectAll) {
-        for (const r of visibleRows) next.add(keyOf(r));
-      }
-      return next;
+  const visibleRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => {
+      const hay = [
+        r.clipper_name,
+        r.platform,
+        r.account,
+        r.account_key,
+        r.video_id,
+        r.title,
+        r.url,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
     });
+  }, [rows, search]);
+
+  const selectedCount = useMemo(() => selected.size, [selected]);
+
+  const selectAllVisible = () => {
+    const next = new Set(selected);
+    visibleRows.forEach((r) => next.add(keyOf(r)));
+    setSelected(next);
   };
 
-  const toggleOne = (k) => {
+  const clearSelection = () => setSelected(new Set());
+
+  const toggleOne = (r) => {
+    const k = keyOf(r);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(k)) next.delete(k);
@@ -126,27 +164,37 @@ export default function ContentApprovalPage() {
     });
   };
 
-  const upsertBulk = async (reviewStatus, onlyOneRow = null) => {
+  const setFeedback = (r, txt) => {
+    const k = keyOf(r);
+    setDraftFeedback((prev) => ({ ...prev, [k]: txt }));
+  };
+
+  const openVideo = (r) => {
+    const url = r.url || r.ai_url || "";
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const saveReviews = async (reviewStatus, onlyOneRow = null) => {
+    if (saving) return;
     setSaving(true);
     setSaveErr("");
+    setSaveOk("");
+
     try {
       const session = (await supabase.auth.getSession())?.data?.session;
       const reviewedBy = session?.user?.email || session?.user?.id || "";
 
-      const targets = onlyOneRow
-        ? [onlyOneRow]
-        : visibleRows.filter((r) => selected.has(keyOf(r)));
-
+      const targets = onlyOneRow ? [onlyOneRow] : visibleRows.filter((r) => selected.has(keyOf(r)));
       if (!targets.length) throw new Error("Select at least one video.");
 
-      // Require feedback on reject (recommended)
       if (reviewStatus === "REJECTED") {
         const missing = targets.find((r) => !(draftFeedback[keyOf(r)] || "").trim());
-        if (missing) throw new Error("Reject requires feedback text (at least for each selected video).");
+        if (missing) throw new Error("Reject requires feedback text for each selected video.");
       }
 
       const items = targets.map((r) => ({
-        clientId: r.client_id || "default",
+        clientId: r.client_id || DEFAULT_CLIENT_ID,
         platform: r.platform,
         accountKey: r.account_key,
         videoId: r.video_id,
@@ -161,26 +209,149 @@ export default function ContentApprovalPage() {
         body: JSON.stringify({ items }),
       });
 
-      const json = await resp.json();
-      if (!resp.ok) throw new Error(json?.error || "Failed to save reviews");
+      const j = await resp.json().catch(() => null);
+      if (!resp.ok) throw new Error(j?.error || "Failed to save reviews");
 
+      setSaveOk(reviewStatus === "APPROVED" ? "Approved." : "Rejected.");
+      setTimeout(() => setSaveOk(""), 1500);
+
+      clearSelection();
       await fetchQueue();
     } catch (e) {
-      setSaveErr(e.message || "Failed to save");
+      setSaveErr(e?.message || "Failed to save");
     } finally {
       setSaving(false);
     }
   };
 
-  const openVideo = (r) => {
-    const url = r.url || "";
-    if (!url) return;
-    window.open(url, "_blank", "noopener,noreferrer");
+  // --------- navigation ----------
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    nav("/login", { replace: true });
+  };
+
+  const go = (path) => nav(path);
+
+  // --------- UI helpers ----------
+  const Pill = ({ active, children, onClick, tint = "rgba(148,163,184,0.12)" }) => (
+    <button
+      onClick={onClick}
+      type="button"
+      style={{
+        borderRadius: 999,
+        padding: "8px 12px",
+        border: active ? "1px solid rgba(251,191,36,0.55)" : "1px solid rgba(148,163,184,0.35)",
+        background: active ? "rgba(251,191,36,0.18)" : tint,
+        color: active ? "rgba(255,255,255,0.95)" : "rgba(229,231,235,0.9)",
+        fontSize: 13,
+        fontWeight: 800,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </button>
+  );
+
+  const NavBtn = ({ label, onClick, active, badge, danger }) => (
+    <button
+      onClick={onClick}
+      type="button"
+      style={{
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: sidebarOpen ? "space-between" : "center",
+        gap: 10,
+        padding: sidebarOpen ? "10px 12px" : "10px 0",
+        borderRadius: 14,
+        border: active ? "1px solid rgba(251,191,36,0.55)" : "1px solid rgba(148,163,184,0.22)",
+        background: active ? "rgba(251,191,36,0.14)" : "rgba(15,23,42,0.30)",
+        color: danger ? "rgba(255,180,180,0.95)" : "rgba(229,231,235,0.92)",
+        cursor: "pointer",
+      }}
+      title={label}
+    >
+      <span style={{ fontWeight: 800, fontSize: 13 }}>{sidebarOpen ? label : label[0]}</span>
+      {sidebarOpen && badge ? (
+        <span
+          style={{
+            background: "rgba(239,68,68,0.20)",
+            border: "1px solid rgba(239,68,68,0.45)",
+            color: "rgba(255,220,220,0.95)",
+            borderRadius: 999,
+            padding: "2px 8px",
+            fontSize: 12,
+            fontWeight: 900,
+          }}
+        >
+          {badge}
+        </span>
+      ) : null}
+    </button>
+  );
+
+  const btn = (variant) => {
+    const base = {
+      borderRadius: 999,
+      padding: "9px 14px",
+      border: "1px solid rgba(148,163,184,0.45)",
+      background: "rgba(15,23,42,0.65)",
+      color: "rgba(229,231,235,0.95)",
+      cursor: "pointer",
+      fontSize: 13,
+      fontWeight: 800,
+      whiteSpace: "nowrap",
+      opacity: saving ? 0.6 : 1,
+      pointerEvents: saving ? "none" : "auto",
+    };
+
+    if (variant === "primary") {
+      return {
+        ...base,
+        border: "1px solid rgba(34,197,94,0.55)",
+        background: "rgba(34,197,94,0.16)",
+        color: "rgba(220,255,236,0.98)",
+      };
+    }
+
+    if (variant === "danger") {
+      return {
+        ...base,
+        border: "1px solid rgba(239,68,68,0.55)",
+        background: "rgba(239,68,68,0.14)",
+        color: "rgba(255,230,230,0.98)",
+      };
+    }
+
+    if (variant === "ghost") {
+      return {
+        ...base,
+        background: "rgba(255,255,255,0.04)",
+      };
+    }
+
+    return base;
   };
 
   return (
-    <div style={{ minHeight: "100dvh", background: "var(--bg0)", color: "var(--text)" }}>
-      {/* Watermark */}
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "radial-gradient(circle at top, #141414 0, #020202 55%)",
+        display: "flex",
+        overflowX: "hidden",
+        overflowY: "auto",
+        color: "#fff",
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        padding: "32px",
+        paddingTop: "40px",
+        paddingBottom: "40px",
+        boxSizing: "border-box",
+      }}
+    >
+      {/* WATERMARK */}
       <div
         style={{
           position: "fixed",
@@ -190,180 +361,364 @@ export default function ContentApprovalPage() {
           alignItems: "center",
           justifyContent: "center",
           opacity: 0.06,
-          fontSize: 72,
-          fontWeight: 800,
+          fontSize: 82,
+          fontWeight: 900,
           letterSpacing: 2,
           transform: "rotate(-16deg)",
           zIndex: 0,
+          color: "rgba(255,255,255,0.9)",
+          textTransform: "uppercase",
         }}
       >
-        {wmText}
+        {String(watermarkText || headingText || "CONTENT").slice(0, 28)}
       </div>
 
-      <div style={{ display: "flex", position: "relative", zIndex: 1 }}>
+      {/* Shell */}
+      <div style={{ position: "relative", zIndex: 1, width: "100%", display: "flex", gap: 18 }}>
         {/* Sidebar */}
         <div
           style={{
-            width: sidebarOpen ? 250 : 72,
+            width: sidebarOpen ? 250 : 74,
             transition: "width .2s ease",
-            background: "var(--panel2)",
-            borderRight: "1px solid var(--line)",
-            minHeight: "100dvh",
+            borderRadius: 18,
+            border: "1px solid rgba(148,163,184,0.20)",
+            background: "rgba(2,6,23,0.50)",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
             padding: 14,
+            height: "fit-content",
+            position: "sticky",
+            top: 28,
+            alignSelf: "flex-start",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <button
               onClick={() => setSidebarOpen((s) => !s)}
               style={{
-                background: "transparent",
-                border: "1px solid var(--line)",
-                color: "var(--text)",
-                borderRadius: 12,
-                width: 40,
-                height: 40,
+                width: 42,
+                height: 42,
+                borderRadius: 14,
+                border: "1px solid rgba(148,163,184,0.25)",
+                background: "rgba(255,255,255,0.04)",
+                color: "rgba(229,231,235,0.95)",
                 cursor: "pointer",
+                fontWeight: 900,
               }}
               title="Toggle"
             >
-              ☰
+              {sidebarOpen ? "◀" : "▶"}
             </button>
+
             {sidebarOpen && (
-              <div style={{ fontWeight: 800, letterSpacing: 0.4, lineHeight: 1.1 }}>
-                {brandText}
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>Manager</div>
+              <div style={{ lineHeight: 1.1 }}>
+                <div style={{ fontWeight: 900, letterSpacing: 0.6, fontSize: 14 }}>
+                  {(headingText || "HEADING TEXT FROM SETTINGS").toUpperCase()}
+                </div>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>Manager</div>
               </div>
             )}
           </div>
 
           <div style={{ display: "grid", gap: 10 }}>
-            <NavBtn label="Dashboard" open={sidebarOpen} onClick={goDashV2} />
-            <NavBtn label="Payouts" open={sidebarOpen} onClick={goPayouts} />
-            <NavBtn label="Content Approval" open={sidebarOpen} onClick={goContentApproval} badge={counts.pending_overdue > 0 ? "!" : ""} />
-            <NavBtn label="Clippers" open={sidebarOpen} onClick={goClippers} />
-            <NavBtn label="AI Performance" open={sidebarOpen} onClick={goPerformance} />
-            <NavBtn label="Leaderboards" open={sidebarOpen} onClick={goLeaderboards} />
-            <NavBtn label="Gallery" open={sidebarOpen} onClick={goGallery} />
-            <NavBtn label="Settings" open={sidebarOpen} onClick={goSettings} />
+            <NavBtn label="Dashboards" active={false} onClick={() => go("/dashboard-v2")} />
+            <NavBtn label="Payouts" active={false} onClick={() => go("/payouts")} />
+            <NavBtn
+              label="Content Approval"
+              active={true}
+              onClick={() => go("/content-approval")}
+              badge={counts?.pending_overdue > 0 ? "!" : ""}
+            />
+            <NavBtn label="Clippers" active={false} onClick={() => go("/clippers")} />
+            <NavBtn label="Performance" active={false} onClick={() => go("/performance")} />
+            <NavBtn label="Leaderboards" active={false} onClick={() => go("/leaderboards")} />
+            <NavBtn label="Gallery" active={false} onClick={() => go("/gallery")} />
+            <NavBtn label="Settings" active={false} onClick={() => go("/settings")} />
             <div style={{ height: 8 }} />
-            <NavBtn label="Logout" open={sidebarOpen} onClick={handleLogout} danger />
+            <NavBtn label="Logout" danger onClick={handleLogout} />
           </div>
         </div>
 
         {/* Main */}
-        <div style={{ flex: 1, padding: 22 }}>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Header row */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 14, marginBottom: 18 }}>
             <div>
-              <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 0.2 }}>Content Approval</div>
-              <div style={{ color: "var(--muted)", marginTop: 4 }}>
-                Pending this week: <b>{counts.pending_this_week || 0}</b> • Overdue:{" "}
-                <b style={{ color: counts.pending_overdue > 0 ? "var(--text)" : "var(--muted)" }}>{counts.pending_overdue || 0}</b>
+              <div style={{ fontSize: 44, fontWeight: 950, letterSpacing: 0.6, lineHeight: 0.95 }}>
+                Content Approval
+              </div>
+              <div style={{ marginTop: 8, fontSize: 14, opacity: 0.78 }}>
+                Pending this week: <strong>{counts?.pending_this_week || 0}</strong> · Overdue:{" "}
+                <strong style={{ color: counts?.pending_overdue > 0 ? "rgb(251,113,133)" : "rgba(229,231,235,0.95)" }}>
+                  {counts?.pending_overdue || 0}
+                </strong>
               </div>
             </div>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <Segment value={bucket} onChange={setBucket} counts={counts} />
-              <button
-                onClick={fetchQueue}
-                disabled={loading}
-                style={btn()}
-              >
-                {loading ? "Refreshing…" : "Refresh"}
+              <Pill active={bucket === "THIS_WEEK"} onClick={() => setBucket("THIS_WEEK")}>
+                This week ({counts?.pending_this_week || 0})
+              </Pill>
+              <Pill active={bucket === "OVERDUE"} onClick={() => setBucket("OVERDUE")} tint="rgba(239,68,68,0.10)">
+                Past due ({counts?.pending_overdue || 0})
+              </Pill>
+              <Pill active={bucket === "DONE"} onClick={() => setBucket("DONE")}>
+                Done
+              </Pill>
+              <Pill active={bucket === "ALL"} onClick={() => setBucket("ALL")}>
+                All
+              </Pill>
+
+              <button onClick={fetchQueue} style={btn("ghost")}>
+                Refresh
               </button>
             </div>
           </div>
 
-          {err && <div style={alertBox()}>{err}</div>}
-          {saveErr && <div style={alertBox()}>{saveErr}</div>}
+          {/* Controls */}
+          <div
+            style={{
+              borderRadius: 18,
+              border: "1px solid rgba(148,163,184,0.22)",
+              background: "rgba(2,6,23,0.45)",
+              boxShadow: "0 12px 40px rgba(0,0,0,0.28)",
+              padding: 14,
+              marginBottom: 14,
+            }}
+          >
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                <select
+                  value={platform}
+                  onChange={(e) => setPlatform(e.target.value)}
+                  style={{
+                    padding: "9px 10px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148,163,184,0.35)",
+                    background: "rgba(15,23,42,0.75)",
+                    color: "rgba(229,231,235,0.95)",
+                    fontSize: 13,
+                    fontWeight: 800,
+                    outline: "none",
+                  }}
+                >
+                  <option value="all">All platforms</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="tiktok">TikTok</option>
+                  <option value="youtube">YouTube</option>
+                </select>
 
-          <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 18, overflow: "hidden" }}>
-            <div style={{ padding: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, borderBottom: "1px solid var(--line)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <input type="checkbox" checked={allSelected} onChange={toggleAll} />
-                <div style={{ color: "var(--muted)" }}>
-                  {selected.size} selected
-                </div>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search clipper / account / title / video id…"
+                  style={{
+                    minWidth: 320,
+                    flex: "1 1 320px",
+                    padding: "9px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148,163,184,0.35)",
+                    background: "rgba(15,23,42,0.65)",
+                    color: "rgba(229,231,235,0.95)",
+                    fontSize: 13,
+                    outline: "none",
+                  }}
+                />
               </div>
 
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                <button disabled={saving} onClick={() => upsertBulk("APPROVED")} style={btnPrimary()}>
-                  {saving ? "Saving…" : "Approve Selected"}
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
+                <div style={{ fontSize: 13, opacity: 0.8 }}>
+                  <strong>{selectedCount}</strong> selected
+                </div>
+                <button onClick={selectAllVisible} style={btn("ghost")}>
+                  Select all loaded
                 </button>
-                <button disabled={saving} onClick={() => upsertBulk("REJECTED")} style={btnDanger()}>
-                  Reject Selected
+                <button onClick={clearSelection} style={btn("ghost")}>
+                  Clear
+                </button>
+                <button onClick={() => saveReviews("APPROVED")} style={btn("primary")}>
+                  Approve selected
+                </button>
+                <button onClick={() => saveReviews("REJECTED")} style={btn("danger")}>
+                  Reject selected
                 </button>
               </div>
             </div>
 
+            {(loadErr || saveErr || saveOk) && (
+              <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {loadErr && (
+                  <div style={{ padding: "8px 10px", borderRadius: 12, border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.12)" }}>
+                    {loadErr}
+                  </div>
+                )}
+                {saveErr && (
+                  <div style={{ padding: "8px 10px", borderRadius: 12, border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.12)" }}>
+                    {saveErr}
+                  </div>
+                )}
+                {saveOk && (
+                  <div style={{ padding: "8px 10px", borderRadius: 12, border: "1px solid rgba(34,197,94,0.35)", background: "rgba(34,197,94,0.12)" }}>
+                    {saveOk}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Table */}
+          <div
+            style={{
+              borderRadius: 18,
+              border: "1px solid rgba(148,163,184,0.22)",
+              background: "rgba(2,6,23,0.45)",
+              boxShadow: "0 12px 40px rgba(0,0,0,0.28)",
+              overflow: "hidden",
+            }}
+          >
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
                 <thead>
-                  <tr style={{ textAlign: "left", color: "var(--muted)", fontSize: 12 }}>
-                    <th style={th()}></th>
+                  <tr style={{ background: "rgba(15,23,42,0.55)" }}>
+                    <th style={th()}> </th>
                     <th style={th()}>Bucket</th>
                     <th style={th()}>Clipper</th>
                     <th style={th()}>Platform</th>
                     <th style={th()}>Video</th>
+                    <th style={th()}>Eligible</th>
                     <th style={th()}>Published</th>
-                    <th style={th()}>Total Views</th>
-                    <th style={th()}>Payable Δ</th>
+                    <th style={th()}>Total views</th>
                     <th style={th()}>Status</th>
                     <th style={th()}>Actions</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {visibleRows.map((r) => {
                     const k = keyOf(r);
                     const isChecked = selected.has(k);
-                    const status = r.review_status || "PENDING";
+
+                    const bucketLabel =
+                      r.queue_bucket === "THIS_WEEK" ? "THIS WEEK" : r.queue_bucket === "OVERDUE" ? "OVERDUE" : "DONE";
+
+                    const overdue = !!r.is_overdue;
+
+                    const status = String(r.review_status || "").toUpperCase();
 
                     return (
-                      <tr key={k} style={{ borderTop: "1px solid var(--line)" }}>
+                      <tr key={k} style={{ borderTop: "1px solid rgba(148,163,184,0.12)" }}>
                         <td style={td()}>
-                          <input type="checkbox" checked={isChecked} onChange={() => toggleOne(k)} />
+                          <input type="checkbox" checked={isChecked} onChange={() => toggleOne(r)} />
                         </td>
+
                         <td style={td()}>
-                          <span style={pill(r.queue_bucket, r.is_overdue)}>{r.queue_bucket}</span>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 8,
+                              padding: "6px 10px",
+                              borderRadius: 999,
+                              fontSize: 12,
+                              fontWeight: 900,
+                              letterSpacing: 0.6,
+                              border: overdue ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(148,163,184,0.28)",
+                              background: overdue ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.04)",
+                              color: overdue ? "rgba(255,220,220,0.95)" : "rgba(229,231,235,0.92)",
+                            }}
+                          >
+                            {bucketLabel}
+                          </span>
                         </td>
-                        <td style={td()}>{r.clipper_name}</td>
-                        <td style={td()}>{r.platform}</td>
+
                         <td style={td()}>
-                          <div style={{ fontWeight: 700 }}>{r.title || r.video_id}</div>
-                          <div style={{ color: "var(--muted)", fontSize: 12 }}>{r.account || r.account_key}</div>
+                          <div style={{ fontWeight: 900, marginBottom: 4 }}>{r.clipper_name || "—"}</div>
+                          <div style={{ fontSize: 12, opacity: 0.7 }}>{r.account || r.account_key || "—"}</div>
+                        </td>
+
+                        <td style={td()}>
+                          <div style={{ fontWeight: 900, textTransform: "capitalize" }}>{r.platform || "—"}</div>
+                        </td>
+
+                        <td style={td()}>
+                          <div style={{ fontWeight: 800, lineHeight: 1.25, maxWidth: 520 }}>
+                            {r.title ? String(r.title).slice(0, 140) : r.video_id || "—"}
+                          </div>
+                          <div style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}>{r.video_id}</div>
+                        </td>
+
+                        <td style={td()}>
+                          <div style={{ fontWeight: 900 }}>{fmtDate(r.snapshot_date)}</div>
+                          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
+                            {r.became_eligible_this_snapshot ? (
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  padding: "3px 8px",
+                                  borderRadius: 999,
+                                  border: "1px solid rgba(34,197,94,0.55)",
+                                  background: "rgba(34,197,94,0.14)",
+                                  color: "rgba(220,255,236,0.98)",
+                                  fontWeight: 900,
+                                }}
+                              >
+                                NEW
+                              </span>
+                            ) : (
+                              <span style={{ opacity: 0.65 }}>eligible</span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td style={td()}>{fmtDate(r.published_at)}</td>
+
+                        <td style={td()}>
+                          <div style={{ fontWeight: 950, fontSize: 16 }}>{fmtInt(r.total_views_video ?? r.latest_view_count ?? 0)}</div>
+                          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
+                            min: {fmtInt(r.min_view_count_eligibility ?? 0)}
+                          </div>
+                        </td>
+
+                        <td style={td()}>
+                          <div style={{ fontWeight: 950 }}>
+                            {status === "PENDING" ? (
+                              <span style={{ color: "rgba(251,191,36,0.95)" }}>PENDING</span>
+                            ) : status === "APPROVED" ? (
+                              <span style={{ color: "rgb(74,222,128)" }}>APPROVED</span>
+                            ) : (
+                              <span style={{ color: "rgb(251,113,133)" }}>REJECTED</span>
+                            )}
+                          </div>
+
                           <div style={{ marginTop: 8 }}>
                             <textarea
-                              value={draftFeedback[k] ?? ""}
-                              onChange={(e) => setDraftFeedback((p) => ({ ...p, [k]: e.target.value }))}
+                              value={draftFeedback[k] ?? r.feedback_text ?? ""}
+                              onChange={(e) => setFeedback(r, e.target.value)}
                               placeholder="Feedback (required for reject)"
-                              rows={2}
                               style={{
-                                width: "100%",
+                                width: 260,
+                                minHeight: 44,
                                 resize: "vertical",
-                                background: "var(--bg1)",
-                                border: "1px solid var(--line)",
+                                padding: "8px 10px",
                                 borderRadius: 12,
-                                color: "var(--text)",
-                                padding: 10,
+                                border: "1px solid rgba(148,163,184,0.28)",
+                                background: "rgba(15,23,42,0.55)",
+                                color: "rgba(229,231,235,0.95)",
                                 outline: "none",
+                                fontSize: 12,
                               }}
                             />
                           </div>
                         </td>
-                        <td style={td()}>{formatDate(r.published_at)}</td>
-                        <td style={td()}>{formatNum(r.total_views_video)}</td>
-                        <td style={td()}>{formatNum(r.payable_delta_views)}</td>
+
                         <td style={td()}>
-                          <span style={statusPill(status)}>{status}</span>
-                        </td>
-                        <td style={td()}>
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            <button onClick={() => openVideo(r)} disabled={!r.url} style={btn()}>
+                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                            <button onClick={() => openVideo(r)} style={btn("ghost")}>
                               View
                             </button>
-                            <button disabled={saving} onClick={() => upsertBulk("APPROVED", r)} style={btnPrimary()}>
+                            <button onClick={() => saveReviews("APPROVED", r)} style={btn("primary")}>
                               Approve
                             </button>
-                            <button disabled={saving} onClick={() => upsertBulk("REJECTED", r)} style={btnDanger()}>
+                            <button onClick={() => saveReviews("REJECTED", r)} style={btn("danger")}>
                               Reject
                             </button>
                           </div>
@@ -374,7 +729,7 @@ export default function ContentApprovalPage() {
 
                   {!loading && !visibleRows.length && (
                     <tr>
-                      <td colSpan={10} style={{ padding: 18, color: "var(--muted)" }}>
+                      <td colSpan={10} style={{ padding: 18, opacity: 0.7 }}>
                         No rows for this filter.
                       </td>
                     </tr>
@@ -383,11 +738,7 @@ export default function ContentApprovalPage() {
               </table>
             </div>
 
-            {loading && (
-              <div style={{ padding: 18, color: "var(--muted)" }}>
-                Loading…
-              </div>
-            )}
+            {loading && <div style={{ padding: 18, opacity: 0.7 }}>Loading…</div>}
           </div>
         </div>
       </div>
@@ -395,141 +746,17 @@ export default function ContentApprovalPage() {
   );
 }
 
-function NavBtn({ label, onClick, open, danger, badge }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: open ? "space-between" : "center",
-        gap: 10,
-        padding: open ? "10px 12px" : "10px 0",
-        background: danger ? "transparent" : "var(--btnDark)",
-        border: "1px solid var(--line)",
-        color: danger ? "#ffb4b4" : "var(--text)",
-        borderRadius: 14,
-        cursor: "pointer",
-      }}
-      title={label}
-    >
-      <span style={{ fontWeight: 700, fontSize: 14 }}>{open ? label : label[0]}</span>
-      {open && badge && (
-        <span style={{ background: "#b33", color: "white", borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-          {badge}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function Segment({ value, onChange, counts }) {
-  const items = [
-    { v: "THIS_WEEK", label: `This Week (${counts.pending_this_week || 0})` },
-    { v: "OVERDUE", label: `Overdue (${counts.pending_overdue || 0})` },
-    { v: "DONE", label: "Done" },
-    { v: "ALL", label: "All" },
-  ];
-
-  return (
-    <div style={{ display: "flex", gap: 8, background: "var(--panel2)", border: "1px solid var(--line)", borderRadius: 14, padding: 6 }}>
-      {items.map((it) => {
-        const active = value === it.v;
-        return (
-          <button
-            key={it.v}
-            onClick={() => onChange(it.v)}
-            style={{
-              border: "1px solid var(--line)",
-              borderRadius: 12,
-              padding: "8px 10px",
-              cursor: "pointer",
-              background: active ? "var(--blue1)" : "transparent",
-              color: active ? "white" : "var(--text)",
-              fontWeight: 800,
-              fontSize: 13,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {it.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// styles
-const th = () => ({ padding: "10px 12px" });
-const td = () => ({ padding: "12px 12px", verticalAlign: "top" });
-
-const btn = () => ({
-  background: "transparent",
-  border: "1px solid var(--line)",
-  color: "var(--text)",
-  borderRadius: 12,
-  padding: "8px 10px",
-  cursor: "pointer",
-  fontWeight: 800,
+const th = () => ({
+  padding: "12px 12px",
+  textAlign: "left",
+  fontSize: 12,
+  letterSpacing: 0.08,
+  textTransform: "uppercase",
+  opacity: 0.75,
 });
 
-const btnPrimary = () => ({
-  background: "var(--blue1)",
-  border: "1px solid var(--blue2)",
-  color: "white",
-  borderRadius: 12,
-  padding: "8px 10px",
-  cursor: "pointer",
-  fontWeight: 900,
+const td = () => ({
+  padding: "14px 12px",
+  verticalAlign: "top",
+  fontSize: 13,
 });
-
-const btnDanger = () => ({
-  background: "transparent",
-  border: "1px solid #7a2c2c",
-  color: "#ffb4b4",
-  borderRadius: 12,
-  padding: "8px 10px",
-  cursor: "pointer",
-  fontWeight: 900,
-});
-
-const alertBox = () => ({
-  marginBottom: 12,
-  background: "rgba(255,255,255,0.06)",
-  border: "1px solid var(--line)",
-  borderRadius: 14,
-  padding: 12,
-  color: "var(--text)",
-});
-
-function pill(bucket, overdue) {
-  const base = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    border: "1px solid var(--line)",
-    borderRadius: 999,
-    padding: "4px 10px",
-    fontSize: 12,
-    fontWeight: 900,
-  };
-  if (bucket === "OVERDUE" || overdue) return { ...base, color: "#ffb4b4", borderColor: "#7a2c2c" };
-  if (bucket === "THIS_WEEK") return { ...base, color: "white" };
-  return { ...base, color: "var(--muted)" };
-}
-
-function statusPill(status) {
-  const base = {
-    display: "inline-flex",
-    alignItems: "center",
-    border: "1px solid var(--line)",
-    borderRadius: 999,
-    padding: "4px 10px",
-    fontSize: 12,
-    fontWeight: 900,
-  };
-  if (status === "APPROVED") return { ...base, borderColor: "rgba(45,183,168,.5)", color: "rgba(175,255,245,.95)" };
-  if (status === "REJECTED") return { ...base, borderColor: "rgba(179,51,51,.6)", color: "#ffb4b4" };
-  return { ...base, color: "white" };
-}
