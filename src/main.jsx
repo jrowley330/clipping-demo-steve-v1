@@ -32,14 +32,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* set password for new user invite flow (protected) */}
-        <Route
-          path="/set-password"
-          element={
-            <App>
-              <SetPasswordPage />
-            </App>
-          }
-        />
+        <Route path="/set-password" element={<SetPasswordPage />} />
+
 
         {/* Dashboards V2 – NEW (BigQuery-powered) */}
         <Route
