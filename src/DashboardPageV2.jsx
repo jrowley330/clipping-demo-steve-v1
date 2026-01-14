@@ -113,6 +113,10 @@ export default function DashboardsPageV2() {
     navigate('/payouts');
   };
 
+  const goContentApproval = () => {
+    navigate('/content-approval');
+  };
+
   const goClippers = () => {
     navigate('/clippers');
   };
@@ -548,6 +552,24 @@ export default function DashboardsPageV2() {
                 }}
               >
                 Dashboards
+              </button>
+
+              {/* Content Approval */}
+              <button
+                onClick={goContentApproval}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                Content Approval
               </button>
 
               {/* Payouts */}
