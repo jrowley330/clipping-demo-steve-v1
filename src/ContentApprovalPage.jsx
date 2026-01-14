@@ -1,578 +1,547 @@
+// ContentApprovalPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
+import { useBranding } from "./branding/BrandingContext";
 
-import { useBranding } from './branding/BrandingContext';
+const API_BASE_URL =
+  "https://clipper-payouts-api-810712855216.us-central1.run.app";
 
-const API_BASE =
-  (import.meta?.env?.VITE_API_BASE_URL || "").replace(/\/+$/, "") || "";
+// ---------- helpers ----------
+const unwrapValue = (v) => {
+  if (v && typeof v === "object" && "value" in v) return v.value;
+  return v;
+};
 
-function fmtDate(d) {
-  if (!d) return "—";
-  try {
-    const dt = new Date(d);
-    if (Number.isNaN(dt.getTime())) return String(d);
-    return dt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-  } catch {
-    return String(d);
-  }
-}
+const formatNumber = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "—";
+  return num.toLocaleString();
+};
 
-function fmtNum(n) {
-  const x = Number(n);
-  if (!Number.isFinite(x)) return "—";
-  return x.toLocaleString();
-}
+const formatDate = (value) => {
+  const raw = unwrapValue(value);
+  if (!raw) return "—";
 
-function pillStyle(kind) {
-  // reuse the "soft pill" vibe used across the app
-  const base = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    padding: "6px 10px",
-    borderRadius: 999,
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: 0.2,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.06)",
-    color: "rgba(255,255,255,0.85)",
-    textTransform: "uppercase",
-    whiteSpace: "nowrap",
-  };
-
-  if (kind === "APPROVED")
-    return {
-      ...base,
-      border: "1px solid rgba(34,197,94,0.35)",
-      background: "rgba(34,197,94,0.10)",
-      color: "rgba(255,255,255,0.92)",
-    };
-
-  if (kind === "REJECTED")
-    return {
-      ...base,
-      border: "1px solid rgba(239,68,68,0.35)",
-      background: "rgba(239,68,68,0.10)",
-      color: "rgba(255,255,255,0.92)",
-    };
-
-  if (kind === "PENDING")
-    return {
-      ...base,
-      border: "1px solid rgba(250,204,21,0.30)",
-      background: "rgba(250,204,21,0.10)",
-      color: "rgba(255,255,255,0.92)",
-    };
-
-  if (kind === "OVERDUE")
-    return {
-      ...base,
-      border: "1px solid rgba(251,113,133,0.35)",
-      background: "rgba(251,113,133,0.10)",
-      color: "rgba(255,255,255,0.92)",
-    };
-
-  return base;
-}
-
-export default function ContentApprovalPage() {
-  const navigate = useNavigate();
-  const { headingText, watermarkText, clientId } = useBranding();
-
-  const [authed, setAuthed] = useState(false);
-
-  // UI state
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [tab, setTab] = useState("THIS_WEEK"); // THIS_WEEK | OVERDUE | DONE | ALL
-  const [platformFilter, setPlatformFilter] = useState("all");
-  const [search, setSearch] = useState("");
-
-  // data state
-  const [rows, setRows] = useState([]);
-  const [counts, setCounts] = useState({ this_week: 0, overdue: 0, done: 0, all: 0 });
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  // selection + feedback drafts (for rejections)
-  const [selected, setSelected] = useState(() => new Set());
-  const [feedbackDraft, setFeedbackDraft] = useState({}); // key -> text
-
-  // ---- auth gate (same pattern you use everywhere) ----
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data?.session) {
-        navigate("/login", { replace: true });
-        return;
-      }
-      setAuthed(true);
-    })();
-  }, [navigate]);
-
-  const effectiveClientId = (clientId || "default").trim() || "default";
-
-  async function fetchQueue() {
-    if (!API_BASE) {
-      setError("Missing VITE_API_BASE_URL");
-      return;
-    }
-    setError("");
-    setLoading(true);
-    try {
-      const url = new URL(`${API_BASE}/content-review-queue`);
-      url.searchParams.set("client_id", effectiveClientId);
-
-      const res = await fetch(url.toString(), { method: "GET" });
-      if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
-      const json = await res.json();
-
-      setRows(Array.isArray(json?.rows) ? json.rows : []);
-      setCounts(
-        json?.counts || { this_week: 0, overdue: 0, done: 0, all: 0 }
-      );
-
-      // Keep selections only if they still exist
-      setSelected((prev) => {
-        const next = new Set();
-        const rowKeys = new Set((json?.rows || []).map((r) => rowKey(r)));
-        for (const k of prev) if (rowKeys.has(k)) next.add(k);
-        return next;
-      });
-    } catch (e) {
-      setError(e?.message || "Failed to load queue");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!authed) return;
-    fetchQueue();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authed, effectiveClientId]);
-
-  function rowKey(r) {
-    return [
-      r?.client_id || "default",
-      r?.platform || "",
-      r?.account_key || "",
-      r?.video_id || "",
-    ].join("|");
-  }
-
-  const filteredRows = useMemo(() => {
-    const q = (search || "").trim().toLowerCase();
-    return (rows || [])
-      .filter((r) => {
-        if (tab === "THIS_WEEK") return r.queue_bucket === "THIS_WEEK";
-        if (tab === "OVERDUE") return r.queue_bucket === "OVERDUE";
-        if (tab === "DONE") return r.queue_bucket === "DONE";
-        return true; // ALL
-      })
-      .filter((r) => {
-        if (platformFilter === "all") return true;
-        return (r.platform || "").toLowerCase() === platformFilter;
-      })
-      .filter((r) => {
-        if (!q) return true;
-        const blob = [
-          r.clipper_name,
-          r.platform,
-          r.account,
-          r.account_key,
-          r.video_id,
-          r.title,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return blob.includes(q);
-      });
-  }, [rows, tab, platformFilter, search]);
-
-  const selectedCount = selected.size;
-
-  function toggleSelected(key) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
+  // 'YYYY-MM-DD'
+  if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [y, m, d] = raw.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    if (Number.isNaN(dt.getTime())) return raw;
+    return dt.toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
     });
   }
 
-  function selectAllLoaded() {
-    setSelected(new Set(filteredRows.map((r) => rowKey(r))));
+  const dt = new Date(raw);
+  if (Number.isNaN(dt.getTime())) return String(raw);
+  return dt.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+};
+
+const toBool = (v) => {
+  const raw = unwrapValue(v);
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "number") return raw !== 0;
+  if (typeof raw === "string") {
+    const s = raw.trim().toLowerCase();
+    if (["true", "t", "yes", "y", "1"].includes(s)) return true;
+    if (["false", "f", "no", "n", "0"].includes(s)) return false;
   }
+  return false;
+};
 
-  function clearSelection() {
-    setSelected(new Set());
-  }
+const safeStr = (v) => String(unwrapValue(v) ?? "").trim();
 
-  function openVideo(r) {
-    const url = r?.url || r?.ai_url;
-    if (!url) return;
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
+// ---------- component ----------
+export default function ContentApprovalPage() {
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  async function bulkUpdate(status) {
-    setError("");
-    if (!API_BASE) return setError("Missing VITE_API_BASE_URL");
-    if (!selectedCount) return;
+  // BRANDING
+  const { headingText, watermarkText, defaults } = useBranding();
+  const brandText = headingText || defaults.headingText;
+  const wmText = watermarkText || defaults.watermarkText;
 
-    // if rejecting, feedback is required for each selected row
-    if (status === "REJECTED") {
-      for (const k of selected) {
-        const t = (feedbackDraft[k] || "").trim();
-        if (!t) {
-          setError("Feedback is required for every rejected video (selected).");
-          return;
-        }
-      }
-    }
+  // DATA
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
 
-    // build items from selected keys
-    const keyToRow = new Map(filteredRows.map((r) => [rowKey(r), r]));
-    const items = [];
-    for (const k of selected) {
-      const r = keyToRow.get(k) || rows.find((x) => rowKey(x) === k);
-      if (!r) continue;
+  // UI STATE
+  const [activeTab, setActiveTab] = useState("this_week"); // this_week | past_due | done | all
+  const [platformFilter, setPlatformFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [acting, setActing] = useState(false);
+  const [actionMsg, setActionMsg] = useState("");
 
-      items.push({
-        client_id: r.client_id || effectiveClientId,
-        platform: r.platform,
-        account_key: r.account_key,
-        video_id: r.video_id,
-        review_status: status,
-        feedback_text: status === "REJECTED" ? (feedbackDraft[k] || "").trim() : "",
-        reviewed_by: "manager", // you can wire this later to real user/email
-      });
-    }
+  // Optional: if you’re already storing client_id somewhere, keep using that
+  // (this won’t break anything if you don’t).
+  const clientId =
+    safeStr(localStorage.getItem("client_id")) ||
+    safeStr(sessionStorage.getItem("client_id")) ||
+    "default";
 
-    if (!items.length) return;
+  // ---------- navigation handlers ----------
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
 
-    setSaving(true);
-    try {
-      const res = await fetch(`${API_BASE}/content-reviews/bulk`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
-      });
-      if (!res.ok) {
-        const msg = await res.text().catch(() => "");
-        throw new Error(`Save failed (${res.status}) ${msg}`.trim());
-      }
-
-      // refresh
-      await fetchQueue();
-      setSelected(new Set());
-    } catch (e) {
-      setError(e?.message || "Failed to save review status");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function updateSingle(r, status) {
-    const k = rowKey(r);
-    if (status === "REJECTED") {
-      const t = (feedbackDraft[k] || "").trim();
-      if (!t) {
-        setError("Feedback is required to reject a video.");
-        return;
-      }
-    }
-
-    setSaving(true);
-    setError("");
-    try {
-      const payload = {
-        items: [
-          {
-            client_id: r.client_id || effectiveClientId,
-            platform: r.platform,
-            account_key: r.account_key,
-            video_id: r.video_id,
-            review_status: status,
-            feedback_text: status === "REJECTED" ? (feedbackDraft[k] || "").trim() : "",
-            reviewed_by: "manager",
-          },
-        ],
-      };
-
-      const res = await fetch(`${API_BASE}/content-reviews/bulk`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const msg = await res.text().catch(() => "");
-        throw new Error(`Save failed (${res.status}) ${msg}`.trim());
-      }
-
-      await fetchQueue();
-      setSelected((prev) => {
-        const next = new Set(prev);
-        next.delete(k);
-        return next;
-      });
-    } catch (e) {
-      setError(e?.message || "Failed to save review status");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  // ---- nav handlers (match other pages) ----
-  const goDash = () => navigate("/dashboard-v2");
+  const goDashV2 = () => navigate("/dashboard-v2");
+  const goContentApproval = () => navigate("/content-approval");
   const goPayouts = () => navigate("/payouts");
   const goClippers = () => navigate("/clippers");
   const goPerformance = () => navigate("/performance");
   const goLeaderboards = () => navigate("/leaderboards");
   const goGallery = () => navigate("/gallery");
   const goSettings = () => navigate("/settings");
-  const goContentApproval = () => navigate("/content-approval");
 
-  const onLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/login", { replace: true });
+  // ---------- fetch ----------
+  const fetchRows = async () => {
+    try {
+      setLoading(true);
+      setErr("");
+      setActionMsg("");
+
+      // EXPECTED API (adjust if your backend uses different route):
+      // GET  /content-approval?clientId=default
+      const res = await fetch(
+        `${API_BASE_URL}/content-approval?clientId=${encodeURIComponent(
+          clientId
+        )}`
+      );
+
+      if (!res.ok) {
+        // Make it obvious why it fails (instead of “Missing VITE…” etc.)
+        const txt = await res.text().catch(() => "");
+        throw new Error(
+          `Content Approval API ${res.status}${
+            txt ? ` — ${txt.slice(0, 140)}` : ""
+          }`
+        );
+      }
+
+      const data = await res.json();
+      const normalized = (Array.isArray(data) ? data : []).map((r, i) => {
+        // Be flexible on column names (BigQuery / API variants)
+        const id =
+          safeStr(r.id) ||
+          safeStr(r.video_id) ||
+          safeStr(r.VIDEO_ID) ||
+          `${i}`;
+
+        const clipper =
+          safeStr(r.clipper_name) ||
+          safeStr(r.CLIPPER_NAME) ||
+          safeStr(r.clipper) ||
+          safeStr(r.CLIPPER) ||
+          "—";
+
+        const account =
+          safeStr(r.account) ||
+          safeStr(r.ACCOUNT) ||
+          safeStr(r.creator) ||
+          safeStr(r.CREATOR) ||
+          "";
+
+        const platform =
+          safeStr(r.platform) ||
+          safeStr(r.PLATFORM) ||
+          safeStr(r.source) ||
+          safeStr(r.SOURCE) ||
+          "—";
+
+        const title =
+          safeStr(r.title) ||
+          safeStr(r.TITLE) ||
+          safeStr(r.video_title) ||
+          safeStr(r.VIDEO_TITLE) ||
+          "";
+
+        const videoId =
+          safeStr(r.video_id) ||
+          safeStr(r.VIDEO_ID) ||
+          safeStr(r.post_id) ||
+          safeStr(r.POST_ID) ||
+          id;
+
+        const videoUrl =
+          safeStr(r.video_url) ||
+          safeStr(r.VIDEO_URL) ||
+          safeStr(r.url) ||
+          safeStr(r.URL) ||
+          "";
+
+        const eligible = toBool(r.eligible ?? r.ELIGIBLE ?? r.is_eligible);
+        const published = toBool(
+          r.published ?? r.PUBLISHED ?? r.is_published
+        );
+
+        const status =
+          safeStr(r.status) ||
+          safeStr(r.STATUS) ||
+          (published ? "PUBLISHED" : "PENDING");
+
+        // Deadlines/buckets
+        const dueDate =
+          safeStr(r.due_date) ||
+          safeStr(r.DUE_DATE) ||
+          safeStr(r.deadline) ||
+          safeStr(r.DEADLINE) ||
+          "";
+
+        const weekStart =
+          safeStr(r.week_start) ||
+          safeStr(r.WEEK_START) ||
+          safeStr(r.week_of) ||
+          safeStr(r.WEEK_OF) ||
+          "";
+
+        const totalViews = Number(unwrapValue(r.total_views ?? r.TOTAL_VIEWS) ?? 0);
+        const payableViews = Number(
+          unwrapValue(r.payable_views ?? r.PAYABLE_VIEWS) ?? 0
+        );
+
+        const approved = toBool(r.approved ?? r.APPROVED);
+        const rejected = toBool(r.rejected ?? r.REJECTED);
+
+        return {
+          id,
+          clipper,
+          account,
+          platform,
+          title,
+          videoId,
+          videoUrl,
+          eligible,
+          published,
+          status,
+          dueDate,
+          weekStart,
+          totalViews,
+          payableViews,
+          approved,
+          rejected,
+          raw: r,
+        };
+      });
+
+      setRows(normalized);
+      setSelectedIds(new Set());
+    } catch (e) {
+      console.error(e);
+      setErr(e.message || "Failed to load content approval rows.");
+      setRows([]);
+      setSelectedIds(new Set());
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ---- styles (copied “vibe” from your other pages) ----
-  const pageWrap = {
-    minHeight: "100vh",
-    background:
-      "radial-gradient(1200px 700px at 50% 0%, rgba(255,255,255,0.07), rgba(0,0,0,0) 60%), radial-gradient(900px 520px at 70% 40%, rgba(249,115,22,0.10), rgba(0,0,0,0) 55%), #05070b",
-    color: "rgba(255,255,255,0.92)",
-    position: "relative",
-    overflow: "hidden",
+  useEffect(() => {
+    fetchRows();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---------- derived views ----------
+  const platformOptions = useMemo(() => {
+    const set = new Set();
+    rows.forEach((r) => {
+      const p = safeStr(r.platform);
+      if (p) set.add(p);
+    });
+    return ["all", ...Array.from(set).sort()];
+  }, [rows]);
+
+  const now = Date.now();
+
+  const enhancedRows = useMemo(() => {
+    // compute bucket flags without requiring backend changes
+    return rows.map((r) => {
+      const due = r.dueDate ? new Date(r.dueDate).getTime() : NaN;
+      const isOverdue = Number.isFinite(due) ? due < now : false;
+
+      // if backend gives weekStart, use it; otherwise classify “this week” by dueDate
+      const ws = r.weekStart ? new Date(r.weekStart).getTime() : NaN;
+      const isThisWeek = (() => {
+        if (Number.isFinite(ws)) {
+          const start = new Date(ws);
+          const end = new Date(ws);
+          end.setDate(end.getDate() + 7);
+          return now >= start.getTime() && now < end.getTime();
+        }
+        if (Number.isFinite(due)) {
+          const d = new Date(due);
+          // “this week” heuristic: same ISO week as today
+          const today = new Date();
+          const day = (x) => (x.getDay() + 6) % 7; // monday=0
+          const start = new Date(today);
+          start.setDate(today.getDate() - day(today));
+          start.setHours(0, 0, 0, 0);
+          const end = new Date(start);
+          end.setDate(start.getDate() + 7);
+          return d.getTime() >= start.getTime() && d.getTime() < end.getTime();
+        }
+        return true; // default bucket
+      })();
+
+      const isDone =
+        r.approved ||
+        safeStr(r.status).toLowerCase() === "approved" ||
+        safeStr(r.status).toLowerCase() === "done";
+
+      const isRejected =
+        r.rejected || safeStr(r.status).toLowerCase() === "rejected";
+
+      return {
+        ...r,
+        isOverdue,
+        isThisWeek,
+        isDone,
+        isRejected,
+      };
+    });
+  }, [rows, now]);
+
+  const filteredRows = useMemo(() => {
+    const s = search.trim().toLowerCase();
+
+    return enhancedRows.filter((r) => {
+      // tab filter
+      if (activeTab === "this_week" && !r.isThisWeek) return false;
+      if (activeTab === "past_due" && !r.isOverdue) return false;
+      if (activeTab === "done" && !r.isDone) return false;
+      if (activeTab === "all") {
+        // all
+      }
+
+      // platform filter
+      if (platformFilter !== "all" && r.platform !== platformFilter) return false;
+
+      // search
+      if (s) {
+        const hay = [
+          r.clipper,
+          r.account,
+          r.title,
+          r.videoId,
+          r.platform,
+          r.status,
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(s)) return false;
+      }
+
+      return true;
+    });
+  }, [enhancedRows, activeTab, platformFilter, search]);
+
+  const counts = useMemo(() => {
+    const thisWeek = enhancedRows.filter((r) => r.isThisWeek && !r.isDone).length;
+    const pastDue = enhancedRows.filter((r) => r.isOverdue && !r.isDone).length;
+    const done = enhancedRows.filter((r) => r.isDone).length;
+    const all = enhancedRows.length;
+    return { thisWeek, pastDue, done, all };
+  }, [enhancedRows]);
+
+  const selectedCount = selectedIds.size;
+
+  const toggleSelected = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
-  const watermark = {
-    position: "absolute",
-    inset: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    pointerEvents: "none",
-    opacity: 0.06,
-    fontSize: 140,
-    fontWeight: 900,
-    letterSpacing: 2,
-    transform: "rotate(-14deg)",
-    userSelect: "none",
-    color: "rgba(255,255,255,1)",
-    textTransform: "uppercase",
+  const clearSelected = () => setSelectedIds(new Set());
+
+  const selectAllLoaded = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      filteredRows.forEach((r) => next.add(r.id));
+      return next;
+    });
   };
 
-  const layout = {
-    display: "grid",
-    gridTemplateColumns: sidebarOpen ? "260px 1fr" : "70px 1fr",
-    gap: 18,
-    padding: 18,
+  // ---------- actions ----------
+  const bulkAction = async (action) => {
+    if (acting) return;
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+
+    try {
+      setActing(true);
+      setActionMsg("");
+      setErr("");
+
+      // EXPECTED API (adjust if your backend uses different route):
+      // POST /content-approval/approve  { clientId, ids }
+      // POST /content-approval/reject   { clientId, ids }
+      const endpoint =
+        action === "approve"
+          ? `${API_BASE_URL}/content-approval/approve`
+          : `${API_BASE_URL}/content-approval/reject`;
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, ids }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || `Action API ${res.status}`);
+      }
+
+      setActionMsg(
+        action === "approve"
+          ? `Approved ${ids.length} item(s).`
+          : `Rejected ${ids.length} item(s).`
+      );
+
+      // refresh rows
+      await fetchRows();
+    } catch (e) {
+      console.error(e);
+      setErr(e.message || "Action failed.");
+    } finally {
+      setActing(false);
+      clearSelected();
+    }
   };
 
-  const sidebarCard = {
-    borderRadius: 18,
-    background: "rgba(0,0,0,0.80)",
-    border: "1px solid rgba(255,255,255,0.06)",
-    boxShadow: "0 18px 45px rgba(0,0,0,0.8)",
-    padding: 10,
-    height: "calc(100vh - 36px)",
-    position: "sticky",
-    top: 18,
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-  };
-
-  const main = {
-    borderRadius: 18,
-    background: "rgba(0,0,0,0.45)",
-    border: "1px solid rgba(255,255,255,0.06)",
-    boxShadow: "0 18px 45px rgba(0,0,0,0.55)",
-    padding: 18,
-    minHeight: "calc(100vh - 36px)",
-  };
-
-  const topHeader = {
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: 14,
-    flexWrap: "wrap",
-    marginBottom: 14,
-  };
-
-  const headingBlock = {
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-  };
-
-  const headingTop = {
-    fontSize: 44,
-    fontWeight: 900,
-    letterSpacing: -0.6,
-    lineHeight: 1.05,
-    margin: 0,
-  };
-
-  const subRow = {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    opacity: 0.85,
-    fontSize: 13,
-  };
-
-  const tabsRow = {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    flexWrap: "wrap",
-  };
-
-  const tabBtn = (active, accent = "neutral") => ({
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: active
-      ? accent === "gold"
-        ? "linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))"
-        : accent === "red"
-        ? "linear-gradient(135deg, rgba(239,68,68,0.30), rgba(251,113,133,0.22))"
-        : "rgba(255,255,255,0.10)"
-      : "rgba(255,255,255,0.06)",
-    color: active
-      ? accent === "gold"
-        ? "#020617"
-        : "rgba(255,255,255,0.95)"
-      : "rgba(255,255,255,0.78)",
+  // ---------- UI bits ----------
+  const pillWrapStyle = {
+    display: "inline-flex",
     borderRadius: 999,
-    padding: "10px 14px",
-    fontSize: 13,
-    fontWeight: 800,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.55)",
+    padding: 3,
+    backdropFilter: "blur(8px)",
+    gap: 0,
+  };
+
+  const pillBtnStyle = (active) => ({
+    border: "none",
+    outline: "none",
     cursor: "pointer",
-    boxShadow: active ? "0 10px 30px rgba(0,0,0,0.35)" : "none",
+    padding: "7px 14px",
+    borderRadius: 999,
+    fontSize: 13,
+    background: active
+      ? "radial-gradient(circle at top, #fbbf24, #f97316)"
+      : "transparent",
+    color: active ? "#020617" : "rgba(255,255,255,0.85)",
+    fontWeight: active ? 700 : 500,
+    transition: "all 150ms ease",
+    whiteSpace: "nowrap",
   });
 
-  const panel = {
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.04)",
-    padding: 14,
-    marginTop: 10,
-  };
-
-  const controls = {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    flexWrap: "wrap",
-  };
-
-  const select = {
-    height: 40,
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    color: "rgba(255,255,255,0.9)",
-    padding: "0 12px",
-    outline: "none",
-    minWidth: 160,
-  };
-
-  const input = {
-    height: 40,
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    color: "rgba(255,255,255,0.9)",
-    padding: "0 14px",
-    outline: "none",
-    minWidth: 360,
-    flex: 1,
-  };
-
-  const btn = (variant) => {
+  const actionBtn = (kind) => {
     const base = {
       borderRadius: 999,
-      height: 40,
-      padding: "0 14px",
-      cursor: "pointer",
-      fontWeight: 800,
+      padding: "8px 14px",
+      border: "1px solid rgba(148,163,184,0.45)",
+      background: "rgba(15,23,42,0.75)",
+      color: "#e5e7eb",
+      cursor: acting ? "default" : "pointer",
       fontSize: 13,
-      border: "1px solid rgba(255,255,255,0.16)",
-      background: "rgba(255,255,255,0.06)",
-      color: "rgba(255,255,255,0.9)",
+      fontWeight: 600,
+      opacity: acting ? 0.7 : 1,
+      whiteSpace: "nowrap",
     };
 
-    if (variant === "approve")
+    if (kind === "approve") {
       return {
         ...base,
-        border: "1px solid rgba(34,197,94,0.35)",
-        background: "rgba(34,197,94,0.16)",
+        border: "1px solid rgba(34,197,94,0.55)",
+        background: "rgba(34,197,94,0.12)",
+        color: "#bbf7d0",
       };
-
-    if (variant === "reject")
+    }
+    if (kind === "reject") {
       return {
         ...base,
-        border: "1px solid rgba(239,68,68,0.35)",
-        background: "rgba(239,68,68,0.14)",
+        border: "1px solid rgba(248,113,113,0.55)",
+        background: "rgba(248,113,113,0.10)",
+        color: "#fecaca",
       };
-
-    if (variant === "gold")
-      return {
-        ...base,
-        border: "none",
-        background:
-          "linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))",
-        color: "#020617",
-      };
-
+    }
     return base;
   };
 
-  const tableWrap = {
-    marginTop: 14,
-    borderRadius: 16,
-    overflow: "hidden",
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(0,0,0,0.35)",
-  };
-
-  const th = {
-    textAlign: "left",
-    fontSize: 11,
-    letterSpacing: 0.25,
-    textTransform: "uppercase",
-    opacity: 0.70,
-    padding: "12px 12px",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.03)",
-    whiteSpace: "nowrap",
-  };
-
-  const td = {
-    padding: "12px 12px",
-    borderBottom: "1px solid rgba(255,255,255,0.06)",
-    verticalAlign: "top",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.88)",
-  };
-
-  const tiny = { fontSize: 11, opacity: 0.7 };
-
-  // ---- render ----
   return (
-    <div style={pageWrap}>
-      <div style={watermark}>{(watermarkText || "CONTENT")}</div>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "radial-gradient(circle at top, #141414 0, #020202 55%)",
+        display: "flex",
+        overflowX: "hidden",
+        overflowY: "auto",
+        color: "#fff",
+        fontFamily:
+          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        padding: "32px",
+        paddingTop: "40px",
+        paddingBottom: "40px",
+      }}
+    >
+      {/* WATERMARK */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          pointerEvents: "none",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          opacity: 0.03,
+          fontFamily: "Impact, Haettenschweiler, Arial Black, sans-serif",
+          fontSize: 140,
+          letterSpacing: 2,
+          textTransform: "uppercase",
+          color: "#ffffff",
+          transform: "rotate(-18deg)",
+          textShadow: "0 0 60px rgba(0,0,0,1)",
+        }}
+      >
+        {wmText}
+      </div>
 
-      <div style={layout}>
-        {/* Sidebar */}
-        <div style={sidebarCard}>
+      {/* SIDEBAR */}
+      <div
+        style={{
+          width: sidebarOpen ? 190 : 54,
+          transition: "width 180ms ease",
+          marginRight: 22,
+          position: "relative",
+          zIndex: 2,
+        }}
+      >
+        <div
+          style={{
+            borderRadius: 18,
+            background: "rgba(0,0,0,0.8)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            boxShadow: "0 18px 45px rgba(0,0,0,0.8)",
+            padding: 10,
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
           <button
             onClick={() => setSidebarOpen((v) => !v)}
             style={{
@@ -585,426 +554,701 @@ export default function ContentApprovalPage() {
               fontSize: 11,
               padding: "4px 7px",
             }}
-            title={sidebarOpen ? "Collapse" : "Expand"}
           >
             {sidebarOpen ? "◀" : "▶"}
           </button>
 
           {sidebarOpen && (
             <>
-              <div style={{ padding: "6px 8px 2px 8px" }}>
-                <div
-                  style={{
-                    fontWeight: 900,
-                    letterSpacing: 0.6,
-                    textTransform: "uppercase",
-                    fontSize: 14,
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {headingText || "HEADING TEXT FROM SETTINGS"}
-                </div>
-                <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>
-                  Manager
-                </div>
-              </div>
-
               <div
                 style={{
                   fontSize: 11,
                   textTransform: "uppercase",
                   letterSpacing: 0.1,
-                  opacity: 0.55,
-                  marginTop: 8,
-                  marginBottom: 2,
-                  padding: "0 8px",
+                  opacity: 0.6,
+                  marginTop: 4,
+                  marginBottom: 4,
                 }}
               >
                 Navigation
               </div>
 
-              <button onClick={goDash} style={navBtn(false)}>
-                Dashboards
-              </button>
-
-              <button onClick={goContentApproval} style={navBtn(true)}>
-                Content Approval
-              </button>
-
-              <button onClick={goPayouts} style={navBtn(false)}>
-                Payouts
-              </button>
-
-              <button onClick={goClippers} style={navBtn(false)}>
-                Clippers
-              </button>
-
-              <button onClick={goPerformance} style={navBtn(false)}>
-                Performance
-              </button>
-
-              <button onClick={goLeaderboards} style={navBtn(false)}>
-                Leaderboards
-              </button>
-
-              <button onClick={goGallery} style={navBtn(false)}>
-                Gallery
-              </button>
-
-              <button onClick={goSettings} style={navBtn(false)}>
-                Settings
-              </button>
-
-              <div style={{ flex: 1 }} />
-
               <button
-                onClick={onLogout}
+                onClick={goDashV2}
                 style={{
                   border: "none",
                   outline: "none",
                   borderRadius: 12,
-                  padding: "10px 10px",
+                  padding: "7px 10px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.7)",
+                }}
+              >
+                Dashboards
+              </button>
+
+              {/* Content Approval (current) */}
+              <button
+                onClick={goContentApproval}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  borderRadius: 12,
+                  padding: "8px 10px",
                   textAlign: "left",
                   cursor: "pointer",
                   fontSize: 13,
-                  background: "transparent",
-                  color: "rgba(251,113,133,0.95)",
+                  background:
+                    "linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))",
+                  color: "#020617",
                   fontWeight: 700,
+                  marginBottom: 2,
                 }}
               >
+                Content Approval
+              </button>
+
+              <button
+                onClick={goPayouts}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  borderRadius: 12,
+                  padding: "7px 10px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.7)",
+                }}
+              >
+                Payouts
+              </button>
+
+              <button
+                onClick={goClippers}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  borderRadius: 12,
+                  padding: "7px 10px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.7)",
+                  marginTop: 2,
+                }}
+              >
+                Clippers
+              </button>
+
+              <button
+                onClick={goPerformance}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  borderRadius: 12,
+                  padding: "7px 10px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.55)",
+                  marginTop: 2,
+                  marginBottom: 2,
+                }}
+              >
+                Performance
+              </button>
+
+              <button
+                onClick={goLeaderboards}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  borderRadius: 12,
+                  padding: "7px 10px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.55)",
+                  marginTop: 2,
+                  marginBottom: 2,
+                }}
+              >
+                Leaderboards
+              </button>
+
+              <button
+                onClick={goGallery}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  borderRadius: 12,
+                  padding: "7px 10px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.7)",
+                }}
+              >
+                Gallery
+              </button>
+
+              <button
+                onClick={goSettings}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  borderRadius: 12,
+                  padding: "7px 10px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.55)",
+                }}
+              >
+                Settings
+              </button>
+
+              <div style={{ flexGrow: 1 }} />
+
+              <button
+                onClick={handleLogout}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  borderRadius: 999,
+                  padding: "7px 10px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  background: "rgba(248,250,252,0.06)",
+                  color: "rgba(255,255,255,0.85)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginBottom: 6,
+                }}
+              >
+                <span style={{ fontSize: 12 }}>⏻</span>
                 Logout
               </button>
+
+              <div
+                style={{
+                  fontSize: 11,
+                  opacity: 0.55,
+                  borderTop: "1px solid rgba(255,255,255,0.08)",
+                  paddingTop: 8,
+                }}
+              >
+                Content approval hub
+              </div>
             </>
           )}
         </div>
+      </div>
 
-        {/* Main */}
-        <div style={main}>
-          <div style={topHeader}>
-            <div style={headingBlock}>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 900,
-                  letterSpacing: 0.6,
-                  textTransform: "uppercase",
-                  opacity: 0.9,
-                }}
-              >
-                {headingText || "HEADING TEXT FROM SETTINGS"}
-              </div>
+      {/* MAIN CONTENT */}
+      <div style={{ flex: 1, position: "relative", zIndex: 3 }}>
+        {/* Branding */}
+        <div
+          style={{
+            marginBottom: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "Impact, Haettenschweiler, Arial Black, sans-serif",
+              fontSize: 34,
+              letterSpacing: 0.5,
+              color: "#ffffff",
+              textTransform: "uppercase",
+              textShadow: "0 3px 12px rgba(0,0,0,0.7)",
+            }}
+          >
+            {brandText}
+          </span>
+        </div>
 
-              <h1 style={headingTop}>Content Approval</h1>
-
-              <div style={subRow}>
-                <span style={{ opacity: 0.85 }}>
-                  Pending this week: <b>{counts.this_week || 0}</b>
-                </span>
-                <span style={{ opacity: 0.55 }}>•</span>
-                <span style={{ opacity: 0.85 }}>
-                  Overdue: <b>{counts.overdue || 0}</b>
-                </span>
-                {saving && (
-                  <>
-                    <span style={{ opacity: 0.55 }}>•</span>
-                    <span style={{ opacity: 0.75 }}>Saving…</span>
-                  </>
-                )}
-                {loading && (
-                  <>
-                    <span style={{ opacity: 0.55 }}>•</span>
-                    <span style={{ opacity: 0.75 }}>Loading…</span>
-                  </>
-                )}
-              </div>
-
-              <div style={{ ...tiny, marginTop: 2 }}>
-                Client: <b>{effectiveClientId}</b>
-              </div>
-            </div>
-
-            <div style={tabsRow}>
-              <button
-                style={tabBtn(tab === "THIS_WEEK", "gold")}
-                onClick={() => setTab("THIS_WEEK")}
-              >
-                This week ({counts.this_week || 0})
-              </button>
-              <button
-                style={tabBtn(tab === "OVERDUE", "red")}
-                onClick={() => setTab("OVERDUE")}
-              >
-                Past due ({counts.overdue || 0})
-              </button>
-              <button
-                style={tabBtn(tab === "DONE")}
-                onClick={() => setTab("DONE")}
-              >
-                Done
-              </button>
-              <button
-                style={tabBtn(tab === "ALL")}
-                onClick={() => setTab("ALL")}
-              >
-                All
-              </button>
-              <button style={tabBtn(false)} onClick={fetchQueue}>
-                Refresh
-              </button>
-            </div>
+        {/* Header */}
+        <div
+          style={{
+            marginBottom: 18,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+            <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>
+              Content Approval
+            </h1>
+            <span style={{ fontSize: 13, opacity: 0.7 }}>
+              Review and approve scheduled content
+            </span>
           </div>
 
-          <div style={panel}>
-            <div style={controls}>
+          {/* Right-side pills */}
+          <div style={pillWrapStyle}>
+            <button
+              onClick={() => setActiveTab("this_week")}
+              style={pillBtnStyle(activeTab === "this_week")}
+            >
+              This week ({counts.thisWeek})
+            </button>
+            <button
+              onClick={() => setActiveTab("past_due")}
+              style={pillBtnStyle(activeTab === "past_due")}
+            >
+              Past due ({counts.pastDue})
+            </button>
+            <button
+              onClick={() => setActiveTab("done")}
+              style={pillBtnStyle(activeTab === "done")}
+            >
+              Done ({counts.done})
+            </button>
+            <button
+              onClick={() => setActiveTab("all")}
+              style={pillBtnStyle(activeTab === "all")}
+            >
+              All ({counts.all})
+            </button>
+            <button
+              onClick={fetchRows}
+              style={{
+                ...pillBtnStyle(false),
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: "rgba(15,23,42,0.55)",
+              }}
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        {/* Sub header line (matches your vibe) */}
+        <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 16 }}>
+          Pending this week: <strong>{counts.thisWeek}</strong> · Overdue:{" "}
+          <strong>{counts.pastDue}</strong>
+          <span style={{ marginLeft: 12, opacity: 0.6 }}>
+            Client: <strong style={{ opacity: 0.95 }}>{clientId}</strong>
+          </span>
+        </div>
+
+        {/* CONTENT CARD */}
+        <div
+          style={{
+            borderRadius: 20,
+            background:
+              "radial-gradient(circle at top left, rgba(255,255,255,0.04), transparent 55%)",
+            padding: 18,
+            boxShadow: "0 25px 60px rgba(0,0,0,0.85)",
+          }}
+        >
+          {/* Filters + actions row */}
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              marginBottom: 14,
+            }}
+          >
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <select
-                style={select}
                 value={platformFilter}
                 onChange={(e) => setPlatformFilter(e.target.value)}
+                style={{
+                  fontSize: 13,
+                  padding: "10px 14px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  background: "rgba(0,0,0,0.6)",
+                  color: "rgba(255,255,255,0.9)",
+                  minWidth: 180,
+                  appearance: "none",
+                }}
               >
                 <option value="all">All platforms</option>
-                <option value="instagram">Instagram</option>
-                <option value="tiktok">TikTok</option>
-                <option value="youtube">YouTube</option>
+                {platformOptions
+                  .filter((p) => p !== "all")
+                  .map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
               </select>
 
               <input
-                style={input}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search clipper / account / title / video id…"
+                placeholder="Search clipper / account / title / video id..."
+                style={{
+                  fontSize: 13,
+                  padding: "10px 14px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  background: "rgba(0,0,0,0.45)",
+                  color: "rgba(255,255,255,0.9)",
+                  minWidth: 420,
+                  maxWidth: "70vw",
+                  outline: "none",
+                }}
               />
-
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 13, opacity: 0.85 }}>
-                  <b>{selectedCount}</b> selected
-                </div>
-                <button style={btn()} onClick={selectAllLoaded}>
-                  Select all loaded
-                </button>
-                <button style={btn()} onClick={clearSelection}>
-                  Clear
-                </button>
-                <button
-                  style={btn("approve")}
-                  onClick={() => bulkUpdate("APPROVED")}
-                  disabled={!selectedCount || saving}
-                >
-                  Approve selected
-                </button>
-                <button
-                  style={btn("reject")}
-                  onClick={() => bulkUpdate("REJECTED")}
-                  disabled={!selectedCount || saving}
-                >
-                  Reject selected
-                </button>
-              </div>
             </div>
 
-            {error && (
-              <div
-                style={{
-                  marginTop: 10,
-                  borderRadius: 12,
-                  padding: "10px 12px",
-                  background: "rgba(239,68,68,0.12)",
-                  border: "1px solid rgba(239,68,68,0.25)",
-                  color: "rgba(255,255,255,0.92)",
-                  fontSize: 13,
-                  fontWeight: 700,
-                }}
-              >
-                {error}
-              </div>
-            )}
+            <div style={{ minHeight: 22, fontSize: 12, textAlign: "right" }}>
+              {loading && !err && (
+                <span style={{ opacity: 0.8 }}>Loading…</span>
+              )}
+              {!loading && err && (
+                <span style={{ color: "#fecaca" }}>{err}</span>
+              )}
+              {!loading && !err && actionMsg && (
+                <span style={{ color: "#bbf7d0" }}>{actionMsg}</span>
+              )}
+            </div>
           </div>
 
-          <div style={tableWrap}>
+          {/* Selection + action buttons */}
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              flexWrap: "wrap",
+              marginBottom: 14,
+            }}
+          >
+            <div style={{ fontSize: 13, opacity: 0.85, marginRight: 6 }}>
+              {selectedCount} selected
+            </div>
+
+            <button onClick={selectAllLoaded} style={actionBtn("neutral")}>
+              Select all loaded
+            </button>
+
+            <button onClick={clearSelected} style={actionBtn("neutral")}>
+              Clear
+            </button>
+
+            <div style={{ flexGrow: 1 }} />
+
+            <button
+              disabled={acting || selectedCount === 0}
+              onClick={() => bulkAction("approve")}
+              style={actionBtn("approve")}
+              title={
+                selectedCount === 0 ? "Select at least one row" : "Approve selected"
+              }
+            >
+              {acting ? "Working…" : "Approve selected"}
+            </button>
+
+            <button
+              disabled={acting || selectedCount === 0}
+              onClick={() => bulkAction("reject")}
+              style={actionBtn("reject")}
+              title={
+                selectedCount === 0 ? "Select at least one row" : "Reject selected"
+              }
+            >
+              {acting ? "Working…" : "Reject selected"}
+            </button>
+          </div>
+
+          {/* Table */}
+          <div
+            style={{
+              borderRadius: 18,
+              overflow: "hidden",
+              background: "rgba(15,23,42,0.95)",
+              border: "1px solid rgba(148,163,184,0.35)",
+              boxShadow: "0 18px 45px rgba(0,0,0,0.9)",
+            }}
+          >
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 13,
+                  minWidth: 980,
+                }}
+              >
                 <thead>
                   <tr>
-                    <th style={th}></th>
-                    <th style={th}>Bucket</th>
-                    <th style={th}>Clipper</th>
-                    <th style={th}>Platform</th>
-                    <th style={th}>Video</th>
-                    <th style={th}>Eligible</th>
-                    <th style={th}>Published</th>
-                    <th style={th}>Total views</th>
-                    <th style={th}>Payable views</th>
-                    <th style={th}>Status</th>
-                    <th style={th}>Actions</th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "10px 12px",
+                        borderBottom: "1px solid rgba(255,255,255,0.08)",
+                        fontWeight: 500,
+                        opacity: 0.7,
+                        width: 48,
+                      }}
+                    >
+                      {/* checkbox col */}
+                    </th>
+
+                    {[
+                      "BUCKET",
+                      "CLIPPER",
+                      "PLATFORM",
+                      "VIDEO",
+                      "ELIGIBLE",
+                      "PUBLISHED",
+                      "TOTAL VIEWS",
+                      "PAYABLE VIEWS",
+                      "STATUS",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        style={{
+                          textAlign:
+                            h.includes("VIEWS") ? "right" : "left",
+                          padding: "10px 12px",
+                          borderBottom: "1px solid rgba(255,255,255,0.08)",
+                          fontWeight: 500,
+                          opacity: 0.7,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
 
                 <tbody>
-                  {filteredRows.length === 0 ? (
+                  {!loading && filteredRows.length === 0 ? (
                     <tr>
-                      <td style={td} colSpan={11}>
-                        <div style={{ opacity: 0.65 }}>No rows for this filter.</div>
+                      <td
+                        colSpan={10}
+                        style={{ padding: 14, opacity: 0.8 }}
+                      >
+                        No rows for this filter.
                       </td>
                     </tr>
                   ) : (
-                    filteredRows.map((r) => {
-                      const k = rowKey(r);
-                      const isSel = selected.has(k);
+                    filteredRows.map((r, idx) => {
+                      const isSelected = selectedIds.has(r.id);
 
-                      const bucket = r.queue_bucket || "—";
-                      const bucketPill =
-                        bucket === "OVERDUE"
-                          ? "OVERDUE"
-                          : bucket === "THIS_WEEK"
-                          ? "PENDING"
-                          : bucket === "DONE"
-                          ? (r.review_status || "DONE")
-                          : (r.review_status || "—");
+                      const bucket = r.isDone
+                        ? "DONE"
+                        : r.isOverdue
+                        ? "PAST DUE"
+                        : "THIS WEEK";
 
-                      // eligible_for_review_date = snapshot_date where became eligible
-                      const eligibleDate =
-                        r.became_eligible_this_snapshot ? r.snapshot_date : null;
+                      const bucketPill = (label) => {
+                        const base = {
+                          display: "inline-flex",
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          border: "1px solid rgba(148,163,184,0.4)",
+                          background: "rgba(2,6,23,0.45)",
+                          color: "rgba(255,255,255,0.85)",
+                          letterSpacing: 0.2,
+                        };
 
-                      const status = (r.review_status || "PENDING").toUpperCase();
+                        if (label === "PAST DUE") {
+                          return {
+                            ...base,
+                            border: "1px solid rgba(248,113,113,0.55)",
+                            background: "rgba(248,113,113,0.12)",
+                            color: "#fecaca",
+                          };
+                        }
+                        if (label === "THIS WEEK") {
+                          return {
+                            ...base,
+                            border: "1px solid rgba(250,204,21,0.45)",
+                            background: "rgba(250,204,21,0.10)",
+                            color: "#fde68a",
+                          };
+                        }
+                        if (label === "DONE") {
+                          return {
+                            ...base,
+                            border: "1px solid rgba(34,197,94,0.55)",
+                            background: "rgba(34,197,94,0.10)",
+                            color: "#bbf7d0",
+                          };
+                        }
+                        return base;
+                      };
 
-                      const showFeedback =
-                        status === "PENDING" || status === "REJECTED"; // allow edit while pending; show reason if rejected
+                      const boolChip = (val, kind) => {
+                        const yes = !!val;
+                        const base = {
+                          display: "inline-flex",
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          border: "1px solid rgba(148,163,184,0.35)",
+                          background: "rgba(2,6,23,0.35)",
+                          color: "rgba(255,255,255,0.78)",
+                        };
+
+                        if (yes && kind === "eligible") {
+                          return {
+                            ...base,
+                            border: "1px solid rgba(34,197,94,0.6)",
+                            background: "rgba(34,197,94,0.12)",
+                            color: "#bbf7d0",
+                          };
+                        }
+                        if (yes && kind === "published") {
+                          return {
+                            ...base,
+                            border: "1px solid rgba(96,165,250,0.55)",
+                            background: "rgba(96,165,250,0.12)",
+                            color: "#bfdbfe",
+                          };
+                        }
+                        return base;
+                      };
+
+                      const rowBorder =
+                        idx !== filteredRows.length - 1
+                          ? "1px solid rgba(148,163,184,0.18)"
+                          : "none";
 
                       return (
-                        <React.Fragment key={k}>
-                          <tr>
-                            <td style={{ ...td, width: 40 }}>
-                              <input
-                                type="checkbox"
-                                checked={isSel}
-                                onChange={() => toggleSelected(k)}
-                              />
-                            </td>
+                        <tr
+                          key={r.id}
+                          style={{
+                            borderBottom: rowBorder,
+                            background: isSelected
+                              ? "rgba(250,204,21,0.06)"
+                              : "transparent",
+                          }}
+                        >
+                          <td style={{ padding: "12px 12px" }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelected(r.id)}
+                              style={{
+                                width: 16,
+                                height: 16,
+                                cursor: "pointer",
+                                accentColor: "#fbbf24",
+                              }}
+                            />
+                          </td>
 
-                            <td style={td}>
-                              <span style={pillStyle(bucketPill)}>
-                                {bucket === "THIS_WEEK"
-                                  ? "THIS WEEK"
-                                  : bucket === "OVERDUE"
-                                  ? "OVERDUE"
-                                  : "DONE"}
-                              </span>
-                            </td>
+                          <td style={{ padding: "12px 12px" }}>
+                            <span style={bucketPill(bucket)}>{bucket}</span>
+                            <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+                              {r.dueDate ? `Due: ${formatDate(r.dueDate)}` : " "}
+                            </div>
+                          </td>
 
-                            <td style={td}>
-                              <div style={{ fontWeight: 800 }}>{r.clipper_name || "—"}</div>
-                              <div style={tiny}>{r.account || r.account_key || ""}</div>
-                            </td>
+                          <td style={{ padding: "12px 12px", fontWeight: 600 }}>
+                            <div>{r.clipper}</div>
+                            <div style={{ fontSize: 11, opacity: 0.65, marginTop: 2 }}>
+                              {r.account ? r.account : "—"}
+                            </div>
+                          </td>
 
-                            <td style={td}>
-                              <span style={pillStyle((r.platform || "").toUpperCase())}>
-                                {(r.platform || "—").toUpperCase()}
-                              </span>
-                            </td>
+                          <td style={{ padding: "12px 12px", opacity: 0.9 }}>
+                            {r.platform || "—"}
+                          </td>
 
-                            <td style={td}>
-                              <div style={{ fontWeight: 800, maxWidth: 420 }}>
-                                {r.title || "—"}
-                              </div>
-                              <div style={tiny}>{r.video_id}</div>
-                            </td>
-
-                            <td style={td}>
-                              <div style={{ fontWeight: 800 }}>
-                                {eligibleDate ? fmtDate(eligibleDate) : "—"}
-                              </div>
-                              <div style={tiny}>
-                                {eligibleDate ? "Became eligible" : ""}
-                              </div>
-                            </td>
-
-                            <td style={td}>{fmtDate(r.published_at)}</td>
-
-                            <td style={td}>{fmtNum(r.total_views_video)}</td>
-
-                            <td style={td}>
-                              <div style={{ fontWeight: 800 }}>
-                                {fmtNum(r.payable_total_views)}
-                              </div>
-                              <div style={tiny}>
-                                Min: {fmtNum(r.min_view_count_eligibility)}
-                              </div>
-                            </td>
-
-                            <td style={td}>
-                              <span style={pillStyle(status)}>
-                                {status}
-                              </span>
-                              {r.reviewed_at && (
-                                <div style={tiny}>at {fmtDate(r.reviewed_at)}</div>
-                              )}
-                            </td>
-
-                            <td style={td}>
-                              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                <button
-                                  style={btn()}
-                                  onClick={() => openVideo(r)}
-                                  disabled={!r.url && !r.ai_url}
-                                >
-                                  View
-                                </button>
-
-                                <button
-                                  style={btn("approve")}
-                                  onClick={() => updateSingle(r, "APPROVED")}
-                                  disabled={saving}
-                                >
-                                  Approve
-                                </button>
-
-                                <button
-                                  style={btn("reject")}
-                                  onClick={() => updateSingle(r, "REJECTED")}
-                                  disabled={saving}
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-
-                          {showFeedback && (
-                            <tr>
-                              <td style={td} colSpan={11}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                  <div style={{ minWidth: 210, opacity: 0.8, fontWeight: 800 }}>
-                                    Feedback{" "}
-                                    <span style={{ opacity: 0.7 }}>
-                                      (required for reject)
-                                    </span>
-                                  </div>
-
-                                  <textarea
-                                    value={feedbackDraft[k] ?? (r.feedback_text || "")}
-                                    onChange={(e) =>
-                                      setFeedbackDraft((prev) => ({
-                                        ...prev,
-                                        [k]: e.target.value,
-                                      }))
-                                    }
-                                    placeholder="Explain why this is rejected (quality, watermark, wrong client, not original, etc.)"
+                          <td style={{ padding: "12px 12px" }}>
+                            <div style={{ fontWeight: 600 }}>
+                              {r.title ? r.title : r.videoId}
+                            </div>
+                            <div style={{ fontSize: 11, opacity: 0.65, marginTop: 2 }}>
+                              ID: {r.videoId}
+                              {r.videoUrl ? (
+                                <>
+                                  {" "}
+                                  ·{" "}
+                                  <a
+                                    href={r.videoUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
                                     style={{
-                                      flex: 1,
-                                      minHeight: 48,
-                                      borderRadius: 14,
-                                      padding: 12,
-                                      border: "1px solid rgba(255,255,255,0.12)",
-                                      background: "rgba(255,255,255,0.05)",
-                                      color: "rgba(255,255,255,0.92)",
-                                      outline: "none",
-                                      resize: "vertical",
+                                      color: "#facc15",
+                                      textDecoration: "underline dotted",
                                     }}
-                                  />
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
+                                  >
+                                    open
+                                  </a>
+                                </>
+                              ) : null}
+                            </div>
+                          </td>
+
+                          <td style={{ padding: "12px 12px" }}>
+                            <span style={boolChip(r.eligible, "eligible")}>
+                              {r.eligible ? "YES" : "NO"}
+                            </span>
+                          </td>
+
+                          <td style={{ padding: "12px 12px" }}>
+                            <span style={boolChip(r.published, "published")}>
+                              {r.published ? "YES" : "NO"}
+                            </span>
+                          </td>
+
+                          <td style={{ padding: "12px 12px", textAlign: "right" }}>
+                            {formatNumber(r.totalViews)}
+                          </td>
+
+                          <td style={{ padding: "12px 12px", textAlign: "right" }}>
+                            {formatNumber(r.payableViews)}
+                          </td>
+
+                          <td style={{ padding: "12px 12px" }}>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                padding: "4px 10px",
+                                borderRadius: 999,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                border: "1px solid rgba(148,163,184,0.4)",
+                                background:
+                                  r.isDone
+                                    ? "rgba(34,197,94,0.10)"
+                                    : r.isRejected
+                                    ? "rgba(248,113,113,0.10)"
+                                    : "rgba(2,6,23,0.35)",
+                                color:
+                                  r.isDone
+                                    ? "#bbf7d0"
+                                    : r.isRejected
+                                    ? "#fecaca"
+                                    : "rgba(255,255,255,0.82)",
+                              }}
+                            >
+                              {safeStr(r.status).toUpperCase() || "PENDING"}
+                            </span>
+                          </td>
+                        </tr>
                       );
                     })
                   )}
@@ -1013,44 +1257,12 @@ export default function ContentApprovalPage() {
             </div>
           </div>
 
-          <div style={{ marginTop: 12, opacity: 0.6, fontSize: 12 }}>
-            Tip: Use “Select all loaded” + “Approve selected” to clear backlog fast.
+          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.65 }}>
+            Tip: Use <strong>Select all loaded</strong> +{" "}
+            <strong>Approve selected</strong> to clear backlog fast.
           </div>
         </div>
       </div>
     </div>
   );
-
-  function navBtn(active) {
-    if (active) {
-      return {
-        border: "none",
-        outline: "none",
-        borderRadius: 12,
-        padding: "8px 10px",
-        textAlign: "left",
-        cursor: "pointer",
-        fontSize: 13,
-        background:
-          "linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))",
-        color: "#020617",
-        fontWeight: 800,
-        marginTop: 2,
-        marginBottom: 2,
-      };
-    }
-    return {
-      border: "none",
-      outline: "none",
-      borderRadius: 12,
-      padding: "7px 10px",
-      textAlign: "left",
-      cursor: "pointer",
-      fontSize: 12,
-      background: "transparent",
-      color: "rgba(255,255,255,0.7)",
-      marginTop: 2,
-      marginBottom: 2,
-    };
-  }
 }
