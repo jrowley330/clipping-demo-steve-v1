@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
-import { useBranding } from "./BrandingContext";
+
+import { useBranding } from './branding/BrandingContext';
 
 const API_BASE =
   (import.meta?.env?.VITE_API_BASE_URL || "").replace(/\/+$/, "") || "";
