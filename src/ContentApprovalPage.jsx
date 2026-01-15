@@ -437,6 +437,8 @@ export default function ContentApprovalPage() {
     padding: 3,
     backdropFilter: "blur(8px)",
     gap: 0,
+    maxWidth: "100%",
+    flexWrap: "wrap",
   };
 
   const pillBtnStyle = (active) => ({
