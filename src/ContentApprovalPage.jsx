@@ -439,6 +439,7 @@ export default function ContentApprovalPage() {
     gap: 0,
     maxWidth: "100%",
     flexWrap: "wrap",
+    justifyContent: "flex-end",
   };
 
   const pillBtnStyle = (active) => ({
@@ -493,27 +494,28 @@ export default function ContentApprovalPage() {
   return (
     <div
         style={{
-        minHeight: "100dvh",
-        width: "100%",
-        background: "radial-gradient(circle at top, #141414 0, #020202 55%)",
-        display: "flex",
-        alignItems: "stretch",
-        overflowX: "hidden",
-        overflowY: "visible", // LET THE BROWSER PAGE SCROLL
-        color: "#fff",
-        fontFamily:
+            position: "fixed",
+            inset: 0,
+            width: "100vw",
+            minHeight: "100vh",
+            boxSizing: "border-box",
+            background: "radial-gradient(circle at top, #141414 0, #020202 55%)",
+            display: "flex",
+            overflowX: "hidden",
+            overflowY: "auto",
+            color: "#fff",
+            fontFamily:
             'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        padding: "32px",
-        paddingTop: "40px",
-        paddingBottom: "80px", // extra so last rows never feel clipped
-        position: "relative", // important for the watermark (next change)
+            padding: "32px 24px",
+            paddingTop: "40px",
+            paddingBottom: "40px",
         }}
-    >
+        >
 
       {/* WATERMARK */}
       <div
         style={{
-          position: "fixed",
+          position: "absolute",
           inset: 0,
           pointerEvents: "none",
           display: "flex",
@@ -803,6 +805,7 @@ export default function ContentApprovalPage() {
             justifyContent: "space-between",
             gap: 16,
             flexWrap: "wrap",
+            paddingRight: 10,
           }}
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
@@ -999,12 +1002,12 @@ export default function ContentApprovalPage() {
             <div style={{ overflowX: "auto" }}>
               <table
                 style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: 13,
-                  minWidth: 980,
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: 13,
+                    tableLayout: "fixed",   // KEY
                 }}
-              >
+                >
                 <thead>
                   <tr>
                     <th
