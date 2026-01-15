@@ -630,7 +630,7 @@ export default function ContentApprovalPage() {
                   marginBottom: 2,
                 }}
               >
-                Content Approval
+                Review Clips
               </button>
 
               <button
