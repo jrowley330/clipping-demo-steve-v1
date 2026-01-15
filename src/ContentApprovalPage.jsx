@@ -58,6 +58,14 @@ const toBool = (v) => {
 
 const safeStr = (v) => String(unwrapValue(v) ?? "").trim();
 
+const truncateWords = (text, maxWords = 5) => {
+  if (!text) return "";
+  const words = String(text).trim().split(/\s+/);
+  if (words.length <= maxWords) return text;
+  return words.slice(0, maxWords).join(" ") + "…";
+};
+
+
 // ---------- component ----------
 export default function ContentApprovalPage() {
   const navigate = useNavigate();
@@ -1202,8 +1210,16 @@ export default function ContentApprovalPage() {
                           </td>
 
                           <td style={{ padding: "12px 12px" }}>
-                            <div style={{ fontWeight: 600 }}>
-                              {r.title ? r.title : r.videoId}
+                            <div
+                                style={{
+                                    fontWeight: 600,
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                }}
+                                title={r.title || r.videoId} // full title on hover
+                                >
+                                {truncateWords(r.title || r.videoId, 5)}
                             </div>
                             <div
                               style={{
