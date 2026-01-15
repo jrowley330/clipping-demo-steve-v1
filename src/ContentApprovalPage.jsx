@@ -492,21 +492,24 @@ export default function ContentApprovalPage() {
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
+        style={{
+        minHeight: "100dvh",
+        width: "100%",
         background: "radial-gradient(circle at top, #141414 0, #020202 55%)",
         display: "flex",
+        alignItems: "stretch",
         overflowX: "hidden",
-        overflowY: "auto",
+        overflowY: "visible", // LET THE BROWSER PAGE SCROLL
         color: "#fff",
         fontFamily:
-          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         padding: "32px",
         paddingTop: "40px",
-        paddingBottom: "40px",
-      }}
+        paddingBottom: "80px", // extra so last rows never feel clipped
+        position: "relative", // important for the watermark (next change)
+        }}
     >
+
       {/* WATERMARK */}
       <div
         style={{
