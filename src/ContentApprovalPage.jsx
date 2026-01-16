@@ -7,6 +7,21 @@ import { useBranding } from "./branding/BrandingContext";
 const API_BASE_URL =
   "https://clipper-payouts-api-810712855216.us-central1.run.app";
 
+// ---------- TUNING KNOBS (edit these) ----------
+const VIDEO_TITLE_FONT_PX = 11;      // smaller text in VIDEO title
+const VIDEO_TITLE_MAX_CHARS = 18;    // more aggressive truncation
+const VIDEO_SUB_FONT_PX = 10;        // "open" row smaller too
+
+// tighter table / left columns
+const COL_W_CHECK = 30;
+const COL_W_BUCKET = 108;
+const COL_W_CLIPPER = 160;
+const COL_W_PLATFORM = 96;
+const COL_W_VIDEO = 190;
+const COL_W_PUBLISHED = 98;
+const COL_W_TOTALV = 112;
+const COL_W_STATUS = 110;
+
 // ---------- helpers ----------
 const unwrapValue = (v) => {
   if (v && typeof v === "object" && "value" in v) return v.value;
@@ -225,7 +240,7 @@ export default function ContentApprovalPage() {
       setRows(normalized);
       setSelectedIds(new Set());
     } catch (e) {
-      console.error(e);
+ see	console.error(e);
       setErr(e.message || "Failed to load content review queue.");
       setRows([]);
       setSelectedIds(new Set());
@@ -313,7 +328,8 @@ export default function ContentApprovalPage() {
       if (activeTab === "past_due" && !r.isOverdue) return false;
       if (activeTab === "done" && !r.isDone) return false;
 
-      if (platformFilter !== "all" && r.platform !== platformFilter) return false;
+      if (platformFilter !== "all" && r.platform !== platformFilter)
+        return false;
 
       if (s) {
         const hay = [r.clipper, r.account, r.title, r.platform, r.status]
@@ -395,7 +411,8 @@ export default function ContentApprovalPage() {
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `Bulk review API ${res.status}`);
+      if (!res.ok)
+        throw new Error(data.error || `Bulk review API ${res.status}`);
 
       setActionMsg(
         reviewStatus === "APPROVED"
@@ -1017,11 +1034,6 @@ export default function ContentApprovalPage() {
               disabled={acting || selectedIds.size === 0}
               onClick={() => bulkAction("approve")}
               style={actionBtn("approve")}
-              title={
-                selectedIds.size === 0
-                  ? "Select at least one row"
-                  : "Approve selected"
-              }
             >
               {acting ? "Working…" : "Approve selected"}
             </button>
@@ -1030,11 +1042,6 @@ export default function ContentApprovalPage() {
               disabled={acting || selectedIds.size === 0}
               onClick={() => bulkAction("reject")}
               style={actionBtn("reject")}
-              title={
-                selectedIds.size === 0
-                  ? "Select at least one row"
-                  : "Reject selected"
-              }
             >
               {acting ? "Working…" : "Reject selected"}
             </button>
@@ -1054,117 +1061,49 @@ export default function ContentApprovalPage() {
               <table
                 style={{
                   width: "100%",
-                  minWidth: 860, // helps prevent cutoff but still allows scroll if needed
+                  minWidth: 860,
                   borderCollapse: "collapse",
                   fontSize: 13,
-                  tableLayout: "fixed", // KEY: lets us force a smaller VIDEO column cleanly
+                  tableLayout: "fixed",
                 }}
               >
-                {/* KEY: explicit column widths so VIDEO doesn't explode */}
                 <colgroup>
-                  <col style={{ width: 34 }} /> {/* checkbox */}
-                  <col style={{ width: 120 }} /> {/* bucket */}
-                  <col style={{ width: 180 }} /> {/* clipper */}
-                  <col style={{ width: 110 }} /> {/* platform */}
-                  <col style={{ width: 210 }} /> {/* video (kept small) */}
-                  <col style={{ width: 110 }} /> {/* published */}
-                  <col style={{ width: 130 }} /> {/* total views */}
-                  <col style={{ width: 120 }} /> {/* status */}
+                  <col style={{ width: COL_W_CHECK }} />
+                  <col style={{ width: COL_W_BUCKET }} />
+                  <col style={{ width: COL_W_CLIPPER }} />
+                  <col style={{ width: COL_W_PLATFORM }} />
+                  <col style={{ width: COL_W_VIDEO }} />
+                  <col style={{ width: COL_W_PUBLISHED }} />
+                  <col style={{ width: COL_W_TOTALV }} />
+                  <col style={{ width: COL_W_STATUS }} />
                 </colgroup>
 
                 <thead>
                   <tr>
                     <th
                       style={{
-                        padding: "10px 8px",
+                        padding: "10px 6px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
                         opacity: 0.7,
                       }}
                     />
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "10px 8px",
-                        borderBottom: "1px solid rgba(255,255,255,0.08)",
-                        fontWeight: 500,
-                        opacity: 0.7,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      BUCKET
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "10px 10px",
-                        borderBottom: "1px solid rgba(255,255,255,0.08)",
-                        fontWeight: 500,
-                        opacity: 0.7,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      CLIPPER
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "10px 10px",
-                        borderBottom: "1px solid rgba(255,255,255,0.08)",
-                        fontWeight: 500,
-                        opacity: 0.7,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      PLATFORM
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "10px 10px",
-                        borderBottom: "1px solid rgba(255,255,255,0.08)",
-                        fontWeight: 500,
-                        opacity: 0.7,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      VIDEO
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "10px 10px",
-                        borderBottom: "1px solid rgba(255,255,255,0.08)",
-                        fontWeight: 500,
-                        opacity: 0.7,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      PUBLISHED
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "right",
-                        padding: "10px 10px",
-                        borderBottom: "1px solid rgba(255,255,255,0.08)",
-                        fontWeight: 500,
-                        opacity: 0.7,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      TOTAL VIEWS
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "10px 10px",
-                        borderBottom: "1px solid rgba(255,255,255,0.08)",
-                        fontWeight: 500,
-                        opacity: 0.7,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      STATUS
-                    </th>
+                    {["BUCKET", "CLIPPER", "PLATFORM", "VIDEO", "PUBLISHED", "TOTAL VIEWS", "STATUS"].map(
+                      (h) => (
+                        <th
+                          key={h}
+                          style={{
+                            textAlign: h === "TOTAL VIEWS" ? "right" : "left",
+                            padding: "10px 8px",
+                            borderBottom: "1px solid rgba(255,255,255,0.08)",
+                            fontWeight: 600,
+                            opacity: 0.7,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {h}
+                        </th>
+                      )
+                    )}
                   </tr>
                 </thead>
 
@@ -1200,7 +1139,7 @@ export default function ContentApprovalPage() {
                               : "transparent",
                           }}
                         >
-                          <td style={{ padding: "12px 8px" }}>
+                          <td style={{ padding: "12px 6px" }}>
                             <input
                               type="checkbox"
                               checked={isSelected}
@@ -1218,7 +1157,7 @@ export default function ContentApprovalPage() {
                             <span style={bucketPillStyle(bucket)}>{bucket}</span>
                             <div
                               style={{
-                                fontSize: 11,
+                                fontSize: 10,
                                 opacity: 0.6,
                                 marginTop: 4,
                                 whiteSpace: "nowrap",
@@ -1230,7 +1169,7 @@ export default function ContentApprovalPage() {
                             </div>
                           </td>
 
-                          <td style={{ padding: "12px 10px", fontWeight: 600 }}>
+                          <td style={{ padding: "12px 8px", fontWeight: 650 }}>
                             <div
                               style={{
                                 whiteSpace: "nowrap",
@@ -1257,39 +1196,35 @@ export default function ContentApprovalPage() {
                             </div>
                           </td>
 
-                          <td style={{ padding: "12px 10px", opacity: 0.9 }}>
+                          <td style={{ padding: "12px 8px", opacity: 0.9 }}>
                             <span style={{ whiteSpace: "nowrap" }}>
                               {r.platform || "—"}
                             </span>
                           </td>
 
-                          {/* VIDEO: smaller font, hard truncate, keep open link */}
-                          <td style={{ padding: "12px 10px" }}>
+                          {/* VIDEO (smaller + tighter) */}
+                          <td style={{ padding: "12px 8px" }}>
                             <div
                               style={{
-                                fontWeight: 700,
-                                fontSize: 12, // smaller than other columns
+                                fontWeight: 650,
+                                fontSize: VIDEO_TITLE_FONT_PX,
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                               }}
                               title={r.title || ""}
                             >
-                              {/* pick ONE: words or chars — chars is more consistent */}
-                              {truncateChars(r.title || "Untitled", 26)}
-                              {/* If you want 3 words instead, swap to:
+                              {truncateChars(r.title || "Untitled", VIDEO_TITLE_MAX_CHARS)}
+                              {/* if you prefer word-based instead:
                                   {truncateWords(r.title || "Untitled", 3)}
-                               */}
+                              */}
                             </div>
 
                             <div
                               style={{
-                                fontSize: 11,
-                                opacity: 0.7,
+                                fontSize: VIDEO_SUB_FONT_PX,
+                                opacity: 0.75,
                                 marginTop: 3,
-                                display: "flex",
-                                gap: 10,
-                                alignItems: "center",
                               }}
                             >
                               {r.videoUrl ? (
@@ -1311,17 +1246,17 @@ export default function ContentApprovalPage() {
                             </div>
                           </td>
 
-                          <td style={{ padding: "12px 10px" }}>
+                          <td style={{ padding: "12px 8px" }}>
                             <span style={boolChip(r.published)}>
                               {r.published ? "YES" : "NO"}
                             </span>
                           </td>
 
-                          <td style={{ padding: "12px 10px", textAlign: "right" }}>
+                          <td style={{ padding: "12px 8px", textAlign: "right" }}>
                             {formatNumber(r.totalViews)}
                           </td>
 
-                          <td style={{ padding: "12px 10px" }}>
+                          <td style={{ padding: "12px 8px" }}>
                             <span
                               style={{
                                 display: "inline-flex",
