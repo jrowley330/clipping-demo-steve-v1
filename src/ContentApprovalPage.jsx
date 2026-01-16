@@ -23,7 +23,6 @@ const formatDate = (value) => {
   const raw = unwrapValue(value);
   if (!raw) return "—";
 
-  // 'YYYY-MM-DD'
   if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     const [y, m, d] = raw.split("-").map(Number);
     const dt = new Date(y, m - 1, d);
@@ -61,10 +60,9 @@ const safeStr = (v) => String(unwrapValue(v) ?? "").trim();
 const truncateWords = (text, maxWords = 5) => {
   if (!text) return "";
   const words = String(text).trim().split(/\s+/);
-  if (words.length <= maxWords) return text;
+  if (words.length <= maxWords) return String(text);
   return words.slice(0, maxWords).join(" ") + "…";
 };
-
 
 // ---------- component ----------
 export default function ContentApprovalPage() {
@@ -96,7 +94,6 @@ export default function ContentApprovalPage() {
   const [acting, setActing] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
 
-  // Optional: if you’re already storing client_id somewhere, keep using that
   const clientId =
     safeStr(localStorage.getItem("client_id")) ||
     safeStr(sessionStorage.getItem("client_id")) ||
@@ -130,14 +127,12 @@ export default function ContentApprovalPage() {
         done: "DONE",
         all: "ALL",
       };
-
       const bucket = bucketMap[activeTab] || "ALL";
 
       const qs = new URLSearchParams({
         clientId,
         bucket,
       });
-
       if (platformFilter !== "all") qs.set("platform", platformFilter);
 
       const res = await fetch(
@@ -167,8 +162,7 @@ export default function ContentApprovalPage() {
       const normalized = apiRows.map((r, i) => {
         const id = safeStr(r.id) || safeStr(r.video_id) || `${i}`;
 
-        const clipper =
-          safeStr(r.clipper_name) || safeStr(r.clipper) || "—";
+        const clipper = safeStr(r.clipper_name) || safeStr(r.clipper) || "—";
 
         const account =
           safeStr(r.account_name) ||
@@ -177,16 +171,11 @@ export default function ContentApprovalPage() {
           "";
 
         const accountKey = safeStr(r.account_key || r.accountKey || "");
-
         const platform = safeStr(r.platform).toLowerCase();
 
-        const title =
-          safeStr(r.video_title) || safeStr(r.title) || "";
-
+        const title = safeStr(r.video_title) || safeStr(r.title) || "";
         const videoId = safeStr(r.video_id || r.videoId || "");
-
-        const videoUrl =
-          safeStr(r.video_url) || safeStr(r.url) || "";
+        const videoUrl = safeStr(r.video_url) || safeStr(r.url) || "";
 
         const eligible = toBool(r.eligible ?? r.is_eligible ?? r.isEligible);
         const published = toBool(
@@ -194,15 +183,12 @@ export default function ContentApprovalPage() {
         );
 
         const status =
-          safeStr(r.review_status) ||
-          safeStr(r.status) ||
-          "PENDING";
+          safeStr(r.review_status) || safeStr(r.status) || "PENDING";
 
         const dueDate = safeStr(r.due_date || r.deadline || "");
         const weekStart = safeStr(r.week_start || r.week_of || "");
 
         const totalViews = Number(unwrapValue(r.total_views) ?? 0);
-        const payableViews = Number(unwrapValue(r.payable_views) ?? 0);
 
         const reviewStatusUpper = safeStr(r.review_status).toUpperCase();
         const approved = reviewStatusUpper === "APPROVED";
@@ -212,10 +198,10 @@ export default function ContentApprovalPage() {
           id,
           clipper,
           account,
-          accountKey, // REQUIRED for bulk endpoint
+          accountKey, // REQUIRED for bulk endpoint (hidden from UI)
           platform,
           title,
-          videoId,
+          videoId, // hidden from UI (still used for API)
           videoUrl,
           eligible,
           published,
@@ -223,10 +209,8 @@ export default function ContentApprovalPage() {
           dueDate,
           weekStart,
           totalViews,
-          payableViews,
           approved,
           rejected,
-          // keep queue-specific fields if present
           queue_bucket: safeStr(r.queue_bucket || ""),
           is_overdue: toBool(r.is_overdue),
           raw: r,
@@ -240,13 +224,16 @@ export default function ContentApprovalPage() {
       setErr(e.message || "Failed to load content review queue.");
       setRows([]);
       setSelectedIds(new Set());
-      setApiCounts({ pending_this_week: 0, pending_overdue: 0, pending_total: 0 });
+      setApiCounts({
+        pending_this_week: 0,
+        pending_overdue: 0,
+        pending_total: 0,
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // refresh on tab/platform/client changes so API bucket matches UI
   useEffect(() => {
     fetchRows();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -266,11 +253,9 @@ export default function ContentApprovalPage() {
 
   const enhancedRows = useMemo(() => {
     return rows.map((r) => {
-      // Prefer API-provided bucket / overdue flags when present
       const qb = safeStr(r.queue_bucket).toUpperCase();
       const apiOverdue = toBool(r.is_overdue);
 
-      // fallback: compute overdue from dueDate
       const due = r.dueDate ? new Date(r.dueDate).getTime() : NaN;
       const computedOverdue = Number.isFinite(due) ? due < now : false;
 
@@ -288,6 +273,7 @@ export default function ContentApprovalPage() {
           end.setDate(end.getDate() + 7);
           return now >= start.getTime() && now < end.getTime();
         }
+
         if (Number.isFinite(due)) {
           const d = new Date(due);
           const today = new Date();
@@ -299,6 +285,7 @@ export default function ContentApprovalPage() {
           end.setDate(start.getDate() + 7);
           return d.getTime() >= start.getTime() && d.getTime() < end.getTime();
         }
+
         return true;
       })();
 
@@ -310,13 +297,7 @@ export default function ContentApprovalPage() {
       const isRejected =
         r.rejected || safeStr(r.status).toLowerCase() === "rejected";
 
-      return {
-        ...r,
-        isOverdue,
-        isThisWeek,
-        isDone,
-        isRejected,
-      };
+      return { ...r, isOverdue, isThisWeek, isDone, isRejected };
     });
   }, [rows, now]);
 
@@ -334,9 +315,7 @@ export default function ContentApprovalPage() {
         const hay = [
           r.clipper,
           r.account,
-          r.accountKey,
           r.title,
-          r.videoId,
           r.platform,
           r.status,
         ]
@@ -349,14 +328,11 @@ export default function ContentApprovalPage() {
     });
   }, [enhancedRows, activeTab, platformFilter, search]);
 
-  // local counts for DONE/ALL (since API only returns pending counts)
   const localCounts = useMemo(() => {
     const done = enhancedRows.filter((r) => r.isDone).length;
     const all = enhancedRows.length;
     return { done, all };
   }, [enhancedRows]);
-
-  const selectedCount = selectedIds.size;
 
   const toggleSelected = (id) => {
     setSelectedIds((prev) => {
@@ -409,7 +385,10 @@ export default function ContentApprovalPage() {
       }));
 
       const bad = items.find((x) => !x.platform || !x.accountKey || !x.videoId);
-      if (bad) throw new Error("Some selected rows are missing platform/accountKey/videoId.");
+      if (bad)
+        throw new Error(
+          "Some selected rows are missing platform/accountKey/videoId."
+        );
 
       const res = await fetch(`${API_BASE_URL}/content-reviews/bulk`, {
         method: "POST",
@@ -499,27 +478,102 @@ export default function ContentApprovalPage() {
     return base;
   };
 
+  const bucketPillStyle = (label) => {
+    const base = {
+      display: "inline-flex",
+      padding: "4px 10px",
+      borderRadius: 999,
+      fontSize: 11,
+      fontWeight: 800,
+      border: "1px solid rgba(148,163,184,0.40)",
+      background: "rgba(2,6,23,0.45)",
+      color: "rgba(255,255,255,0.86)",
+      letterSpacing: 0.2,
+      whiteSpace: "nowrap",
+    };
+    if (label === "PAST DUE") {
+      return {
+        ...base,
+        border: "1px solid rgba(248,113,113,0.55)",
+        background: "rgba(248,113,113,0.12)",
+        color: "#fecaca",
+      };
+    }
+    if (label === "THIS WEEK") {
+      return {
+        ...base,
+        border: "1px solid rgba(250,204,21,0.45)",
+        background: "rgba(250,204,21,0.10)",
+        color: "#fde68a",
+      };
+    }
+    if (label === "DONE") {
+      return {
+        ...base,
+        border: "1px solid rgba(34,197,94,0.55)",
+        background: "rgba(34,197,94,0.10)",
+        color: "#bbf7d0",
+      };
+    }
+    return base;
+  };
+
+  const boolChip = (val, kind) => {
+    const yes = !!val;
+    const base = {
+      display: "inline-flex",
+      padding: "4px 10px",
+      borderRadius: 999,
+      fontSize: 11,
+      fontWeight: 700,
+      border: "1px solid rgba(148,163,184,0.35)",
+      background: "rgba(2,6,23,0.35)",
+      color: "rgba(255,255,255,0.78)",
+      whiteSpace: "nowrap",
+    };
+
+    if (yes && kind === "eligible") {
+      return {
+        ...base,
+        border: "1px solid rgba(34,197,94,0.6)",
+        background: "rgba(34,197,94,0.12)",
+        color: "#bbf7d0",
+      };
+    }
+    if (yes && kind === "published") {
+      return {
+        ...base,
+        border: "1px solid rgba(96,165,250,0.55)",
+        background: "rgba(96,165,250,0.12)",
+        color: "#bfdbfe",
+      };
+    }
+    return base;
+  };
+
   return (
     <div
-        style={{
-            position: "fixed",
-            inset: 0,
-            width: "100vw",
-            minHeight: "100vh",
-            boxSizing: "border-box",
-            background: "radial-gradient(circle at top, #141414 0, #020202 55%)",
-            display: "flex",
-            overflowX: "hidden",
-            overflowY: "auto",
-            color: "#fff",
-            fontFamily:
-            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-            padding: "32px 24px",
-            paddingTop: "40px",
-            paddingBottom: "40px",
-        }}
-        >
-
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        minHeight: "100vh",
+        boxSizing: "border-box",
+        background: "radial-gradient(circle at top, #141414 0, #020202 55%)",
+        display: "flex",
+        overflowX: "hidden",
+        overflowY: "auto",
+        color: "#fff",
+        fontFamily:
+          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        padding: "32px 24px",
+        paddingTop: "40px",
+        paddingBottom: "40px",
+        margin: 0,
+        border: "none",
+        outline: "none",
+      }}
+    >
       {/* WATERMARK */}
       <div
         style={{
@@ -780,7 +834,7 @@ export default function ContentApprovalPage() {
       </div>
 
       {/* MAIN CONTENT */}
-      <div style={{ flex: 1, position: "relative", zIndex: 3 }}>
+      <div style={{ flex: 1, position: "relative", zIndex: 3, minWidth: 0 }}>
         {/* Branding */}
         <div
           style={{
@@ -807,13 +861,13 @@ export default function ContentApprovalPage() {
         {/* Header */}
         <div
           style={{
-            marginBottom: 18,
+            marginBottom: 14,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: 16,
             flexWrap: "wrap",
-            paddingRight: 10,
+            paddingRight: 8,
           }}
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
@@ -825,7 +879,6 @@ export default function ContentApprovalPage() {
             </span>
           </div>
 
-          {/* Right-side pills */}
           <div style={pillWrapStyle}>
             <button
               onClick={() => setActiveTab("this_week")}
@@ -865,7 +918,7 @@ export default function ContentApprovalPage() {
         </div>
 
         {/* Sub header line */}
-        <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 14 }}>
           Pending this week: <strong>{apiCounts.pending_this_week}</strong> ·
           Overdue: <strong>{apiCounts.pending_overdue}</strong>
           <span style={{ marginLeft: 12, opacity: 0.6 }}>
@@ -879,7 +932,7 @@ export default function ContentApprovalPage() {
             borderRadius: 20,
             background:
               "radial-gradient(circle at top left, rgba(255,255,255,0.04), transparent 55%)",
-            padding: 18,
+            padding: 14, // tighter
             boxShadow: "0 25px 60px rgba(0,0,0,0.85)",
           }}
         >
@@ -891,7 +944,7 @@ export default function ContentApprovalPage() {
               alignItems: "center",
               justifyContent: "space-between",
               flexWrap: "wrap",
-              marginBottom: 14,
+              marginBottom: 10, // tighter
             }}
           >
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -900,12 +953,12 @@ export default function ContentApprovalPage() {
                 onChange={(e) => setPlatformFilter(e.target.value)}
                 style={{
                   fontSize: 13,
-                  padding: "10px 14px",
+                  padding: "9px 14px",
                   borderRadius: 999,
                   border: "1px solid rgba(255,255,255,0.16)",
                   background: "rgba(0,0,0,0.6)",
                   color: "rgba(255,255,255,0.9)",
-                  minWidth: 180,
+                  minWidth: 170,
                   appearance: "none",
                 }}
               >
@@ -922,16 +975,16 @@ export default function ContentApprovalPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search clipper / account / title / video id..."
+                placeholder="Search clipper / account / title..."
                 style={{
                   fontSize: 13,
-                  padding: "10px 14px",
+                  padding: "9px 14px",
                   borderRadius: 999,
                   border: "1px solid rgba(255,255,255,0.16)",
                   background: "rgba(0,0,0,0.45)",
                   color: "rgba(255,255,255,0.9)",
-                  minWidth: 420,
-                  maxWidth: "70vw",
+                  minWidth: 380,
+                  maxWidth: "58vw",
                   outline: "none",
                 }}
               />
@@ -953,7 +1006,7 @@ export default function ContentApprovalPage() {
               gap: 10,
               alignItems: "center",
               flexWrap: "wrap",
-              marginBottom: 14,
+              marginBottom: 10, // tighter
             }}
           >
             <div style={{ fontSize: 13, opacity: 0.85, marginRight: 6 }}>
@@ -1007,59 +1060,145 @@ export default function ContentApprovalPage() {
               boxShadow: "0 18px 45px rgba(0,0,0,0.9)",
             }}
           >
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "hidden" }}>
               <table
                 style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    fontSize: 13,
-                    tableLayout: "fixed",   // KEY
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 13,
+                  tableLayout: "fixed", // allows squeezing
                 }}
-                >
+              >
                 <thead>
                   <tr>
+                    {/* checkbox */}
                     <th
                       style={{
+                        width: 34,
+                        padding: "10px 8px",
+                        borderBottom: "1px solid rgba(255,255,255,0.08)",
+                        opacity: 0.7,
+                      }}
+                    />
+                    {/* bucket */}
+                    <th
+                      style={{
+                        width: 108,
                         textAlign: "left",
-                        padding: "10px 12px",
+                        padding: "10px 8px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
                         fontWeight: 500,
                         opacity: 0.7,
-                        width: 48,
+                        whiteSpace: "nowrap",
                       }}
-                    />
-                    {[
-                      "BUCKET",
-                      "CLIPPER",
-                      "PLATFORM",
-                      "VIDEO",
-                      "ELIGIBLE",
-                      "PUBLISHED",
-                      "TOTAL VIEWS",
-                      "PAYABLE VIEWS",
-                      "STATUS",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        style={{
-                          textAlign: h.includes("VIEWS") ? "right" : "left",
-                          padding: "10px 12px",
-                          borderBottom: "1px solid rgba(255,255,255,0.08)",
-                          fontWeight: 500,
-                          opacity: 0.7,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {h}
-                      </th>
-                    ))}
+                    >
+                      BUCKET
+                    </th>
+                    {/* clipper */}
+                    <th
+                      style={{
+                        width: 220,
+                        textAlign: "left",
+                        padding: "10px 10px",
+                        borderBottom: "1px solid rgba(255,255,255,0.08)",
+                        fontWeight: 500,
+                        opacity: 0.7,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      CLIPPER
+                    </th>
+                    {/* platform */}
+                    <th
+                      style={{
+                        width: 95,
+                        textAlign: "left",
+                        padding: "10px 10px",
+                        borderBottom: "1px solid rgba(255,255,255,0.08)",
+                        fontWeight: 500,
+                        opacity: 0.7,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      PLATFORM
+                    </th>
+                    {/* video */}
+                    <th
+                      style={{
+                        width: "auto",
+                        textAlign: "left",
+                        padding: "10px 10px",
+                        borderBottom: "1px solid rgba(255,255,255,0.08)",
+                        fontWeight: 500,
+                        opacity: 0.7,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      VIDEO
+                    </th>
+                    {/* eligible */}
+                    <th
+                      style={{
+                        width: 92,
+                        textAlign: "left",
+                        padding: "10px 8px",
+                        borderBottom: "1px solid rgba(255,255,255,0.08)",
+                        fontWeight: 500,
+                        opacity: 0.7,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      ELIGIBLE
+                    </th>
+                    {/* published */}
+                    <th
+                      style={{
+                        width: 102,
+                        textAlign: "left",
+                        padding: "10px 8px",
+                        borderBottom: "1px solid rgba(255,255,255,0.08)",
+                        fontWeight: 500,
+                        opacity: 0.7,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      PUBLISHED
+                    </th>
+                    {/* total views */}
+                    <th
+                      style={{
+                        width: 110,
+                        textAlign: "right",
+                        padding: "10px 10px",
+                        borderBottom: "1px solid rgba(255,255,255,0.08)",
+                        fontWeight: 500,
+                        opacity: 0.7,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      TOTAL VIEWS
+                    </th>
+                    {/* status */}
+                    <th
+                      style={{
+                        width: 96,
+                        textAlign: "left",
+                        padding: "10px 10px",
+                        borderBottom: "1px solid rgba(255,255,255,0.08)",
+                        fontWeight: 500,
+                        opacity: 0.7,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      STATUS
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {!loading && filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={10} style={{ padding: 14, opacity: 0.8 }}>
+                      <td colSpan={9} style={{ padding: 14, opacity: 0.8 }}>
                         No rows for this filter.
                       </td>
                     </tr>
@@ -1073,82 +1212,12 @@ export default function ContentApprovalPage() {
                         ? "PAST DUE"
                         : "THIS WEEK";
 
-                      const bucketPill = (label) => {
-                        const base = {
-                          display: "inline-flex",
-                          padding: "4px 10px",
-                          borderRadius: 999,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          border: "1px solid rgba(148,163,184,0.4)",
-                          background: "rgba(2,6,23,0.45)",
-                          color: "rgba(255,255,255,0.85)",
-                          letterSpacing: 0.2,
-                        };
-
-                        if (label === "PAST DUE") {
-                          return {
-                            ...base,
-                            border: "1px solid rgba(248,113,113,0.55)",
-                            background: "rgba(248,113,113,0.12)",
-                            color: "#fecaca",
-                          };
-                        }
-                        if (label === "THIS WEEK") {
-                          return {
-                            ...base,
-                            border: "1px solid rgba(250,204,21,0.45)",
-                            background: "rgba(250,204,21,0.10)",
-                            color: "#fde68a",
-                          };
-                        }
-                        if (label === "DONE") {
-                          return {
-                            ...base,
-                            border: "1px solid rgba(34,197,94,0.55)",
-                            background: "rgba(34,197,94,0.10)",
-                            color: "#bbf7d0",
-                          };
-                        }
-                        return base;
-                      };
-
-                      const boolChip = (val, kind) => {
-                        const yes = !!val;
-                        const base = {
-                          display: "inline-flex",
-                          padding: "4px 10px",
-                          borderRadius: 999,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          border: "1px solid rgba(148,163,184,0.35)",
-                          background: "rgba(2,6,23,0.35)",
-                          color: "rgba(255,255,255,0.78)",
-                        };
-
-                        if (yes && kind === "eligible") {
-                          return {
-                            ...base,
-                            border: "1px solid rgba(34,197,94,0.6)",
-                            background: "rgba(34,197,94,0.12)",
-                            color: "#bbf7d0",
-                          };
-                        }
-                        if (yes && kind === "published") {
-                          return {
-                            ...base,
-                            border: "1px solid rgba(96,165,250,0.55)",
-                            background: "rgba(96,165,250,0.12)",
-                            color: "#bfdbfe",
-                          };
-                        }
-                        return base;
-                      };
-
                       const rowBorder =
                         idx !== filteredRows.length - 1
                           ? "1px solid rgba(148,163,184,0.18)"
                           : "none";
+
+                      const shownTitle = truncateWords(r.title || r.videoId, 4);
 
                       return (
                         <tr
@@ -1160,7 +1229,8 @@ export default function ContentApprovalPage() {
                               : "transparent",
                           }}
                         >
-                          <td style={{ padding: "12px 12px" }}>
+                          {/* checkbox */}
+                          <td style={{ padding: "12px 8px" }}>
                             <input
                               type="checkbox"
                               checked={isSelected}
@@ -1174,113 +1244,138 @@ export default function ContentApprovalPage() {
                             />
                           </td>
 
-                          <td style={{ padding: "12px 12px" }}>
-                            <span style={bucketPill(bucket)}>{bucket}</span>
+                          {/* bucket */}
+                          <td style={{ padding: "12px 8px" }}>
+                            <span style={bucketPillStyle(bucket)}>{bucket}</span>
                             <div
                               style={{
                                 fontSize: 11,
                                 opacity: 0.6,
                                 marginTop: 4,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
                               }}
                             >
                               {r.dueDate ? `Due: ${formatDate(r.dueDate)}` : " "}
                             </div>
                           </td>
 
-                          <td style={{ padding: "12px 12px", fontWeight: 600 }}>
-                            <div>{r.clipper}</div>
+                          {/* clipper (NO KEY) */}
+                          <td style={{ padding: "12px 10px", fontWeight: 600 }}>
+                            <div
+                              style={{
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                              title={r.clipper}
+                            >
+                              {r.clipper}
+                            </div>
                             <div
                               style={{
                                 fontSize: 11,
                                 opacity: 0.65,
                                 marginTop: 2,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                fontWeight: 500,
                               }}
+                              title={r.account || ""}
                             >
                               {r.account ? r.account : "—"}
-                              {r.accountKey ? (
-                                <span style={{ marginLeft: 8, opacity: 0.6 }}>
-                                  · key: {r.accountKey}
-                                </span>
-                              ) : null}
                             </div>
                           </td>
 
-                          <td style={{ padding: "12px 12px", opacity: 0.9 }}>
-                            {r.platform || "—"}
+                          {/* platform */}
+                          <td style={{ padding: "12px 10px", opacity: 0.9 }}>
+                            <span
+                              style={{
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                display: "block",
+                              }}
+                              title={r.platform || ""}
+                            >
+                              {r.platform || "—"}
+                            </span>
                           </td>
 
-                          <td style={{ padding: "12px 12px" }}>
+                          {/* video (NO ID display, NO payable views) */}
+                          <td style={{ padding: "12px 10px" }}>
                             <div
-                                style={{
-                                    fontWeight: 600,
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                }}
-                                title={r.title || r.videoId} // full title on hover
-                                >
-                                {truncateWords(r.title || r.videoId, 5)}
+                              style={{
+                                fontWeight: 600,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                              title={r.title || ""}
+                            >
+                              {shownTitle}
                             </div>
+
                             <div
                               style={{
                                 fontSize: 11,
                                 opacity: 0.65,
                                 marginTop: 2,
+                                display: "flex",
+                                gap: 8,
+                                alignItems: "center",
+                                minWidth: 0,
                               }}
                             >
-                              ID: {r.videoId}
                               {r.videoUrl ? (
-                                <>
-                                  {" "}
-                                  ·{" "}
-                                  <a
-                                    href={r.videoUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    style={{
-                                      color: "#facc15",
-                                      textDecoration: "underline dotted",
-                                    }}
-                                  >
-                                    open
-                                  </a>
-                                </>
-                              ) : null}
+                                <a
+                                  href={r.videoUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    color: "#facc15",
+                                    textDecoration: "underline dotted",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  open
+                                </a>
+                              ) : (
+                                <span style={{ opacity: 0.6 }}> </span>
+                              )}
                             </div>
                           </td>
 
-                          <td style={{ padding: "12px 12px" }}>
+                          {/* eligible */}
+                          <td style={{ padding: "12px 8px" }}>
                             <span style={boolChip(r.eligible, "eligible")}>
                               {r.eligible ? "YES" : "NO"}
                             </span>
                           </td>
 
-                          <td style={{ padding: "12px 12px" }}>
+                          {/* published */}
+                          <td style={{ padding: "12px 8px" }}>
                             <span style={boolChip(r.published, "published")}>
                               {r.published ? "YES" : "NO"}
                             </span>
                           </td>
 
-                          <td
-                            style={{ padding: "12px 12px", textAlign: "right" }}
-                          >
+                          {/* total views */}
+                          <td style={{ padding: "12px 10px", textAlign: "right" }}>
                             {formatNumber(r.totalViews)}
                           </td>
 
-                          <td
-                            style={{ padding: "12px 12px", textAlign: "right" }}
-                          >
-                            {formatNumber(r.payableViews)}
-                          </td>
-
-                          <td style={{ padding: "12px 12px" }}>
+                          {/* status */}
+                          <td style={{ padding: "12px 10px" }}>
                             <span
                               style={{
                                 display: "inline-flex",
                                 padding: "4px 10px",
                                 borderRadius: 999,
                                 fontSize: 11,
-                                fontWeight: 700,
+                                fontWeight: 800,
                                 border: "1px solid rgba(148,163,184,0.4)",
                                 background: r.isDone
                                   ? "rgba(34,197,94,0.10)"
@@ -1292,6 +1387,7 @@ export default function ContentApprovalPage() {
                                   : r.isRejected
                                   ? "#fecaca"
                                   : "rgba(255,255,255,0.82)",
+                                whiteSpace: "nowrap",
                               }}
                             >
                               {safeStr(r.status).toUpperCase() || "PENDING"}
