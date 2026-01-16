@@ -64,6 +64,13 @@ const truncateWords = (text, maxWords = 5) => {
   return words.slice(0, maxWords).join(" ") + "…";
 };
 
+const truncateChars = (text, maxChars = 28) => {
+  if (!text) return "";
+  const s = String(text).trim();
+  if (s.length <= maxChars) return s;
+  return s.slice(0, maxChars).trimEnd() + "…";
+};
+
 // ---------- component ----------
 export default function ContentApprovalPage() {
   const navigate = useNavigate();
@@ -197,10 +204,10 @@ export default function ContentApprovalPage() {
           id,
           clipper,
           account,
-          accountKey, // keep for API bulk (hidden)
+          accountKey, // hidden but required for bulk endpoint
           platform,
           title,
-          videoId, // keep for API bulk (hidden)
+          videoId, // hidden but required for bulk endpoint
           videoUrl,
           published,
           status,
@@ -1043,22 +1050,32 @@ export default function ContentApprovalPage() {
               boxShadow: "0 18px 45px rgba(0,0,0,0.9)",
             }}
           >
-            {/* IMPORTANT: allow horizontal scroll if needed (prevents overlap) */}
             <div style={{ overflowX: "auto" }}>
               <table
                 style={{
                   width: "100%",
-                  minWidth: 980, // prevents header/cell overlap on narrower widths
+                  minWidth: 860, // helps prevent cutoff but still allows scroll if needed
                   borderCollapse: "collapse",
                   fontSize: 13,
-                  tableLayout: "auto", // KEY FIX: stops the “everything stacks/overlaps” behavior
+                  tableLayout: "fixed", // KEY: lets us force a smaller VIDEO column cleanly
                 }}
               >
+                {/* KEY: explicit column widths so VIDEO doesn't explode */}
+                <colgroup>
+                  <col style={{ width: 34 }} /> {/* checkbox */}
+                  <col style={{ width: 120 }} /> {/* bucket */}
+                  <col style={{ width: 180 }} /> {/* clipper */}
+                  <col style={{ width: 110 }} /> {/* platform */}
+                  <col style={{ width: 210 }} /> {/* video (kept small) */}
+                  <col style={{ width: 110 }} /> {/* published */}
+                  <col style={{ width: 130 }} /> {/* total views */}
+                  <col style={{ width: 120 }} /> {/* status */}
+                </colgroup>
+
                 <thead>
                   <tr>
                     <th
                       style={{
-                        width: 34,
                         padding: "10px 8px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
                         opacity: 0.7,
@@ -1066,7 +1083,6 @@ export default function ContentApprovalPage() {
                     />
                     <th
                       style={{
-                        width: 110,
                         textAlign: "left",
                         padding: "10px 8px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -1091,7 +1107,6 @@ export default function ContentApprovalPage() {
                     </th>
                     <th
                       style={{
-                        width: 96,
                         textAlign: "left",
                         padding: "10px 10px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -1116,7 +1131,6 @@ export default function ContentApprovalPage() {
                     </th>
                     <th
                       style={{
-                        width: 110,
                         textAlign: "left",
                         padding: "10px 10px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -1129,7 +1143,6 @@ export default function ContentApprovalPage() {
                     </th>
                     <th
                       style={{
-                        width: 120,
                         textAlign: "right",
                         padding: "10px 10px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -1142,7 +1155,6 @@ export default function ContentApprovalPage() {
                     </th>
                     <th
                       style={{
-                        width: 110,
                         textAlign: "left",
                         padding: "10px 10px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -1218,11 +1230,9 @@ export default function ContentApprovalPage() {
                             </div>
                           </td>
 
-                          {/* CLIPPER: shorter, ellipsis if needed */}
                           <td style={{ padding: "12px 10px", fontWeight: 600 }}>
                             <div
                               style={{
-                                maxWidth: 240,
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
@@ -1236,7 +1246,6 @@ export default function ContentApprovalPage() {
                                 fontSize: 11,
                                 opacity: 0.65,
                                 marginTop: 2,
-                                maxWidth: 240,
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
@@ -1254,26 +1263,30 @@ export default function ContentApprovalPage() {
                             </span>
                           </td>
 
-                          {/* VIDEO: restore title + open link */}
-                          <td style={{ padding: "12px 10px", minWidth: 260 }}>
+                          {/* VIDEO: smaller font, hard truncate, keep open link */}
+                          <td style={{ padding: "12px 10px" }}>
                             <div
                               style={{
-                                fontWeight: 600,
+                                fontWeight: 700,
+                                fontSize: 12, // smaller than other columns
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
-                                maxWidth: 520,
                               }}
                               title={r.title || ""}
                             >
-                              {truncateWords(r.title || "Untitled", 6)}
+                              {/* pick ONE: words or chars — chars is more consistent */}
+                              {truncateChars(r.title || "Untitled", 26)}
+                              {/* If you want 3 words instead, swap to:
+                                  {truncateWords(r.title || "Untitled", 3)}
+                               */}
                             </div>
 
                             <div
                               style={{
                                 fontSize: 11,
                                 opacity: 0.7,
-                                marginTop: 2,
+                                marginTop: 3,
                                 display: "flex",
                                 gap: 10,
                                 alignItems: "center",
