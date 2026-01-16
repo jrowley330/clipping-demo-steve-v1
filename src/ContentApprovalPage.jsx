@@ -240,7 +240,7 @@ export default function ContentApprovalPage() {
       setRows(normalized);
       setSelectedIds(new Set());
     } catch (e) {
- see	console.error(e);
+      console.error(e);
       setErr(e.message || "Failed to load content review queue.");
       setRows([]);
       setSelectedIds(new Set());
