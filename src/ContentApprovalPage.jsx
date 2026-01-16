@@ -177,7 +177,6 @@ export default function ContentApprovalPage() {
         const videoId = safeStr(r.video_id || r.videoId || "");
         const videoUrl = safeStr(r.video_url) || safeStr(r.url) || "";
 
-        const eligible = toBool(r.eligible ?? r.is_eligible ?? r.isEligible);
         const published = toBool(
           r.published ?? r.is_published ?? r.isPublished
         );
@@ -198,12 +197,11 @@ export default function ContentApprovalPage() {
           id,
           clipper,
           account,
-          accountKey, // REQUIRED for bulk endpoint (hidden from UI)
+          accountKey, // keep for API bulk (hidden)
           platform,
           title,
-          videoId, // hidden from UI (still used for API)
+          videoId, // keep for API bulk (hidden)
           videoUrl,
-          eligible,
           published,
           status,
           dueDate,
@@ -258,7 +256,6 @@ export default function ContentApprovalPage() {
 
       const due = r.dueDate ? new Date(r.dueDate).getTime() : NaN;
       const computedOverdue = Number.isFinite(due) ? due < now : false;
-
       const isOverdue = qb === "OVERDUE" ? true : apiOverdue || computedOverdue;
 
       const ws = r.weekStart ? new Date(r.weekStart).getTime() : NaN;
@@ -312,13 +309,7 @@ export default function ContentApprovalPage() {
       if (platformFilter !== "all" && r.platform !== platformFilter) return false;
 
       if (s) {
-        const hay = [
-          r.clipper,
-          r.account,
-          r.title,
-          r.platform,
-          r.status,
-        ]
+        const hay = [r.clipper, r.account, r.title, r.platform, r.status]
           .join(" ")
           .toLowerCase();
         if (!hay.includes(s)) return false;
@@ -518,7 +509,7 @@ export default function ContentApprovalPage() {
     return base;
   };
 
-  const boolChip = (val, kind) => {
+  const boolChip = (val) => {
     const yes = !!val;
     const base = {
       display: "inline-flex",
@@ -532,15 +523,7 @@ export default function ContentApprovalPage() {
       whiteSpace: "nowrap",
     };
 
-    if (yes && kind === "eligible") {
-      return {
-        ...base,
-        border: "1px solid rgba(34,197,94,0.6)",
-        background: "rgba(34,197,94,0.12)",
-        color: "#bbf7d0",
-      };
-    }
-    if (yes && kind === "published") {
+    if (yes) {
       return {
         ...base,
         border: "1px solid rgba(96,165,250,0.55)",
@@ -932,7 +915,7 @@ export default function ContentApprovalPage() {
             borderRadius: 20,
             background:
               "radial-gradient(circle at top left, rgba(255,255,255,0.04), transparent 55%)",
-            padding: 14, // tighter
+            padding: 14,
             boxShadow: "0 25px 60px rgba(0,0,0,0.85)",
           }}
         >
@@ -944,7 +927,7 @@ export default function ContentApprovalPage() {
               alignItems: "center",
               justifyContent: "space-between",
               flexWrap: "wrap",
-              marginBottom: 10, // tighter
+              marginBottom: 10,
             }}
           >
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -1006,7 +989,7 @@ export default function ContentApprovalPage() {
               gap: 10,
               alignItems: "center",
               flexWrap: "wrap",
-              marginBottom: 10, // tighter
+              marginBottom: 10,
             }}
           >
             <div style={{ fontSize: 13, opacity: 0.85, marginRight: 6 }}>
@@ -1060,18 +1043,19 @@ export default function ContentApprovalPage() {
               boxShadow: "0 18px 45px rgba(0,0,0,0.9)",
             }}
           >
-            <div style={{ overflowX: "hidden" }}>
+            {/* IMPORTANT: allow horizontal scroll if needed (prevents overlap) */}
+            <div style={{ overflowX: "auto" }}>
               <table
                 style={{
                   width: "100%",
+                  minWidth: 980, // prevents header/cell overlap on narrower widths
                   borderCollapse: "collapse",
                   fontSize: 13,
-                  tableLayout: "fixed", // allows squeezing
+                  tableLayout: "auto", // KEY FIX: stops the “everything stacks/overlaps” behavior
                 }}
               >
                 <thead>
                   <tr>
-                    {/* checkbox */}
                     <th
                       style={{
                         width: 34,
@@ -1080,10 +1064,9 @@ export default function ContentApprovalPage() {
                         opacity: 0.7,
                       }}
                     />
-                    {/* bucket */}
                     <th
                       style={{
-                        width: 108,
+                        width: 110,
                         textAlign: "left",
                         padding: "10px 8px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -1094,10 +1077,8 @@ export default function ContentApprovalPage() {
                     >
                       BUCKET
                     </th>
-                    {/* clipper */}
                     <th
                       style={{
-                        width: 220,
                         textAlign: "left",
                         padding: "10px 10px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -1108,10 +1089,9 @@ export default function ContentApprovalPage() {
                     >
                       CLIPPER
                     </th>
-                    {/* platform */}
                     <th
                       style={{
-                        width: 95,
+                        width: 96,
                         textAlign: "left",
                         padding: "10px 10px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -1122,10 +1102,8 @@ export default function ContentApprovalPage() {
                     >
                       PLATFORM
                     </th>
-                    {/* video */}
                     <th
                       style={{
-                        width: "auto",
                         textAlign: "left",
                         padding: "10px 10px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -1136,26 +1114,11 @@ export default function ContentApprovalPage() {
                     >
                       VIDEO
                     </th>
-                    {/* eligible */}
                     <th
                       style={{
-                        width: 92,
+                        width: 110,
                         textAlign: "left",
-                        padding: "10px 8px",
-                        borderBottom: "1px solid rgba(255,255,255,0.08)",
-                        fontWeight: 500,
-                        opacity: 0.7,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      ELIGIBLE
-                    </th>
-                    {/* published */}
-                    <th
-                      style={{
-                        width: 102,
-                        textAlign: "left",
-                        padding: "10px 8px",
+                        padding: "10px 10px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
                         fontWeight: 500,
                         opacity: 0.7,
@@ -1164,10 +1127,9 @@ export default function ContentApprovalPage() {
                     >
                       PUBLISHED
                     </th>
-                    {/* total views */}
                     <th
                       style={{
-                        width: 110,
+                        width: 120,
                         textAlign: "right",
                         padding: "10px 10px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -1178,10 +1140,9 @@ export default function ContentApprovalPage() {
                     >
                       TOTAL VIEWS
                     </th>
-                    {/* status */}
                     <th
                       style={{
-                        width: 96,
+                        width: 110,
                         textAlign: "left",
                         padding: "10px 10px",
                         borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -1198,7 +1159,7 @@ export default function ContentApprovalPage() {
                 <tbody>
                   {!loading && filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={9} style={{ padding: 14, opacity: 0.8 }}>
+                      <td colSpan={8} style={{ padding: 14, opacity: 0.8 }}>
                         No rows for this filter.
                       </td>
                     </tr>
@@ -1217,8 +1178,6 @@ export default function ContentApprovalPage() {
                           ? "1px solid rgba(148,163,184,0.18)"
                           : "none";
 
-                      const shownTitle = truncateWords(r.title || r.videoId, 4);
-
                       return (
                         <tr
                           key={r.id}
@@ -1229,7 +1188,6 @@ export default function ContentApprovalPage() {
                               : "transparent",
                           }}
                         >
-                          {/* checkbox */}
                           <td style={{ padding: "12px 8px" }}>
                             <input
                               type="checkbox"
@@ -1244,7 +1202,6 @@ export default function ContentApprovalPage() {
                             />
                           </td>
 
-                          {/* bucket */}
                           <td style={{ padding: "12px 8px" }}>
                             <span style={bucketPillStyle(bucket)}>{bucket}</span>
                             <div
@@ -1261,10 +1218,11 @@ export default function ContentApprovalPage() {
                             </div>
                           </td>
 
-                          {/* clipper (NO KEY) */}
+                          {/* CLIPPER: shorter, ellipsis if needed */}
                           <td style={{ padding: "12px 10px", fontWeight: 600 }}>
                             <div
                               style={{
+                                maxWidth: 240,
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
@@ -1278,6 +1236,7 @@ export default function ContentApprovalPage() {
                                 fontSize: 11,
                                 opacity: 0.65,
                                 marginTop: 2,
+                                maxWidth: 240,
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
@@ -1289,44 +1248,35 @@ export default function ContentApprovalPage() {
                             </div>
                           </td>
 
-                          {/* platform */}
                           <td style={{ padding: "12px 10px", opacity: 0.9 }}>
-                            <span
-                              style={{
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                display: "block",
-                              }}
-                              title={r.platform || ""}
-                            >
+                            <span style={{ whiteSpace: "nowrap" }}>
                               {r.platform || "—"}
                             </span>
                           </td>
 
-                          {/* video (NO ID display, NO payable views) */}
-                          <td style={{ padding: "12px 10px" }}>
+                          {/* VIDEO: restore title + open link */}
+                          <td style={{ padding: "12px 10px", minWidth: 260 }}>
                             <div
                               style={{
                                 fontWeight: 600,
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
+                                maxWidth: 520,
                               }}
                               title={r.title || ""}
                             >
-                              {shownTitle}
+                              {truncateWords(r.title || "Untitled", 6)}
                             </div>
 
                             <div
                               style={{
                                 fontSize: 11,
-                                opacity: 0.65,
+                                opacity: 0.7,
                                 marginTop: 2,
                                 display: "flex",
-                                gap: 8,
+                                gap: 10,
                                 alignItems: "center",
-                                minWidth: 0,
                               }}
                             >
                               {r.videoUrl ? (
@@ -1348,26 +1298,16 @@ export default function ContentApprovalPage() {
                             </div>
                           </td>
 
-                          {/* eligible */}
-                          <td style={{ padding: "12px 8px" }}>
-                            <span style={boolChip(r.eligible, "eligible")}>
-                              {r.eligible ? "YES" : "NO"}
-                            </span>
-                          </td>
-
-                          {/* published */}
-                          <td style={{ padding: "12px 8px" }}>
-                            <span style={boolChip(r.published, "published")}>
+                          <td style={{ padding: "12px 10px" }}>
+                            <span style={boolChip(r.published)}>
                               {r.published ? "YES" : "NO"}
                             </span>
                           </td>
 
-                          {/* total views */}
                           <td style={{ padding: "12px 10px", textAlign: "right" }}>
                             {formatNumber(r.totalViews)}
                           </td>
 
-                          {/* status */}
                           <td style={{ padding: "12px 10px" }}>
                             <span
                               style={{
