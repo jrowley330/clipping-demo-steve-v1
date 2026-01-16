@@ -1298,4 +1298,4 @@ export default function ContentApprovalPage() {
       </div>
     </div>
   );
-}
+} // remove
