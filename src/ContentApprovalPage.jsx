@@ -18,7 +18,8 @@ const COL_W_BUCKET = 108;
 const COL_W_CLIPPER = 160;
 const COL_W_PLATFORM = 96;
 const COL_W_VIDEO = 190;
-const COL_W_PUBLISHED = 98;
+const COL_W_PUBLISHED = 110;
+const COL_W_ELIGIBLE = 110;
 const COL_W_TOTALV = 112;
 const COL_W_STATUS = 110;
 
@@ -199,9 +200,8 @@ export default function ContentApprovalPage() {
         const videoId = safeStr(r.video_id || r.videoId || "");
         const videoUrl = safeStr(r.video_url) || safeStr(r.url) || "";
 
-        const published = toBool(
-          r.published ?? r.is_published ?? r.isPublished
-        );
+        const publishedAt = unwrapValue(r.published_at ?? r.publishedAt ?? r.published_date ?? "");
+        const eligibleAt = unwrapValue(r.eligible_at ?? r.eligibleAt ?? r.eligible_date ?? "");
 
         const status =
           safeStr(r.review_status) || safeStr(r.status) || "PENDING";
@@ -228,7 +228,8 @@ export default function ContentApprovalPage() {
           title,
           videoId, // hidden but required for bulk endpoint
           videoUrl,
-          published,
+          publishedAt,
+          eligibleAt,
           status,
           dueDate,
           weekStart,
@@ -1078,6 +1079,7 @@ export default function ContentApprovalPage() {
                   <col style={{ width: COL_W_PLATFORM }} />
                   <col style={{ width: COL_W_VIDEO }} />
                   <col style={{ width: COL_W_PUBLISHED }} />
+                  <col style={{ width: COL_W_ELIGIBLE }} />
                   <col style={{ width: COL_W_TOTALV }} />
                   <col style={{ width: COL_W_STATUS }} />
                 </colgroup>
@@ -1091,7 +1093,7 @@ export default function ContentApprovalPage() {
                         opacity: 0.7,
                       }}
                     />
-                    {["BUCKET", "CLIPPER", "PLATFORM", "VIDEO", "PUBLISHED", "TOTAL VIEWS", "STATUS"].map(
+                    {["BUCKET", "CLIPPER", "PLATFORM", "VIDEO", "PUBLISHED", "ELIGIBLE", "TOTAL VIEWS", "STATUS"].map(
                       (h) => (
                         <th
                           key={h}
@@ -1250,10 +1252,12 @@ export default function ContentApprovalPage() {
                             </div>
                           </td>
 
-                          <td style={{ padding: "12px 8px" }}>
-                            <span style={boolChip(r.published)}>
-                              {r.published ? "YES" : "NO"}
-                            </span>
+                          <td style={{ padding: "12px 8px", opacity: 0.9 }}>
+                            {formatDate(r.publishedAt)}
+                          </td>
+
+                          <td style={{ padding: "12px 8px", opacity: 0.9 }}>
+                            {formatDate(r.eligibleAt)}
                           </td>
 
                           <td style={{ padding: "12px 8px", textAlign: "right" }}>
