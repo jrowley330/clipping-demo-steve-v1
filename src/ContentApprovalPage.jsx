@@ -228,6 +228,11 @@ export default function ContentApprovalPage() {
         const approved = reviewStatusUpper === "APPROVED";
         const rejected = reviewStatusUpper === "REJECTED";
 
+        const reviewedBy = safeStr(r.reviewed_by || "");
+        const reviewedAt = unwrapValue(r.reviewed_at ?? "");
+        const feedbackText = safeStr(r.feedback_text || "");
+
+
         return {
           id,
           clipper,
@@ -245,6 +250,9 @@ export default function ContentApprovalPage() {
           totalViews,
           approved,
           rejected,
+          reviewedBy,
+          reviewedAt,
+          feedbackText,
           queue_bucket: safeStr(r.queue_bucket || ""),
           is_overdue: toBool(r.is_overdue),
           raw: r,
@@ -1504,7 +1512,9 @@ export default function ContentApprovalPage() {
                 }}
               >
                 <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>
-                  Tip: click the status pill anytime to review.
+                  Reviewed by: <strong style={{ color: "rgba(255,255,255,0.82)" }}>
+                    {safeStr(reviewRow?.reviewedBy || "—")}
+                  </strong>
                 </div>
 
                 <div style={{ display: "flex", gap: 10 }}>
