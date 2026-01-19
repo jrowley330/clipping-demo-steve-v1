@@ -118,6 +118,14 @@ export default function ContentApprovalPage() {
   const [acting, setActing] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
 
+
+  // --- single-item review modal ---
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewRow, setReviewRow] = useState(null);
+  const [reviewFeedback, setReviewFeedback] = useState("");
+  const [reviewSaving, setReviewSaving] = useState(false);
+
+
   const clientId =
     safeStr(localStorage.getItem("client_id")) ||
     safeStr(sessionStorage.getItem("client_id")) ||
@@ -376,6 +384,77 @@ export default function ContentApprovalPage() {
   };
 
   // ---------- actions ----------
+  const openReviewModal = (row) => {
+    setReviewRow(row);
+    // prefill if existing feedback exists
+    const existing =
+      safeStr(row?.feedbackText) ||
+      safeStr(row?.feedback_text) ||
+      safeStr(row?.feedback_text) ||
+      "";
+    setReviewFeedback(existing);
+    setReviewOpen(true);
+  };
+
+  const closeReviewModal = () => {
+    if (reviewSaving) return;
+    setReviewOpen(false);
+    setReviewRow(null);
+    setReviewFeedback("");
+  };
+
+  const submitSingleReview = async (reviewStatus) => {
+    if (!reviewRow || reviewSaving) return;
+
+    try {
+      setReviewSaving(true);
+      setErr("");
+      setActionMsg("");
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const reviewedBy =
+        sessionData?.session?.user?.email ||
+        sessionData?.session?.user?.id ||
+        "";
+
+      const item = {
+        clientId,
+        platform: reviewRow.platform,
+        accountKey: reviewRow.accountKey,
+        videoId: reviewRow.videoId,
+        reviewStatus, // "APPROVED" | "REJECTED"
+        feedbackText: reviewFeedback || "",
+        reviewedBy,
+      };
+
+      if (!item.platform || !item.accountKey || !item.videoId) {
+        throw new Error("This row is missing platform/accountKey/videoId.");
+      }
+
+      const res = await fetch(`${API_BASE_URL}/content-reviews/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: [item] }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Review API ${res.status}`);
+
+      setActionMsg(
+        reviewStatus === "APPROVED" ? "Approved 1 item." : "Rejected 1 item."
+      );
+
+      closeReviewModal();
+      await fetchRows();
+    } catch (e) {
+      console.error(e);
+      setErr(e.message || "Failed to submit review.");
+    } finally {
+      setReviewSaving(false);
+    }
+  };
+
+  
   const bulkAction = async (action) => {
     if (acting) return;
     const ids = Array.from(selectedIds);
@@ -1268,29 +1347,50 @@ export default function ContentApprovalPage() {
                           </td>
 
                           <td style={{ padding: "12px 8px" }}>
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                padding: "4px 10px",
-                                borderRadius: 999,
-                                fontSize: 11,
-                                fontWeight: 800,
-                                border: "1px solid rgba(148,163,184,0.4)",
-                                background: r.isDone
-                                  ? "rgba(34,197,94,0.10)"
-                                  : r.isRejected
-                                  ? "rgba(248,113,113,0.10)"
-                                  : "rgba(2,6,23,0.35)",
-                                color: r.isDone
-                                  ? "#bbf7d0"
-                                  : r.isRejected
-                                  ? "#fecaca"
-                                  : "rgba(255,255,255,0.82)",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {safeStr(r.status).toUpperCase() || "PENDING"}
-                            </span>
+                          <button
+                            onClick={() => openReviewModal(r)}
+                            title="Click to review (approve / reject)"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              fontSize: 11,
+                              fontWeight: 800,
+                              whiteSpace: "nowrap",
+
+                              border: "1px solid rgba(148,163,184,0.45)",
+                              background: r.isDone
+                                ? "rgba(34,197,94,0.14)"
+                                : r.isRejected
+                                ? "rgba(248,113,113,0.14)"
+                                : "rgba(2,6,23,0.45)",
+
+                              color: r.isDone
+                                ? "#bbf7d0"
+                                : r.isRejected
+                                ? "#fecaca"
+                                : "rgba(255,255,255,0.9)",
+
+                              cursor: "pointer",
+                              transition: "transform 120ms ease, box-shadow 120ms ease, background 120ms ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = "translateY(-1px)";
+                              e.currentTarget.style.boxShadow = "0 6px 18px rgba(0,0,0,0.35)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = "translateY(0)";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                          >
+                            <span>{safeStr(r.status).toUpperCase() || "PENDING"}</span>
+                            {!r.isDone && !r.isRejected && (
+                              <span style={{ opacity: 0.6 }}>✎</span>
+                            )}
+                          </button>
+
                           </td>
                         </tr>
                       );
