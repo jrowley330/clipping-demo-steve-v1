@@ -209,7 +209,11 @@ export default function ContentApprovalPage() {
         const dueDate = safeStr(r.due_date || r.deadline || "");
         const weekStart = safeStr(r.week_start || r.week_of || "");
 
-        const totalViews = Number(unwrapValue(r.total_views) ?? 0);
+        const totalViews = Number(
+          unwrapValue(
+            r.total_views_video ?? r.latest_view_count ?? r.latest_view_count_video ?? r.total_views ?? 0
+          )
+        );
 
         const reviewStatusUpper = safeStr(r.review_status).toUpperCase();
         const approved = reviewStatusUpper === "APPROVED";
