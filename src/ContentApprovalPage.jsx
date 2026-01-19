@@ -125,6 +125,24 @@ export default function ContentApprovalPage() {
   const [reviewFeedback, setReviewFeedback] = useState("");
   const [reviewSaving, setReviewSaving] = useState(false);
 
+  // --- bulk confirm modal ---
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkMode, setBulkMode] = useState(null); // "approve" | "reject"
+  const [bulkFeedback, setBulkFeedback] = useState("");
+  const [bulkSaving, setBulkSaving] = useState(false);
+
+  const openBulkModal = (mode) => {
+    setBulkMode(mode);
+    setBulkFeedback("");
+    setBulkOpen(true);
+  };
+
+  const closeBulkModal = () => {
+    if (bulkSaving) return;
+    setBulkOpen(false);
+    setBulkMode(null);
+    setBulkFeedback("");
+  };
 
   const clientId =
     safeStr(localStorage.getItem("client_id")) ||
@@ -465,7 +483,18 @@ export default function ContentApprovalPage() {
     }
   };
 
-  
+  const confirmBulk = async () => {
+    if (!bulkMode) return;
+    try {
+      setBulkSaving(true);
+      // reuse your existing function
+      await bulkAction(bulkMode);
+      closeBulkModal();
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
   const bulkAction = async (action) => {
     if (acting) return;
     const ids = Array.from(selectedIds);
@@ -492,7 +521,7 @@ export default function ContentApprovalPage() {
         accountKey: r.accountKey,
         videoId: r.videoId,
         reviewStatus,
-        feedbackText: "",
+        feedbackText: reviewStatus === "REJECTED" ? (bulkFeedback || "") : "",
         reviewedBy,
       }));
 
@@ -1130,7 +1159,7 @@ export default function ContentApprovalPage() {
 
             <button
               disabled={acting || selectedIds.size === 0}
-              onClick={() => bulkAction("approve")}
+              onClick={() => openBulkModal("approve")}
               style={actionBtn("approve")}
             >
               {acting ? "Working…" : "Approve selected"}
@@ -1138,7 +1167,7 @@ export default function ContentApprovalPage() {
 
             <button
               disabled={acting || selectedIds.size === 0}
-              onClick={() => bulkAction("reject")}
+              onClick={() => openBulkModal("reject")}
               style={actionBtn("reject")}
             >
               {acting ? "Working…" : "Reject selected"}
@@ -1557,6 +1586,155 @@ export default function ContentApprovalPage() {
             </div>
           </div>
         )}
+
+        {bulkOpen && (
+          <div
+            onClick={closeBulkModal}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background: "rgba(0,0,0,0.55)",
+              backdropFilter: "blur(8px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "min(720px, 94vw)",
+                borderRadius: 20,
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: "rgba(10,15,25,0.92)",
+                boxShadow: "0 24px 80px rgba(0,0,0,0.65)",
+                padding: 16,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>
+                    {bulkMode === "approve" ? "Confirm approval" : "Confirm rejection"}
+                  </div>
+                  <div style={{ marginTop: 6, color: "rgba(255,255,255,0.72)", fontSize: 13 }}>
+                    You are about to {bulkMode === "approve" ? "approve" : "reject"}{" "}
+                    <strong style={{ color: "rgba(255,255,255,0.9)" }}>{selectedIds.size}</strong>{" "}
+                    video{selectedIds.size === 1 ? "" : "s"}.
+                  </div>
+                </div>
+
+                <button
+                  onClick={closeBulkModal}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "rgba(255,255,255,0.8)",
+                    cursor: bulkSaving ? "default" : "pointer",
+                    fontSize: 20,
+                    padding: "4px 8px",
+                  }}
+                  disabled={bulkSaving}
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {bulkMode === "reject" && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>
+                    Feedback for all selected videos (optional)
+                  </div>
+
+                  <textarea
+                    value={bulkFeedback}
+                    onChange={(e) => setBulkFeedback(e.target.value)}
+                    placeholder="This feedback will be applied to every rejected video…"
+                    style={{
+                      marginTop: 8,
+                      width: "100%",
+                      maxWidth: "100%",
+                      boxSizing: "border-box",
+                      display: "block",
+                      minHeight: 110,
+                      resize: "vertical",
+                      borderRadius: 14,
+                      border: "1px solid rgba(255,255,255,0.14)",
+                      background: "rgba(2,6,23,0.55)",
+                      color: "rgba(255,255,255,0.92)",
+                      padding: 12,
+                      outline: "none",
+                      fontSize: 14,
+                      lineHeight: 1.35,
+                    }}
+                  />
+                </div>
+              )}
+
+              <div
+                style={{
+                  marginTop: 14,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>
+                  This will update DEMOV2.CONTENT_REVIEWS for each selected row.
+                </div>
+
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={closeBulkModal}
+                    disabled={bulkSaving}
+                    style={{
+                      borderRadius: 999,
+                      padding: "10px 14px",
+                      border: "1px solid rgba(148,163,184,0.35)",
+                      background: "rgba(15,23,42,0.55)",
+                      color: "rgba(255,255,255,0.9)",
+                      fontWeight: 800,
+                      cursor: bulkSaving ? "default" : "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    onClick={confirmBulk}
+                    disabled={bulkSaving}
+                    style={{
+                      borderRadius: 999,
+                      padding: "10px 14px",
+                      border:
+                        bulkMode === "approve"
+                          ? "1px solid rgba(34,197,94,0.35)"
+                          : "1px solid rgba(239,68,68,0.35)",
+                      background:
+                        bulkMode === "approve"
+                          ? "rgba(20,83,45,0.30)"
+                          : "rgba(127,29,29,0.22)",
+                      color: "rgba(255,255,255,0.92)",
+                      fontWeight: 900,
+                      cursor: bulkSaving ? "default" : "pointer",
+                    }}
+                  >
+                    {bulkSaving
+                      ? "Saving..."
+                      : bulkMode === "approve"
+                      ? "Confirm approve"
+                      : "Confirm reject"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
 
       </div>
     </div>
