@@ -163,6 +163,7 @@ export default function Gallery() {
   const goLeaderboards = () => navigate("/leaderboards");
   const goGallery = () => navigate("/gallery");
   const goSettings = () => navigate("/settings");
+  const goContentApproval = () => navigate('/content-approval');
 
   return (
     <div
@@ -257,8 +258,9 @@ export default function Gallery() {
                 Navigation
               </div>
 
+              {/* Content Approval */}
               <button
-                onClick={goDashV2}
+                onClick={goContentApproval}
                 style={{
                   border: 'none',
                   outline: 'none',
@@ -271,7 +273,7 @@ export default function Gallery() {
                   color: 'rgba(255,255,255,0.7)',
                 }}
               >
-                Dashboards
+                Review Content
               </button>
 
               <button
