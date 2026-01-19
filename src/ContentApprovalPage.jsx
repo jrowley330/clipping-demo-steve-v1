@@ -332,13 +332,16 @@ export default function ContentApprovalPage() {
         return true;
       })();
 
-      const isDone =
-        r.approved ||
-        safeStr(r.status).toLowerCase() === "approved" ||
-        safeStr(r.status).toLowerCase() === "done";
+        const isRejected =
+          r.rejected || safeStr(r.status).toLowerCase() === "rejected";
 
-      const isRejected =
-        r.rejected || safeStr(r.status).toLowerCase() === "rejected";
+        const isDone =
+          r.approved ||
+          r.rejected ||                // <-- add this
+          safeStr(r.status).toLowerCase() === "approved" ||
+          safeStr(r.status).toLowerCase() === "rejected" ||  // <-- add this
+          safeStr(r.status).toLowerCase() === "done";
+
 
       return { ...r, isOverdue, isThisWeek, isDone, isRejected };
     });
