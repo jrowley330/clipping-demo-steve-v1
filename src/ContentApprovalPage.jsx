@@ -818,7 +818,7 @@ export default function ContentApprovalPage() {
                   marginBottom: 2,
                 }}
               >
-                Review Clips
+                Review Content
               </button>
 
               <button
@@ -960,7 +960,7 @@ export default function ContentApprovalPage() {
                   paddingTop: 8,
                 }}
               >
-                Content approval hub
+                Content review hub
               </div>
             </>
           )}
@@ -1006,7 +1006,7 @@ export default function ContentApprovalPage() {
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
             <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>
-              Content Approval
+              Content Review
             </h1>
             <span style={{ fontSize: 13, opacity: 0.7 }}>
               Review and approve scheduled content
@@ -1684,7 +1684,7 @@ export default function ContentApprovalPage() {
                 }}
               >
                 <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>
-                  This will update DEMOV2.CONTENT_REVIEWS for each selected row.
+                  If this is correct, press the confirmation button to continue.
                 </div>
 
                 <div style={{ display: "flex", gap: 10 }}>
