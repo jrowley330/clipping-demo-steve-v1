@@ -15,7 +15,7 @@ const VIDEO_SUB_FONT_PX = 10;        // "open" row smaller too
 // tighter table / left columns
 const COL_W_CHECK = 30;
 const COL_W_BUCKET = 108;
-const COL_W_CLIPPER = 160;
+const COL_W_CLIPPER = 108;
 const COL_W_PLATFORM = 96;
 const COL_W_VIDEO = 190;
 const COL_W_PUBLISHED = 110;
