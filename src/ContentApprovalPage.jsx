@@ -1260,7 +1260,7 @@ export default function ContentApprovalPage() {
                             {formatDate(r.eligibleAt)}
                           </td>
 
-                          <td style={{ padding: "12px 8px", textAlign: "right" }}>
+                          <td style={{ padding: "12px 8px", opacity: 0.9 }}>
                             {formatNumber(r.totalViews)}
                           </td>
 
