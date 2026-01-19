@@ -102,11 +102,12 @@ export default function ContentApprovalPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
-  // badge counts from API
   const [apiCounts, setApiCounts] = useState({
     pending_this_week: 0,
     pending_overdue: 0,
     pending_total: 0,
+    done_total: 0,
+    all_total: 0,
   });
 
   // UI STATE
@@ -253,6 +254,8 @@ export default function ContentApprovalPage() {
         pending_this_week: 0,
         pending_overdue: 0,
         pending_total: 0,
+        done_total: 0,
+        all_total: 0,
       });
     } finally {
       setLoading(false);
@@ -908,13 +911,13 @@ export default function ContentApprovalPage() {
               onClick={() => setActiveTab("done")}
               style={pillBtnStyle(activeTab === "done")}
             >
-              Done ({localCounts.done})
+              Done ({apiCounts.done_total})
             </button>
             <button
               onClick={() => setActiveTab("all")}
               style={pillBtnStyle(activeTab === "all")}
             >
-              All ({localCounts.all})
+              All ({apiCounts.all_total})
             </button>
             <button
               onClick={fetchRows}
