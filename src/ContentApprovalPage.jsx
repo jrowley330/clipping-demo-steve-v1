@@ -1371,18 +1371,18 @@ export default function ContentApprovalPage() {
                               fontWeight: 800,
                               whiteSpace: "nowrap",
 
-                              border: "1px solid rgba(148,163,184,0.45)",
-                              background: r.isDone
-                                ? "rgba(34,197,94,0.14)"
-                                : r.isRejected
-                                ? "rgba(248,113,113,0.14)"
+                              background: r.isRejected
+                                ? "rgba(248,113,113,0.14)"   // red
+                                : r.isDone
+                                ? "rgba(34,197,94,0.14)"    // green
                                 : "rgba(2,6,23,0.45)",
 
-                              color: r.isDone
-                                ? "#bbf7d0"
-                                : r.isRejected
+                              color: r.isRejected
                                 ? "#fecaca"
+                                : r.isDone
+                                ? "#bbf7d0"
                                 : "rgba(255,255,255,0.9)",
+
 
                               cursor: "pointer",
                               transition: "transform 120ms ease, box-shadow 120ms ease, background 120ms ease",
