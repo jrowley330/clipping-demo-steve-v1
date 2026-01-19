@@ -1098,7 +1098,7 @@ export default function ContentApprovalPage() {
                         <th
                           key={h}
                           style={{
-                            textAlign: h === "TOTAL VIEWS" ? "right" : "left",
+                            textAlign: "left",
                             padding: "10px 8px",
                             borderBottom: "1px solid rgba(255,255,255,0.08)",
                             fontWeight: 600,
