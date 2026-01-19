@@ -258,6 +258,23 @@ export default function Gallery() {
                 Navigation
               </div>
 
+              <button
+                onClick={handleGoDashV2}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                Dashboards
+              </button>
+
               {/* Content Approval */}
               <button
                 onClick={goContentApproval}
