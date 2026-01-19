@@ -259,7 +259,7 @@ export default function Gallery() {
               </div>
 
               <button
-                onClick={handleGoDashV2}
+                onClick={goDashV2}
                 style={{
                   border: 'none',
                   outline: 'none',
