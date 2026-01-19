@@ -1471,10 +1471,14 @@ export default function ContentApprovalPage() {
                 <textarea
                   value={reviewFeedback}
                   onChange={(e) => setReviewFeedback(e.target.value)}
-                  placeholder="Add feedback for the clipper (e.g., ‘Great hook — cut dead space at 0:04’)"
+                  placeholder="Add feedback for the clipper"
                   style={{
                     marginTop: 8,
                     width: "100%",
+                    maxWidth: "100%",
+                    boxSizing: "border-box",
+                    display: "block",
+
                     minHeight: 120,
                     resize: "vertical",
                     borderRadius: 14,
@@ -1487,7 +1491,6 @@ export default function ContentApprovalPage() {
                     lineHeight: 1.35,
                   }}
                 />
-              </div>
 
               <div
                 style={{
