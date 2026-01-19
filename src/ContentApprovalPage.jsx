@@ -1406,7 +1406,142 @@ export default function ContentApprovalPage() {
             <strong>Approve selected</strong> to clear backlog fast.
           </div>
         </div>
+
+
+
+        {reviewOpen && (
+          <div
+            onClick={closeReviewModal}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background: "rgba(0,0,0,0.55)",
+              backdropFilter: "blur(8px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "min(720px, 94vw)",
+                borderRadius: 20,
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: "rgba(10,15,25,0.92)",
+                boxShadow: "0 24px 80px rgba(0,0,0,0.65)",
+                padding: 16,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>
+                    Review clip
+                  </div>
+                  <div style={{ marginTop: 6, color: "rgba(255,255,255,0.72)", fontSize: 13 }}>
+                    {safeStr(reviewRow?.clipperName)} • {safeStr(reviewRow?.platform)} •{" "}
+                    {safeStr(reviewRow?.title || reviewRow?.videoTitle || reviewRow?.videoId)}
+                  </div>
+                </div>
+
+                <button
+                  onClick={closeReviewModal}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "rgba(255,255,255,0.8)",
+                    cursor: reviewSaving ? "default" : "pointer",
+                    fontSize: 20,
+                    padding: "4px 8px",
+                  }}
+                  disabled={reviewSaving}
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>
+                  Feedback (optional)
+                </div>
+
+                <textarea
+                  value={reviewFeedback}
+                  onChange={(e) => setReviewFeedback(e.target.value)}
+                  placeholder="Add feedback for the clipper (e.g., ‘Great hook — cut dead space at 0:04’)"
+                  style={{
+                    marginTop: 8,
+                    width: "100%",
+                    minHeight: 120,
+                    resize: "vertical",
+                    borderRadius: 14,
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    background: "rgba(2,6,23,0.55)",
+                    color: "rgba(255,255,255,0.92)",
+                    padding: 12,
+                    outline: "none",
+                    fontSize: 14,
+                    lineHeight: 1.35,
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  marginTop: 14,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>
+                  Tip: click the status pill anytime to review.
+                </div>
+
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={() => submitSingleReview("REJECTED")}
+                    disabled={reviewSaving}
+                    style={{
+                      borderRadius: 999,
+                      padding: "10px 14px",
+                      border: "1px solid rgba(239,68,68,0.35)",
+                      background: "rgba(127,29,29,0.22)",
+                      color: "rgba(255,255,255,0.92)",
+                      fontWeight: 800,
+                      cursor: reviewSaving ? "default" : "pointer",
+                    }}
+                  >
+                    {reviewSaving ? "Saving..." : "Reject"}
+                  </button>
+
+                  <button
+                    onClick={() => submitSingleReview("APPROVED")}
+                    disabled={reviewSaving}
+                    style={{
+                      borderRadius: 999,
+                      padding: "10px 14px",
+                      border: "1px solid rgba(34,197,94,0.35)",
+                      background: "rgba(20,83,45,0.30)",
+                      color: "rgba(255,255,255,0.92)",
+                      fontWeight: 900,
+                      cursor: reviewSaving ? "default" : "pointer",
+                    }}
+                  >
+                    {reviewSaving ? "Saving..." : "Approve"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
-} // remove
+}
