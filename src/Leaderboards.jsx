@@ -488,6 +488,7 @@ export default function Leaderboards() {
   const goLeaderboards = () => navigate("/leaderboards");
   const goGallery = () => navigate("/gallery");
   const goSettings = () => navigate("/settings");
+  const goContentApproval = () => navigate('/content-approval');
 
 
 
@@ -669,6 +670,7 @@ export default function Leaderboards() {
               </div>
 
               <NavBtn onClick={goDashV2} label="Dashboards" />
+              <NavBtn onClick={goContentApproval} label="Review Content" />
               <NavBtn onClick={goPayouts} label="Payouts" />
               <NavBtn onClick={goClippers} label="Clippers" />
               <NavBtn onClick={goPerformance} label="Performance" />

@@ -301,6 +301,7 @@ export default function SettingsPage() {
   const goPerformance = () => navigate("/performance");
   const goLeaderboards = () => navigate("/leaderboards");
   const goGallery = () => navigate("/gallery");
+  const goContentApproval = () => navigate('/content-approval');
 
   const payoutExplain = useMemo(() => {
     const v = Math.max(1, toInt(p.viewsPerDollar, 1000));
@@ -559,6 +560,9 @@ export default function SettingsPage() {
 
               <button onClick={goDashV2} style={{ border: "none", borderRadius: 12, padding: "7px 10px", textAlign: "left", cursor: "pointer", fontSize: 12, background: "transparent", color: "rgba(255,255,255,0.7)" }}>
                 Dashboards
+              </button>
+              <button onClick={goContentApproval} style={{ border: "none", borderRadius: 12, padding: "7px 10px", textAlign: "left", cursor: "pointer", fontSize: 12, background: "transparent", color: "rgba(255,255,255,0.7)" }}>
+                Review Content
               </button>
               <button onClick={goPayouts} style={{ border: "none", borderRadius: 12, padding: "7px 10px", textAlign: "left", cursor: "pointer", fontSize: 12, background: "transparent", color: "rgba(255,255,255,0.7)" }}>
                 Payouts

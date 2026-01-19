@@ -1006,7 +1006,7 @@ export default function ContentApprovalPage() {
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
             <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>
-              Content Review
+              Review Content
             </h1>
             <span style={{ fontSize: 13, opacity: 0.7 }}>
               Review and approve scheduled content

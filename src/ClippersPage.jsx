@@ -79,6 +79,7 @@ export default function ClippersPage() {
   const goLeaderboards = () => navigate('/leaderboards');
   const goGallery = () => navigate('/gallery');
   const goSettings = () => navigate('/settings');
+  const goContentApproval = () => navigate('/content-approval');
 
   // -------------------------------------------------------
   // FETCH CLIPPERS FROM API
@@ -436,6 +437,24 @@ export default function ClippersPage() {
                 }}
               >
                 Dashboards
+              </button>
+
+              {/* Content Approval */}
+              <button
+                onClick={goContentApproval}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                Review Content
               </button>
 
               <button
