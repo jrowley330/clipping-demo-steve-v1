@@ -1491,6 +1491,7 @@ export default function ContentApprovalPage() {
                     lineHeight: 1.35,
                   }}
                 />
+                </div>
 
               <div
                 style={{
