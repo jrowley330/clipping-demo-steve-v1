@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
@@ -26,6 +26,111 @@ const makeId = () => {
   return 'clipper_' + Math.random().toString(36).slice(2);
 };
 
+const normPlatform = (p) => {
+  const v = String(p || '').trim().toLowerCase();
+  if (v === 'ig') return 'instagram';
+  if (v === 'tt') return 'tiktok';
+  if (v === 'yt') return 'youtube';
+  return v;
+};
+
+const normUsername = (platform, username) => {
+  const u = String(username || '').trim();
+  if (!u) return '';
+  const p = normPlatform(platform);
+  // normalize IG/TT to lowercase (YouTube channel_id: keep as-is)
+  if (p === 'instagram' || p === 'tiktok') return u.toLowerCase();
+  return u;
+};
+
+const emptySet = () => ({
+  tiktokUsername: '',
+  instagramUsername: '',
+  youtubeUsername: '',
+});
+
+const buildAccountSetsFromAccounts = (accounts) => {
+  const list = Array.isArray(accounts) ? accounts : [];
+  const tt = [];
+  const ig = [];
+  const yt = [];
+
+  for (const a of list) {
+    const platform = normPlatform(a.platform);
+    const username = String(a.username || '').trim();
+    if (!username) continue;
+
+    if (platform === 'tiktok') tt.push(username);
+    else if (platform === 'instagram') ig.push(username);
+    else if (platform === 'youtube') yt.push(username);
+  }
+
+  const maxLen = Math.max(tt.length, ig.length, yt.length);
+  if (maxLen === 0) return [emptySet()];
+
+  const sets = [];
+  for (let i = 0; i < maxLen; i++) {
+    sets.push({
+      tiktokUsername: tt[i] || '',
+      instagramUsername: ig[i] || '',
+      youtubeUsername: yt[i] || '',
+    });
+  }
+  return sets;
+};
+
+const flattenSetsToAccountsPayload = (accountSets) => {
+  const sets = Array.isArray(accountSets) ? accountSets : [];
+  const out = [];
+
+  for (const s of sets) {
+    const tt = normUsername('tiktok', s?.tiktokUsername);
+    const ig = normUsername('instagram', s?.instagramUsername);
+    const yt = normUsername('youtube', s?.youtubeUsername);
+
+    if (tt) out.push({ platform: 'tiktok', username: tt });
+    if (ig) out.push({ platform: 'instagram', username: ig });
+    if (yt) out.push({ platform: 'youtube', username: yt });
+  }
+
+  // de-dupe within payload
+  const seen = new Set();
+  const deduped = [];
+  for (const a of out) {
+    const key = `${a.platform}::${a.username.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(a);
+  }
+  return deduped;
+};
+
+const formatAccountsInline = (accounts) => {
+  const list = Array.isArray(accounts) ? accounts : [];
+  const by = { tiktok: [], instagram: [], youtube: [] };
+
+  for (const a of list) {
+    const platform = normPlatform(a.platform);
+    const username = String(a.username || '').trim();
+    if (!username) continue;
+    if (platform === 'tiktok') by.tiktok.push(username);
+    if (platform === 'instagram') by.instagram.push(username);
+    if (platform === 'youtube') by.youtube.push(username);
+  }
+
+  const short = (arr) => {
+    if (!arr.length) return '<none>';
+    if (arr.length <= 2) return arr.join(', ');
+    return `${arr.slice(0, 2).join(', ')} +${arr.length - 2}`;
+  };
+
+  return {
+    tiktok: short(by.tiktok),
+    instagram: short(by.instagram),
+    youtube: short(by.youtube),
+  };
+};
+
 export default function ClippersPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -50,9 +155,7 @@ export default function ClippersPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [addDraft, setAddDraft] = useState({
     clipperName: '',
-    tiktokUsername: '',
-    instagramUsername: '',
-    youtubeUsername: '',
+    accountSets: [emptySet()],
     paymentProcessor: '',
     processorKey: '',
     isActive: true,
@@ -96,16 +199,14 @@ export default function ClippersPage() {
         const data = await res.json();
 
         const normalized = (Array.isArray(data) ? data : []).map((row, i) => {
-          const id = row.id || `clipper_${i}`;
+          const id = row.id || row.clipper_id || `clipper_${i}`;
+          const accounts = Array.isArray(row.accounts) ? row.accounts : [];
+
           return {
-            id, // internal only
+            id,
             clipperName:
               unwrapValue(row.clipper_name ?? row.clipperName) || `Clipper ${i + 1}`,
-            clientId: unwrapValue(row.client_id ?? row.clientId) || '',
-            tiktokUsername: unwrapValue(row.tiktok_username ?? row.tiktokUsername) || '',
-            instagramUsername:
-              unwrapValue(row.instagram_username ?? row.instagramUsername) || '',
-            youtubeUsername: unwrapValue(row.youtube_username ?? row.youtubeUsername) || '',
+            clientId: unwrapValue(row.client_id ?? row.clientId) || 'default',
             isActive:
               typeof row.is_active === 'boolean' ? row.is_active : !!row.isActive,
             paymentProcessor:
@@ -113,6 +214,16 @@ export default function ClippersPage() {
             processorKey: unwrapValue(row.processor_key ?? row.processorKey) || '',
             createdAt: unwrapValue(row.created_at ?? row.createdAt),
             updatedAt: unwrapValue(row.updated_at ?? row.updatedAt),
+
+            // NEW
+            accounts: accounts.map((a) => ({
+              accountId: a.accountId || a.account_id,
+              platform: normPlatform(a.platform),
+              username: String(a.username || '').trim(),
+              isActive: typeof a.is_active === 'boolean' ? a.is_active : !!a.isActive,
+              maxVideos:
+                a.maxVideos != null ? Number(a.maxVideos) : (a.max_videos != null ? Number(a.max_videos) : null),
+            })),
           };
         });
 
@@ -138,11 +249,10 @@ export default function ClippersPage() {
   const startEdit = (clipper) => {
     setEditingId(clipper.id);
     setExpandedId(clipper.id);
+
     setEditDraft({
       clipperName: clipper.clipperName || '',
-      tiktokUsername: clipper.tiktokUsername || '',
-      instagramUsername: clipper.instagramUsername || '',
-      youtubeUsername: clipper.youtubeUsername || '',
+      accountSets: buildAccountSetsFromAccounts(clipper.accounts),
       paymentProcessor: clipper.paymentProcessor || '',
       processorKey: clipper.processorKey || '',
       isActive: !!clipper.isActive,
@@ -158,20 +268,53 @@ export default function ClippersPage() {
     setEditDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
   };
 
+  const updateEditSet = (idx, field, value) => {
+    setEditDraft((prev) => {
+      if (!prev) return prev;
+      const sets = Array.isArray(prev.accountSets) ? [...prev.accountSets] : [];
+      sets[idx] = { ...(sets[idx] || emptySet()), [field]: value };
+      return { ...prev, accountSets: sets };
+    });
+  };
+
+  const addEditSetRow = () => {
+    setEditDraft((prev) => {
+      if (!prev) return prev;
+      const sets = Array.isArray(prev.accountSets) ? [...prev.accountSets] : [];
+      sets.push(emptySet());
+      return { ...prev, accountSets: sets };
+    });
+  };
+
+  const removeEditSetRow = (idx) => {
+    setEditDraft((prev) => {
+      if (!prev) return prev;
+      const sets = Array.isArray(prev.accountSets) ? [...prev.accountSets] : [];
+      sets.splice(idx, 1);
+      return { ...prev, accountSets: sets.length ? sets : [emptySet()] };
+    });
+  };
+
   const saveEdit = async () => {
     if (!editingId || !editDraft) return;
+
+    if (!editDraft.clipperName.trim()) {
+      alert('Please enter a clipper name.');
+      return;
+    }
+
     try {
       setSavingEdit(true);
 
+      const accountsPayload = flattenSetsToAccountsPayload(editDraft.accountSets);
+
       const payload = {
         clipperName: editDraft.clipperName.trim(),
-        clientId: '', // removed client ID logic
-        tiktokUsername: editDraft.tiktokUsername.trim(),
-        instagramUsername: editDraft.instagramUsername.trim(),
-        youtubeUsername: editDraft.youtubeUsername.trim(),
+        clientId: 'default',
         isActive: !!editDraft.isActive,
         paymentProcessor: editDraft.paymentProcessor.trim(),
         processorKey: editDraft.processorKey.trim(),
+        accounts: accountsPayload,
       };
 
       const res = await fetch(`${API_BASE_URL}/clippers/${editingId}`, {
@@ -182,9 +325,26 @@ export default function ClippersPage() {
 
       if (!res.ok) throw new Error(`Update failed: ${res.status}`);
 
+      // update local UI
       setClippers((prev) =>
         prev.map((c) =>
-          c.id === editingId ? { ...c, ...payload, updatedAt: new Date().toISOString() } : c
+          c.id === editingId
+            ? {
+                ...c,
+                clipperName: payload.clipperName,
+                clientId: 'default',
+                isActive: payload.isActive,
+                paymentProcessor: payload.paymentProcessor,
+                processorKey: payload.processorKey,
+                accounts: payload.accounts.map((a) => ({
+                  platform: a.platform,
+                  username: a.username,
+                  isActive: true,
+                  maxVideos: null,
+                })),
+                updatedAt: new Date().toISOString(),
+              }
+            : c
         )
       );
 
@@ -192,7 +352,7 @@ export default function ClippersPage() {
       setEditDraft(null);
     } catch (err) {
       console.error('PUT failed:', err);
-      alert('Failed to save changes');
+      alert(err.message || 'Failed to save changes');
     } finally {
       setSavingEdit(false);
     }
@@ -240,7 +400,7 @@ export default function ClippersPage() {
       setDeleteTarget(null);
     } catch (err) {
       console.error('DELETE failed:', err);
-      alert('Failed to delete clipper');
+      alert(err.message || 'Failed to delete clipper');
     } finally {
       setDeletingId(null);
     }
@@ -253,9 +413,7 @@ export default function ClippersPage() {
     setAddOpen(true);
     setAddDraft({
       clipperName: '',
-      tiktokUsername: '',
-      instagramUsername: '',
-      youtubeUsername: '',
+      accountSets: [emptySet()],
       paymentProcessor: '',
       processorKey: '',
       isActive: true,
@@ -271,6 +429,30 @@ export default function ClippersPage() {
     setAddDraft((prev) => ({ ...prev, [field]: value }));
   };
 
+  const updateAddSet = (idx, field, value) => {
+    setAddDraft((prev) => {
+      const sets = Array.isArray(prev.accountSets) ? [...prev.accountSets] : [];
+      sets[idx] = { ...(sets[idx] || emptySet()), [field]: value };
+      return { ...prev, accountSets: sets };
+    });
+  };
+
+  const addAddSetRow = () => {
+    setAddDraft((prev) => {
+      const sets = Array.isArray(prev.accountSets) ? [...prev.accountSets] : [];
+      sets.push(emptySet());
+      return { ...prev, accountSets: sets };
+    });
+  };
+
+  const removeAddSetRow = (idx) => {
+    setAddDraft((prev) => {
+      const sets = Array.isArray(prev.accountSets) ? [...prev.accountSets] : [];
+      sets.splice(idx, 1);
+      return { ...prev, accountSets: sets.length ? sets : [emptySet()] };
+    });
+  };
+
   const submitAdd = async () => {
     if (!addDraft.clipperName.trim()) {
       alert('Please enter a clipper name.');
@@ -281,17 +463,16 @@ export default function ClippersPage() {
       setSavingAdd(true);
 
       const newId = makeId();
+      const accountsPayload = flattenSetsToAccountsPayload(addDraft.accountSets);
 
       const payload = {
         id: newId,
         clipperName: addDraft.clipperName.trim(),
-        clientId: '',
-        tiktokUsername: addDraft.tiktokUsername.trim(),
-        instagramUsername: addDraft.instagramUsername.trim(),
-        youtubeUsername: addDraft.youtubeUsername.trim(),
+        clientId: 'default',
         isActive: !!addDraft.isActive,
         paymentProcessor: addDraft.paymentProcessor.trim(),
         processorKey: addDraft.processorKey.trim(),
+        accounts: accountsPayload,
       };
 
       const res = await fetch(`${API_BASE_URL}/clippers`, {
@@ -305,7 +486,18 @@ export default function ClippersPage() {
       setClippers((prev) => [
         ...prev,
         {
-          ...payload,
+          id: newId,
+          clipperName: payload.clipperName,
+          clientId: 'default',
+          isActive: payload.isActive,
+          paymentProcessor: payload.paymentProcessor,
+          processorKey: payload.processorKey,
+          accounts: payload.accounts.map((a) => ({
+            platform: a.platform,
+            username: a.username,
+            isActive: true,
+            maxVideos: null,
+          })),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
@@ -314,19 +506,129 @@ export default function ClippersPage() {
       setAddOpen(false);
       setAddDraft({
         clipperName: '',
-        tiktokUsername: '',
-        instagramUsername: '',
-        youtubeUsername: '',
+        accountSets: [emptySet()],
         paymentProcessor: '',
         processorKey: '',
         isActive: true,
       });
     } catch (err) {
       console.error('POST failed:', err);
-      alert('Failed to create clipper');
+      alert(err.message || 'Failed to create clipper');
     } finally {
       setSavingAdd(false);
     }
+  };
+
+  const renderAccountSetsEditor = ({
+    sets,
+    isEditing,
+    onChangeSet,
+    onAddRow,
+    onRemoveRow,
+  }) => {
+    const rows = Array.isArray(sets) ? sets : [emptySet()];
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {rows.map((row, idx) => (
+          <div
+            key={`set_${idx}`}
+            style={{
+              borderRadius: 12,
+              border: '1px solid rgba(148,163,184,0.35)',
+              background: 'rgba(15,23,42,0.62)',
+              padding: 10,
+            }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: 10,
+                alignItems: 'start',
+              }}
+            >
+              {[
+                ['TikTok username', 'tiktokUsername'],
+                ['Instagram username', 'instagramUsername'],
+                ['YouTube channel ID', 'youtubeUsername'],
+              ].map(([label, field]) => (
+                <div key={`${field}_${idx}`}>
+                  <div
+                    style={{
+                      opacity: 0.65,
+                      marginBottom: 3,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.04,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {label}
+                  </div>
+
+                  <input
+                    type="text"
+                    value={row?.[field] ?? ''}
+                    onChange={(e) => onChangeSet(idx, field, e.target.value)}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '7px 9px',
+                      borderRadius: 9,
+                      border: '1px solid rgba(148,163,184,0.85)',
+                      background: 'rgba(15,23,42,0.9)',
+                      color: '#e5e7eb',
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={() => onRemoveRow(idx)}
+                disabled={rows.length <= 1}
+                style={{
+                  borderRadius: 999,
+                  padding: '6px 12px',
+                  border: '1px solid rgba(148,163,184,0.6)',
+                  background: 'rgba(15,23,42,0.95)',
+                  color: 'rgba(255,255,255,0.85)',
+                  fontSize: 11,
+                  cursor: rows.length <= 1 ? 'default' : 'pointer',
+                  opacity: rows.length <= 1 ? 0.5 : 1,
+                }}
+              >
+                Remove row
+              </button>
+            </div>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={onAddRow}
+          style={{
+            alignSelf: 'flex-start',
+            borderRadius: 999,
+            padding: '7px 12px',
+            border: '1px solid rgba(148,163,184,0.7)',
+            background: 'rgba(15,23,42,0.95)',
+            color: '#e5e7eb',
+            fontSize: 11,
+            cursor: 'pointer',
+          }}
+        >
+          + Add more accounts
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -692,6 +994,8 @@ export default function ClippersPage() {
                 const isEditing = editingId === clipper.id;
                 const draft = isEditing ? editDraft : null;
 
+                const inline = formatAccountsInline(clipper.accounts);
+
                 return (
                   <div
                     key={clipper.id}
@@ -745,21 +1049,28 @@ export default function ClippersPage() {
                           <div style={{ fontSize: 11, opacity: 0.75 }}>
                             TikTok:{' '}
                             <span style={{ opacity: 0.9 }}>
-                              {clipper.tiktokUsername || <em>none</em>}
+                              {inline.tiktok}
                             </span>{' '}
                             · Instagram:{' '}
                             <span style={{ opacity: 0.9 }}>
-                              {clipper.instagramUsername || <em>none</em>}
+                              {inline.instagram}
                             </span>{' '}
                             · YouTube:{' '}
                             <span style={{ opacity: 0.9 }}>
-                              {clipper.youtubeUsername || <em>none</em>}
+                              {inline.youtube}
                             </span>
                           </div>
                         </div>
                       </button>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-end',
+                          gap: 4,
+                        }}
+                      >
                         <span
                           style={{
                             borderRadius: 999,
@@ -848,76 +1159,107 @@ export default function ClippersPage() {
                           )}
                         </div>
 
-                        {/* Accounts */}
-                        <div
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                            gap: 12,
-                          }}
-                        >
-                          {[
-                            ['TikTok username', 'tiktokUsername'],
-                            ['Instagram username', 'instagramUsername'],
-                            ['YouTube channel ID', 'youtubeUsername'],
-                          ].map(([label, field]) => (
-                            <div key={field}>
-                              <div
-                                style={{
-                                  opacity: 0.65,
-                                  marginBottom: 3,
-                                  fontSize: 11,
-                                  textTransform: 'uppercase',
-                                  letterSpacing: 0.04,
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}
-                              >
-                                {label}
-                              </div>
+                        {/* Accounts editor (NEW) */}
+                        <div>
+                          <div
+                            style={{
+                              opacity: 0.65,
+                              marginBottom: 6,
+                              fontSize: 11,
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.04,
+                            }}
+                          >
+                            Accounts
+                          </div>
 
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={draft?.[field] ?? ''}
-                                  onChange={(e) => updateEditDraftField(field, e.target.value)}
-                                  style={{
-                                    width: '100%',
-                                    boxSizing: 'border-box',
-                                    padding: '6px 8px',
-                                    borderRadius: 8,
-                                    border: '1px solid rgba(148,163,184,0.85)',
-                                    background: 'rgba(15,23,42,0.9)',
-                                    color: '#e5e7eb',
-                                    fontFamily: 'monospace',
-                                    fontSize: 12,
-                                  }}
-                                />
-                              ) : (
-                                <div
-                                  style={{
-                                    padding: '6px 8px',
-                                    borderRadius: 8,
-                                    background: 'rgba(15,23,42,0.9)',
-                                    border: '1px solid rgba(51,65,85,0.9)',
-                                    fontFamily: 'monospace',
-                                    fontSize: 12,
-                                    opacity: clipper[field] ? 0.95 : 0.6,
-                                  }}
-                                >
-                                  {clipper[field] || 'none'}
-                                </div>
-                              )}
+                          {isEditing ? (
+                            renderAccountSetsEditor({
+                              sets: draft?.accountSets,
+                              isEditing: true,
+                              onChangeSet: updateEditSet,
+                              onAddRow: addEditSetRow,
+                              onRemoveRow: removeEditSetRow,
+                            })
+                          ) : (
+                            <div
+                              style={{
+                                borderRadius: 12,
+                                border: '1px solid rgba(148,163,184,0.35)',
+                                background: 'rgba(15,23,42,0.62)',
+                                padding: 10,
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                                gap: 10,
+                              }}
+                            >
+                              {['tiktok', 'instagram', 'youtube'].map((p) => {
+                                const items = (clipper.accounts || [])
+                                  .filter((a) => normPlatform(a.platform) === p)
+                                  .map((a) => a.username);
+
+                                return (
+                                  <div key={p}>
+                                    <div
+                                      style={{
+                                        opacity: 0.65,
+                                        marginBottom: 3,
+                                        fontSize: 11,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: 0.04,
+                                      }}
+                                    >
+                                      {p === 'tiktok'
+                                        ? 'TikTok'
+                                        : p === 'instagram'
+                                        ? 'Instagram'
+                                        : 'YouTube'}
+                                    </div>
+                                    <div
+                                      style={{
+                                        padding: '6px 8px',
+                                        borderRadius: 8,
+                                        background: 'rgba(15,23,42,0.9)',
+                                        border: '1px solid rgba(51,65,85,0.9)',
+                                        fontFamily: 'monospace',
+                                        fontSize: 12,
+                                        opacity: items.length ? 0.95 : 0.6,
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word',
+                                      }}
+                                    >
+                                      {items.length ? items.join('\n') : 'none'}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          ))}
+                          )}
                         </div>
 
                         {/* Payment + key + status */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 12,
+                            alignItems: 'flex-start',
+                          }}
+                        >
                           {/* Payment processor */}
                           <div style={{ flex: '1 1 180px', minWidth: 0 }}>
-                            <div style={{ opacity: 0.65, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div
+                              style={{
+                                opacity: 0.65,
+                                marginBottom: 3,
+                                fontSize: 11,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.04,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
                               Payment processor
                             </div>
                             {isEditing ? (
@@ -926,7 +1268,7 @@ export default function ClippersPage() {
                                 onChange={(e) => {
                                   const v = e.target.value;
                                   updateEditDraftField('paymentProcessor', v);
-                                  updateEditDraftField('processorKey', ''); // ✅ clear key when processor changes
+                                  updateEditDraftField('processorKey', ''); // clear key when processor changes
                                 }}
                                 style={{
                                   width: '100%',
@@ -941,7 +1283,11 @@ export default function ClippersPage() {
                                 }}
                               >
                                 {PAYMENT_PROCESSOR_OPTIONS.map((opt) => (
-                                  <option key={opt.value} value={opt.value} style={{ color: '#c8cace' }}>
+                                  <option
+                                    key={opt.value}
+                                    value={opt.value}
+                                    style={{ color: '#c8cace' }}
+                                  >
                                     {opt.label}
                                   </option>
                                 ))}
@@ -957,7 +1303,9 @@ export default function ClippersPage() {
                                   opacity: clipper.paymentProcessor ? 0.95 : 0.6,
                                 }}
                               >
-                                {PAYMENT_PROCESSOR_OPTIONS.find(o => o.value === clipper.paymentProcessor)?.label ||
+                                {PAYMENT_PROCESSOR_OPTIONS.find(
+                                  (o) => o.value === clipper.paymentProcessor
+                                )?.label ||
                                   clipper.paymentProcessor ||
                                   'none'}
                               </div>
@@ -966,14 +1314,27 @@ export default function ClippersPage() {
 
                           {/* Processor key */}
                           <div style={{ flex: '2 1 260px', minWidth: 0 }}>
-                            <div style={{ opacity: 0.65, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div
+                              style={{
+                                opacity: 0.65,
+                                marginBottom: 3,
+                                fontSize: 11,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.04,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
                               Processor key / customer ID
                             </div>
                             {isEditing ? (
                               <input
                                 type="text"
                                 value={draft?.processorKey ?? ''}
-                                onChange={(e) => updateEditDraftField('processorKey', e.target.value)}
+                                onChange={(e) =>
+                                  updateEditDraftField('processorKey', e.target.value)
+                                }
                                 style={{
                                   width: '100%',
                                   boxSizing: 'border-box',
@@ -1006,13 +1367,26 @@ export default function ClippersPage() {
 
                           {/* Status */}
                           <div style={{ flex: '0 0 auto', minWidth: 120 }}>
-                            <div style={{ opacity: 0.65, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div
+                              style={{
+                                opacity: 0.65,
+                                marginBottom: 3,
+                                fontSize: 11,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.04,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
                               Status
                             </div>
                             {isEditing ? (
                               <button
                                 type="button"
-                                onClick={() => updateEditDraftField('isActive', !draft?.isActive)}
+                                onClick={() =>
+                                  updateEditDraftField('isActive', !draft?.isActive)
+                                }
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
@@ -1108,7 +1482,7 @@ export default function ClippersPage() {
                         >
                           {!isEditing ? (
                             <>
-                              {/* ✅ Delete (opens modal) */}
+                              {/* Delete (opens modal) */}
                               <button
                                 type="button"
                                 onClick={() => requestDelete(clipper)}
@@ -1120,7 +1494,8 @@ export default function ClippersPage() {
                                   background: 'rgba(15,23,42,0.95)',
                                   color: 'rgba(248,113,113,0.95)',
                                   fontSize: 11,
-                                  cursor: deletingId === clipper.id ? 'default' : 'pointer',
+                                  cursor:
+                                    deletingId === clipper.id ? 'default' : 'pointer',
                                   opacity: deletingId === clipper.id ? 0.7 : 1,
                                 }}
                               >
@@ -1215,7 +1590,7 @@ export default function ClippersPage() {
           <div
             style={{
               width: '100%',
-              maxWidth: 520,
+              maxWidth: 620,
               borderRadius: 20,
               padding: 18,
               background:
@@ -1226,7 +1601,14 @@ export default function ClippersPage() {
               fontSize: 13,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 10,
+              }}
+            >
               <div>
                 <div style={{ fontSize: 16, fontWeight: 600 }}>Add clipper</div>
                 <div style={{ fontSize: 11, opacity: 0.7 }}>
@@ -1252,17 +1634,34 @@ export default function ClippersPage() {
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+                marginTop: 4,
+              }}
+            >
               {/* Clipper name */}
               <div>
-                <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div
+                  style={{
+                    opacity: 0.7,
+                    marginBottom: 3,
+                    fontSize: 11,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.04,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
                   Clipper name
                 </div>
                 <input
                   type="text"
                   value={addDraft.clipperName}
                   onChange={(e) => updateAddDraftField('clipperName', e.target.value)}
-                  placeholder=""
                   style={{
                     width: '100%',
                     boxSizing: 'border-box',
@@ -1276,42 +1675,51 @@ export default function ClippersPage() {
                 />
               </div>
 
-              {/* Accounts row */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
-                {[
-                  ['TikTok username', 'tiktokUsername'],
-                  ['Instagram username', 'instagramUsername'],
-                  ['YouTube channel ID', 'youtubeUsername'],
-                ].map(([label, field]) => (
-                  <div key={field}>
-                    <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {label}
-                    </div>
-                    <input
-                      type="text"
-                      value={addDraft[field]}
-                      onChange={(e) => updateAddDraftField(field, e.target.value)}
-                      placeholder=""
-                      style={{
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        padding: '7px 9px',
-                        borderRadius: 9,
-                        border: '1px solid rgba(148,163,184,0.85)',
-                        background: 'rgba(15,23,42,0.9)',
-                        color: '#e5e7eb',
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                      }}
-                    />
-                  </div>
-                ))}
+              {/* Accounts sets */}
+              <div>
+                <div
+                  style={{
+                    opacity: 0.7,
+                    marginBottom: 6,
+                    fontSize: 11,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.04,
+                  }}
+                >
+                  Accounts
+                </div>
+
+                {renderAccountSetsEditor({
+                  sets: addDraft.accountSets,
+                  isEditing: true,
+                  onChangeSet: updateAddSet,
+                  onAddRow: addAddSetRow,
+                  onRemoveRow: removeAddSetRow,
+                })}
               </div>
 
               {/* Payment row */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-start' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 10,
+                  alignItems: 'flex-start',
+                }}
+              >
                 <div style={{ flex: '1 1 160px', minWidth: 0 }}>
-                  <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      marginBottom: 3,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.04,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
                     Payment processor
                   </div>
                   <select
@@ -1319,7 +1727,7 @@ export default function ClippersPage() {
                     onChange={(e) => {
                       const v = e.target.value;
                       updateAddDraftField('paymentProcessor', v);
-                      updateAddDraftField('processorKey', ''); // ✅ clear key when processor changes
+                      updateAddDraftField('processorKey', '');
                     }}
                     style={{
                       width: '100%',
@@ -1334,7 +1742,11 @@ export default function ClippersPage() {
                     }}
                   >
                     {PAYMENT_PROCESSOR_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value} style={{ color: '#c8cace' }}>
+                      <option
+                        key={opt.value}
+                        value={opt.value}
+                        style={{ color: '#c8cace' }}
+                      >
                         {opt.label}
                       </option>
                     ))}
@@ -1342,14 +1754,24 @@ export default function ClippersPage() {
                 </div>
 
                 <div style={{ flex: '2 1 230px', minWidth: 0 }}>
-                  <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      marginBottom: 3,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.04,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
                     Processor key / customer ID
                   </div>
                   <input
                     type="text"
                     value={addDraft.processorKey}
                     onChange={(e) => updateAddDraftField('processorKey', e.target.value)}
-                    placeholder=""
                     style={{
                       width: '100%',
                       boxSizing: 'border-box',
@@ -1366,7 +1788,18 @@ export default function ClippersPage() {
 
                 {/* Active toggle */}
                 <div style={{ flex: '0 0 auto', minWidth: 120 }}>
-                  <div style={{ opacity: 0.7, marginBottom: 3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      marginBottom: 3,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.04,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
                     Status
                   </div>
                   <button
@@ -1468,7 +1901,7 @@ export default function ClippersPage() {
         </div>
       )}
 
-      {/* ✅ DELETE CONFIRM MODAL */}
+      {/* DELETE CONFIRM MODAL */}
       {deleteOpen && (
         <div
           style={{
@@ -1482,7 +1915,6 @@ export default function ClippersPage() {
             backdropFilter: 'blur(7px)',
           }}
           onMouseDown={(e) => {
-            // click outside closes (unless deleting)
             if (e.target === e.currentTarget) closeDelete();
           }}
         >
@@ -1562,10 +1994,17 @@ export default function ClippersPage() {
               <div style={{ marginTop: 6, fontSize: 14, fontWeight: 600 }}>
                 {deleteTarget?.clipperName || 'This clipper'}
               </div>
-              <div style={{ marginTop: 4, fontSize: 11, opacity: 0.75 }}>
-                TikTok: <span style={{ fontFamily: 'monospace' }}>{deleteTarget?.tiktokUsername || 'none'}</span> · Instagram:{' '}
-                <span style={{ fontFamily: 'monospace' }}>{deleteTarget?.instagramUsername || 'none'}</span> · YouTube:{' '}
-                <span style={{ fontFamily: 'monospace' }}>{deleteTarget?.youtubeUsername || 'none'}</span>
+              <div style={{ marginTop: 6, fontSize: 11, opacity: 0.78 }}>
+                {(() => {
+                  const inline = formatAccountsInline(deleteTarget?.accounts || []);
+                  return (
+                    <>
+                      TikTok: <span style={{ fontFamily: 'monospace' }}>{inline.tiktok}</span> · Instagram:{' '}
+                      <span style={{ fontFamily: 'monospace' }}>{inline.instagram}</span> · YouTube:{' '}
+                      <span style={{ fontFamily: 'monospace' }}>{inline.youtube}</span>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
