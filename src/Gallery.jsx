@@ -1,194 +1,206 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "./supabaseClient";
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from './supabaseClient';
 
-import { useBranding } from "./branding/BrandingContext";
+import { useBranding } from './branding/BrandingContext';
 
-// ✅ set this to your Cloud Run API
 const API_BASE_URL =
-  import.meta?.env?.VITE_API_BASE_URL ||
-  "https://clipper-payouts-api-810712855216.us-central1.run.app";
+  'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
+// Keep consistent with your other pages
 const formatNumber = (value) => {
   const num = Number(value);
-  if (!Number.isFinite(num)) return "—";
+  if (!Number.isFinite(num)) return '—';
   return num.toLocaleString();
 };
 
 const daysAgoLabel = (daysAgo) => {
   const d = Number(daysAgo);
-  if (!Number.isFinite(d)) return "—";
-  if (d === 0) return "today";
-  if (d === 1) return "1 day ago";
+  if (!Number.isFinite(d)) return '—';
+  if (d === 0) return 'today';
+  if (d === 1) return '1 day ago';
   return `${d} days ago`;
 };
 
-const platformMeta = {
-  youtube: {
-    label: "YouTube",
-    pillBg: "rgba(239,68,68,0.18)",
-    pillBorder: "rgba(239,68,68,0.55)",
-    pillText: "rgba(248,113,113,0.95)",
-    icon: "▶",
-  },
-  tiktok: {
-    label: "TikTok",
-    pillBg: "rgba(94,234,212,0.14)",
-    pillBorder: "rgba(94,234,212,0.55)",
-    pillText: "rgba(94,234,212,0.95)",
-    icon: "♪",
-  },
-  instagram: {
-    label: "Instagram",
-    pillBg: "rgba(168,85,247,0.14)",
-    pillBorder: "rgba(168,85,247,0.55)",
-    pillText: "rgba(216,180,254,0.95)",
-    icon: "◎",
-  },
+const platformMeta = (platform) => {
+  const p = String(platform || '').toLowerCase();
+  if (p === 'youtube')
+    return { label: 'YouTube', icon: '▶', tone: 'rgba(239,68,68,0.18)' };
+  if (p === 'instagram')
+    return { label: 'Instagram', icon: '◎', tone: 'rgba(236,72,153,0.16)' };
+  if (p === 'tiktok')
+    return { label: 'TikTok', icon: '♪', tone: 'rgba(34,211,238,0.14)' };
+  return { label: p || '—', icon: '•', tone: 'rgba(255,255,255,0.10)' };
 };
 
 const placeholderThumb = (seed = 1) =>
-  `https://picsum.photos/seed/clipper_gallery_${seed}/800/1200`;
-
-function normPlatform(p) {
-  const x = String(p || "").toLowerCase().trim();
-  if (x === "yt") return "youtube";
-  if (x === "ig") return "instagram";
-  if (x === "tt") return "tiktok";
-  return x || "unknown";
-}
+  `https://picsum.photos/seed/clipper_gallery_${seed}/600/900`;
 
 export default function Gallery() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // BRANDING
-  const { headingText, watermarkText, defaults } = useBranding();
+  const { headingText, watermarkText } = useBranding();
+  const defaults = { headingText: 'Your Clipping Campaign', watermarkText: 'CLIPPING' };
   const brandText = headingText || defaults.headingText;
   const wmText = watermarkText || defaults.watermarkText;
 
-  // UI filters
-  const [platformFilter, setPlatformFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  // UI filters (wired to API)
+  const [platformFilter, setPlatformFilter] = useState('all'); // all|youtube|instagram|tiktok
+  const [clipperFilter, setClipperFilter] = useState('all'); // all|<clipper_id>
+  const [sortBy, setSortBy] = useState('published_at'); // published_at|view_count|like_count
+  const [search, setSearch] = useState('');
 
   // Data
-  const [videos, setVideos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadErr, setLoadErr] = useState("");
+  const [clippers, setClippers] = useState([]); // [{id, name}]
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
+  // NAV
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
+
+  const goDashV2 = () => navigate('/dashboard-v2');
+  const goPayouts = () => navigate('/payouts');
+  const goClippers = () => navigate('/clippers');
+  const goPerformance = () => navigate('/performance');
+  const goLeaderboards = () => navigate('/leaderboards');
+
+  // Load clippers for dropdown (once)
   useEffect(() => {
-    let alive = true;
-
+    let mounted = true;
     (async () => {
-      setLoading(true);
-      setLoadErr("");
-
       try {
-        const res = await fetch(`${API_BASE_URL}/video-gallery`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
+        const res = await fetch(`${API_BASE_URL}/clippers`);
+        if (!res.ok) throw new Error(`Clippers API ${res.status}`);
+        const data = await res.json();
+        const list = (Array.isArray(data) ? data : [])
+          .map((c) => ({
+            id: String(c.clipper_id || c.id || '').trim(),
+            name: String(c.clipperName || c.clipper_name || '').trim(),
+          }))
+          .filter((x) => x.id && x.name)
+          .sort((a, b) => a.name.localeCompare(b.name));
 
-        if (!res.ok) {
-          const txt = await res.text().catch(() => "");
-          throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
-        }
-
-        const json = await res.json();
-        const rows = Array.isArray(json) ? json : Array.isArray(json?.rows) ? json.rows : [];
-
-        const mapped = rows.map((r, idx) => {
-          const platform = normPlatform(r.platform);
-
-          return {
-            // use gallery_id if present, else fallback
-            id: String(r.gallery_id || r.id || `${platform}_${r.video_id || idx}`),
-
-            platform,
-            title: r.title || "Untitled",
-            videoUrl: r.url || "#",
-            thumbnailUrl: r.thumbnail_url || placeholderThumb(idx + 1),
-
-            views: r.view_count ?? r.views ?? 0,
-            likes: r.like_count ?? r.likes ?? 0,
-            comments: r.comment_count ?? r.comments ?? 0,
-
-            daysAgo: r.days_ago ?? r.daysAgo ?? null,
-            account: r.username || "",
-          };
-        });
-
-        if (alive) setVideos(mapped);
+        if (mounted) setClippers(list);
       } catch (e) {
-        if (alive) setLoadErr(e?.message || "Failed to load gallery.");
-      } finally {
-        if (alive) setLoading(false);
+        // Don't hard-fail the page just because the dropdown can't load
+        console.warn('Failed to load clippers list:', e);
+        if (mounted) setClippers([]);
       }
     })();
-
     return () => {
-      alive = false;
+      mounted = false;
     };
   }, []);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return videos.filter((v) => {
-      if (platformFilter !== "all" && v.platform !== platformFilter) return false;
-      if (!q) return true;
-      return (
-        (v.title || "").toLowerCase().includes(q) ||
-        (v.account || "").toLowerCase().includes(q)
-      );
-    });
-  }, [videos, platformFilter, search]);
+  // Fetch gallery rows when filters change (debounce search a bit)
+  useEffect(() => {
+    let mounted = true;
+    const t = window.setTimeout(async () => {
+      setLoading(true);
+      setErr('');
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/login");
-  };
+      try {
+        const params = new URLSearchParams();
+        params.set('limit', '250');
+        params.set('offset', '0');
+        params.set('platform', platformFilter || 'all');
+        params.set('sort', sortBy || 'published_at');
+        params.set('order', 'desc');
 
-  const goDashV2 = () => navigate("/dashboard-v2");
-  const goPayouts = () => navigate("/payouts");
-  const goClippers = () => navigate("/clippers");
-  const goPerformance = () => navigate("/performance");
-  const goLeaderboards = () => navigate("/leaderboards");
-  const goSettings = () => navigate("/settings");
-  const goContentApproval = () => navigate("/content-approval");
+        if (clipperFilter && clipperFilter !== 'all') params.set('clipper_id', clipperFilter);
+        if (search && search.trim()) params.set('q', search.trim());
+
+        const url = `${API_BASE_URL}/video-gallery?${params.toString()}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Gallery API ${res.status}`);
+        const json = await res.json();
+
+        const raw = Array.isArray(json?.rows) ? json.rows : [];
+
+        const normalized = raw.map((r, i) => {
+          const platform = String(r.platform || '').toLowerCase();
+          return {
+            key: `${platform}:${String(r.video_id || i)}`,
+            platform,
+            title: String(r.title || '').trim() || 'Untitled',
+            videoUrl: String(r.url || '').trim(),
+            thumbnailUrl: String(r.thumbnail_url || '').trim() || placeholderThumb(i + 1),
+            views: Number(r.view_count ?? 0),
+            likes: Number(r.like_count ?? 0),
+            comments: Number(r.comment_count ?? 0),
+            daysAgo: Number(r.days_ago ?? null),
+            publishedAt: r.published_at || null,
+            account:
+              platform === 'youtube'
+                ? String(r.channel_title || r.channel_id || '').trim()
+                : String(r.username || '').trim(),
+            clipperId: String(r.clipper_id || '').trim(),
+            clipperName: String(r.clipper_name || '').trim(),
+          };
+        });
+
+        if (mounted) setRows(normalized);
+      } catch (e) {
+        console.error(e);
+        if (mounted) {
+          setErr(e?.message || 'Failed to load gallery');
+          setRows([]);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      mounted = false;
+      window.clearTimeout(t);
+    };
+  }, [platformFilter, clipperFilter, sortBy, search]);
+
+  const clipperOptions = useMemo(() => {
+    return [{ id: 'all', name: 'All clippers' }, ...clippers];
+  }, [clippers]);
 
   return (
     <div
       style={{
-        position: "fixed",
+        position: 'fixed',
         inset: 0,
-        background: "radial-gradient(circle at top, #141414 0, #020202 55%)",
-        display: "flex",
-        overflowX: "hidden",
-        overflowY: "auto",
-        color: "#fff",
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        padding: "32px",
-        paddingTop: "40px",
-        paddingBottom: "40px",
+        background:
+          'radial-gradient(circle at top, rgba(223,223,223,0.02) 0, rgba(2,2,2,1) 45%)',
+        display: 'flex',
+        overflowX: 'hidden',
+        overflowY: 'auto',
+        color: '#fff',
+        fontFamily:
+          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        padding: 32,
+        paddingTop: 40,
+        paddingBottom: 40,
       }}
     >
-      {/* WATERMARK */}
+      {/* Watermark */}
       <div
         style={{
-          position: "fixed",
+          position: 'fixed',
           inset: 0,
-          pointerEvents: "none",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
+          pointerEvents: 'none',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
           opacity: 0.03,
-          fontFamily: "Impact, Haettenschweiler, Arial Black, sans-serif",
+          fontFamily: 'Impact, Haettenschweiler, Arial Black, sans-serif',
           fontSize: 140,
           letterSpacing: 2,
-          textTransform: "uppercase",
-          color: "#ffffff",
-          transform: "rotate(-18deg)",
-          textShadow: "0 0 60px rgba(0,0,0,1)",
+          textTransform: 'uppercase',
+          color: '#ffffff',
+          transform: 'rotate(-18deg)',
+          textShadow: '0 0 60px rgba(0,0,0,1)',
         }}
       >
         {wmText}
@@ -198,39 +210,39 @@ export default function Gallery() {
       <div
         style={{
           width: sidebarOpen ? 190 : 54,
-          transition: "width 180ms ease",
+          transition: 'width 180ms ease',
           marginRight: 22,
-          position: "relative",
+          position: 'relative',
           zIndex: 2,
         }}
       >
         <div
           style={{
             borderRadius: 18,
-            background: "rgba(0,0,0,0.8)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            boxShadow: "0 18px 45px rgba(0,0,0,0.8)",
+            background: 'rgba(0,0,0,0.8)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow: '0 18px 45px rgba(0,0,0,0.8)',
             padding: 10,
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
             gap: 10,
           }}
         >
           <button
             onClick={() => setSidebarOpen((v) => !v)}
             style={{
-              alignSelf: sidebarOpen ? "flex-end" : "center",
+              alignSelf: sidebarOpen ? 'flex-end' : 'center',
               borderRadius: 999,
-              border: "1px solid rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.06)",
-              color: "#fff",
-              cursor: "pointer",
+              border: '1px solid rgba(255,255,255,0.18)',
+              background: 'rgba(255,255,255,0.06)',
+              color: '#fff',
+              cursor: 'pointer',
               fontSize: 11,
-              padding: "4px 7px",
+              padding: '4px 7px',
             }}
           >
-            {sidebarOpen ? "◀" : "▶"}
+            {sidebarOpen ? '◀' : '▶'}
           </button>
 
           {sidebarOpen && (
@@ -238,7 +250,7 @@ export default function Gallery() {
               <div
                 style={{
                   fontSize: 11,
-                  textTransform: "uppercase",
+                  textTransform: 'uppercase',
                   letterSpacing: 0.1,
                   opacity: 0.6,
                   marginTop: 4,
@@ -249,7 +261,6 @@ export default function Gallery() {
               </div>
 
               <NavBtn onClick={goDashV2} label="Dashboards" />
-              <NavBtn onClick={goContentApproval} label="Review Content" />
               <NavBtn onClick={goPayouts} label="Payouts" />
               <NavBtn onClick={goClippers} label="Clippers" />
               <NavBtn onClick={goPerformance} label="Performance" />
@@ -257,19 +268,19 @@ export default function Gallery() {
 
               {/* Active */}
               <button
-                onClick={() => navigate("/gallery")}
+                onClick={() => navigate('/gallery')}
                 style={{
-                  border: "none",
-                  outline: "none",
+                  border: 'none',
+                  outline: 'none',
                   borderRadius: 12,
-                  padding: "8px 10px",
-                  textAlign: "left",
-                  cursor: "pointer",
+                  padding: '8px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
                   fontSize: 13,
                   background:
-                    "linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))",
-                  color: "#020617",
-                  fontWeight: 600,
+                    'linear-gradient(135deg, rgba(96,165,250,0.95), rgba(34,211,238,0.95))',
+                  color: '#020617',
+                  fontWeight: 800,
                   marginTop: 2,
                   marginBottom: 2,
                 }}
@@ -277,24 +288,24 @@ export default function Gallery() {
                 Gallery
               </button>
 
-              <NavBtn onClick={goSettings} label="Settings" muted />
+              <NavBtn label="Settings" muted />
 
               <div style={{ flexGrow: 1 }} />
 
               <button
                 onClick={handleLogout}
                 style={{
-                  border: "none",
-                  outline: "none",
+                  border: 'none',
+                  outline: 'none',
                   borderRadius: 999,
-                  padding: "7px 10px",
-                  textAlign: "left",
-                  cursor: "pointer",
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
                   fontSize: 12,
-                  background: "rgba(248,250,252,0.06)",
-                  color: "rgba(255,255,255,0.85)",
-                  display: "flex",
-                  alignItems: "center",
+                  background: 'rgba(248,250,252,0.06)',
+                  color: 'rgba(255,255,255,0.85)',
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: 6,
                   marginBottom: 6,
                 }}
@@ -307,11 +318,11 @@ export default function Gallery() {
                 style={{
                   fontSize: 11,
                   opacity: 0.55,
-                  borderTop: "1px solid rgba(255,255,255,0.08)",
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
                   paddingTop: 8,
                 }}
               >
-                Video gallery hub
+                Video tile gallery
               </div>
             </>
           )}
@@ -319,17 +330,24 @@ export default function Gallery() {
       </div>
 
       {/* MAIN */}
-      <div style={{ flex: 1, position: "relative", zIndex: 3 }}>
-        {/* Branding */}
-        <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ flex: 1, position: 'relative', zIndex: 3 }}>
+        {/* Brand */}
+        <div
+          style={{
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
           <span
             style={{
-              fontFamily: "Impact, Haettenschweiler, Arial Black, sans-serif",
+              fontFamily: 'Impact, Haettenschweiler, Arial Black, sans-serif',
               fontSize: 34,
               letterSpacing: 0.5,
-              color: "#ffffff",
-              textTransform: "uppercase",
-              textShadow: "0 3px 12px rgba(0,0,0,0.7)",
+              color: '#ffffff',
+              textTransform: 'uppercase',
+              textShadow: '0 3px 12px rgba(0,0,0,0.7)',
             }}
           >
             {brandText}
@@ -339,297 +357,275 @@ export default function Gallery() {
         {/* Header */}
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 18,
-            gap: 16,
+            marginBottom: 14,
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            gap: 14,
+            flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-            <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>Gallery</h1>
-            <span style={{ fontSize: 13, opacity: 0.7 }}>
-              All posted videos · thumbnails + stats
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+            <h1 style={{ fontSize: 30, fontWeight: 900, margin: 0 }}>Gallery</h1>
+            <span style={{ fontSize: 13, opacity: 0.72 }}>
+              Recent videos across platforms
             </span>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "center",
-              flexWrap: "wrap",
-              justifyContent: "flex-end",
-            }}
-          >
-            <select
-              value={platformFilter}
-              onChange={(e) => setPlatformFilter(e.target.value)}
-              style={{
-                fontSize: 12,
-                padding: "7px 10px",
-                borderRadius: 999,
-                border: "1px solid rgba(255,255,255,0.16)",
-                background: "rgba(0,0,0,0.6)",
-                color: "rgba(255,255,255,0.9)",
-              }}
-            >
-              <option value="all">All platforms</option>
-              <option value="youtube">YouTube</option>
-              <option value="tiktok">TikTok</option>
-              <option value="instagram">Instagram</option>
-            </select>
-
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search title or account…"
-              style={{
-                width: 260,
-                maxWidth: "50vw",
-                fontSize: 12,
-                padding: "7px 12px",
-                borderRadius: 999,
-                border: "1px solid rgba(255,255,255,0.16)",
-                background: "rgba(0,0,0,0.6)",
-                color: "rgba(255,255,255,0.92)",
-                outline: "none",
-              }}
-            />
+          <div style={{ fontSize: 12, opacity: 0.75 }}>
+            {loading ? 'Loading…' : `${rows.length.toLocaleString()} videos`}
           </div>
         </div>
 
-        {/* Content card */}
+        {/* Filters */}
         <div
           style={{
-            borderRadius: 20,
-            background: "radial-gradient(circle at top left, rgba(255,255,255,0.04), transparent 55%)",
-            padding: 18,
-            boxShadow: "0 25px 60px rgba(0,0,0,0.85)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 18,
+            border: '1px solid rgba(148,163,184,0.25)',
+            background: 'rgba(0,0,0,0.45)',
+            padding: 14,
+            display: 'flex',
+            gap: 14,
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            marginBottom: 16,
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 18px 50px rgba(0,0,0,0.75)',
           }}
         >
-          {loading && (
-            <div style={{ padding: 14, opacity: 0.8, fontSize: 13 }}>
-              Loading gallery…
-            </div>
-          )}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <FilterSelect
+              label="Platform"
+              value={platformFilter}
+              onChange={(e) => setPlatformFilter(e.target.value)}
+              options={[
+                { v: 'all', t: 'All' },
+                { v: 'instagram', t: 'Instagram' },
+                { v: 'tiktok', t: 'TikTok' },
+                { v: 'youtube', t: 'YouTube' },
+              ]}
+            />
 
-          {!loading && loadErr && (
-            <div style={{ padding: 14, opacity: 0.9, fontSize: 13, color: "rgba(248,113,113,0.95)" }}>
-              Failed to load: {loadErr}
-            </div>
-          )}
+            <FilterSelect
+              label="Clipper"
+              value={clipperFilter}
+              onChange={(e) => setClipperFilter(e.target.value)}
+              options={clipperOptions.map((c) => ({ v: c.id, t: c.name }))}
+            />
 
-          {!loading && !loadErr && (
-            <>
-              <div
+            <FilterSelect
+              label="Sort by"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              options={[
+                { v: 'published_at', t: 'Publish date' },
+                { v: 'view_count', t: 'View count' },
+                { v: 'like_count', t: 'Like count' },
+              ]}
+            />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 12, opacity: 0.7 }}>Search</span>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="title, account, clipper…"
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                  gap: 14,
+                  fontSize: 12,
+                  padding: '7px 12px',
+                  borderRadius: 999,
+                  border: '1px solid rgba(255,255,255,0.16)',
+                  background: 'rgba(0,0,0,0.6)',
+                  color: 'rgba(255,255,255,0.92)',
+                  minWidth: 240,
                 }}
-              >
-                {filtered.map((v) => {
-                  const meta = platformMeta[v.platform] || {
-                    label: v.platform,
-                    pillBg: "rgba(148,163,184,0.12)",
-                    pillBorder: "rgba(148,163,184,0.35)",
-                    pillText: "rgba(148,163,184,0.95)",
-                    icon: "•",
-                  };
+              />
+            </div>
+          </div>
 
-                  return (
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Pill>
+              <span style={{ opacity: 0.75 }}>Showing</span>
+              <span style={{ fontWeight: 900 }}>{rows.length.toLocaleString()}</span>
+            </Pill>
+            {err && (
+              <Pill tone="danger">
+                <span style={{ fontWeight: 900 }}>Error:</span>
+                <span style={{ opacity: 0.9 }}>{err}</span>
+              </Pill>
+            )}
+          </div>
+        </div>
+
+        {/* Grid */}
+        <div
+          style={{
+            borderRadius: 22,
+            background:
+              'radial-gradient(circle at top left, rgba(255,255,255,0.06), rgba(0,0,0,0.55) 55%)',
+            padding: 16,
+            border: '1px solid rgba(148,163,184,0.22)',
+            boxShadow: '0 26px 70px rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          {loading && rows.length === 0 ? (
+            <div style={{ padding: 14, opacity: 0.75, fontSize: 13 }}>Loading…</div>
+          ) : rows.length === 0 ? (
+            <div style={{ padding: 14, opacity: 0.75, fontSize: 13 }}>
+              No videos match your filters.
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                gap: 14,
+              }}
+            >
+              {rows.map((v, idx) => {
+                const meta = platformMeta(v.platform);
+
+                return (
+                  <div
+                    key={v.key || idx}
+                    style={{
+                      borderRadius: 18,
+                      overflow: 'hidden',
+                      border: '1px solid rgba(148,163,184,0.22)',
+                      background: 'rgba(0,0,0,0.48)',
+                      boxShadow: '0 18px 55px rgba(0,0,0,0.75)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      minHeight: 340,
+                    }}
+                  >
+                    {/* Top bar */}
                     <div
-                      key={v.id}
                       style={{
-                        borderRadius: 18,
-                        overflow: "hidden",
-                        background: "rgba(0,0,0,0.55)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        boxShadow: "0 18px 45px rgba(0,0,0,0.75)",
-                        display: "flex",
-                        flexDirection: "column",
-                        minHeight: 420,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: 10,
+                        gap: 10,
+                        borderBottom: '1px solid rgba(255,255,255,0.08)',
+                        background: 'rgba(0,0,0,0.35)',
                       }}
                     >
-                      {/* Top bar */}
-                      <div
-                        style={{
-                          padding: 12,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 10,
-                          borderBottom: "1px solid rgba(255,255,255,0.06)",
-                          background: "linear-gradient(180deg, rgba(0,0,0,0.65), rgba(0,0,0,0.3))",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 6,
-                              fontSize: 11,
-                              padding: "4px 10px",
-                              borderRadius: 999,
-                              background: meta.pillBg,
-                              border: `1px solid ${meta.pillBorder}`,
-                              color: meta.pillText,
-                            }}
-                          >
-                            <span style={{ opacity: 0.9 }}>{meta.icon}</span>
-                            {meta.label}
-                          </span>
-
-                          {v.account && (
-                            <span style={{ fontSize: 11, opacity: 0.65 }}>@{v.account}</span>
-                          )}
-                        </div>
-
-                        <a
-                          href={v.videoUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                        <span
                           style={{
-                            fontSize: 11,
-                            color: "rgba(255,255,255,0.78)",
-                            textDecoration: "none",
-                            border: "1px solid rgba(255,255,255,0.16)",
-                            padding: "5px 10px",
-                            borderRadius: 999,
-                            background: "rgba(255,255,255,0.06)",
+                            width: 26,
+                            height: 26,
+                            borderRadius: 9,
+                            display: 'grid',
+                            placeItems: 'center',
+                            background: meta.tone,
+                            border: '1px solid rgba(255,255,255,0.10)',
+                            fontWeight: 900,
                           }}
+                          title={meta.label}
                         >
-                          View ↗
-                        </a>
-                      </div>
+                          {meta.icon}
+                        </span>
 
-                      {/* Thumb */}
-                      <div style={{ position: "relative", flex: 1, background: "#000" }}>
-                        <img
-                          src={v.thumbnailUrl}
-                          alt={v.title}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            display: "block",
-                            filter: "contrast(1.02) saturate(1.05)",
-                          }}
-                          loading="lazy"
-                          onError={(e) => {
-                            // fallback if hotlink fails
-                            e.currentTarget.src = placeholderThumb(String(v.id).length || 1);
-                          }}
-                        />
-
-                        {/* Play overlay */}
-                        <div
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            pointerEvents: "none",
-                          }}
-                        >
+                        <div style={{ minWidth: 0 }}>
                           <div
                             style={{
-                              width: 62,
-                              height: 62,
-                              borderRadius: 999,
-                              background: "rgba(0,0,0,0.55)",
-                              border: "1px solid rgba(255,255,255,0.18)",
-                              boxShadow: "0 18px 50px rgba(0,0,0,0.8)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              backdropFilter: "blur(6px)",
+                              fontSize: 12,
+                              fontWeight: 800,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
+                            title={v.clipperName || v.account || ''}
                           >
-                            <span style={{ fontSize: 22, opacity: 0.9 }}>▶</span>
+                            {v.clipperName || v.account || '—'}
                           </div>
-                        </div>
-
-                        {/* Title gradient */}
-                        <div
-                          style={{
-                            position: "absolute",
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            padding: 12,
-                            background: "linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.85))",
-                          }}
-                        >
-                          <div
-                            title={v.title}
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 600,
-                              lineHeight: 1.25,
-                              textShadow: "0 6px 18px rgba(0,0,0,0.9)",
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                            }}
-                          >
-                            {v.title}
+                          <div style={{ fontSize: 11, opacity: 0.65 }}>
+                            {v.account ? `@${v.account}` : meta.label}
                           </div>
                         </div>
                       </div>
 
-                      {/* Bottom stats */}
-                      <div
+                      <a
+                        href={v.videoUrl || '#'}
+                        target="_blank"
+                        rel="noreferrer"
                         style={{
-                          padding: 12,
-                          borderTop: "1px solid rgba(255,255,255,0.06)",
-                          background: "rgba(0,0,0,0.55)",
+                          fontSize: 12,
+                          textDecoration: 'none',
+                          padding: '6px 10px',
+                          borderRadius: 999,
+                          border: '1px solid rgba(255,255,255,0.14)',
+                          background: 'rgba(255,255,255,0.06)',
+                          color: 'rgba(255,255,255,0.92)',
+                          whiteSpace: 'nowrap',
                         }}
                       >
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(3, 1fr)",
-                            gap: 8,
-                            marginBottom: 10,
-                          }}
-                        >
-                          <Stat label="Views" value={formatNumber(v.views)} />
-                          <Stat label="Likes" value={formatNumber(v.likes)} />
-                          <Stat label="Comments" value={formatNumber(v.comments)} />
-                        </div>
+                        View
+                      </a>
+                    </div>
 
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            fontSize: 11,
-                            opacity: 0.65,
-                          }}
-                        >
-                          <span>Posted {daysAgoLabel(v.daysAgo)}</span>
-                          <span style={{ opacity: 0.85 }}>
-                            ID: <span style={{ fontFamily: "monospace" }}>{v.id}</span>
-                          </span>
-                        </div>
+                    {/* Thumbnail */}
+                    <div
+                      style={{
+                        width: '100%',
+                        aspectRatio: '9 / 16',
+                        background: 'rgba(255,255,255,0.04)',
+                        position: 'relative',
+                      }}
+                    >
+                      <img
+                        src={v.thumbnailUrl}
+                        alt={v.title}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block',
+                        }}
+                        onError={(e) => {
+                          // avoid infinite loop
+                          if (e.currentTarget.dataset.fallbackApplied) return;
+                          e.currentTarget.dataset.fallbackApplied = '1';
+                          e.currentTarget.src = placeholderThumb(idx + 1);
+                        }}
+                      />
+                    </div>
+
+                    {/* Body */}
+                    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10, flexGrow: 1 }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 800,
+                          lineHeight: 1.25,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                        title={v.title}
+                      >
+                        {v.title}
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+                        <Stat label="Views" value={formatNumber(v.views)} />
+                        <Stat label="Likes" value={formatNumber(v.likes)} />
+                        <Stat label="Comms" value={formatNumber(v.comments)} />
+                      </div>
+
+                      <div style={{ marginTop: 'auto', fontSize: 11, opacity: 0.65 }}>
+                        Posted {daysAgoLabel(v.daysAgo)}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-
-              {filtered.length === 0 && (
-                <div style={{ padding: 14, opacity: 0.75, fontSize: 13 }}>
-                  No videos match your filters.
-                </div>
-              )}
-            </>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
@@ -642,20 +638,82 @@ function NavBtn({ onClick, label, muted }) {
     <button
       onClick={onClick}
       style={{
-        border: "none",
-        outline: "none",
+        border: 'none',
+        outline: 'none',
         borderRadius: 12,
-        padding: "7px 10px",
-        textAlign: "left",
-        cursor: onClick ? "pointer" : "default",
+        padding: '7px 10px',
+        textAlign: 'left',
+        cursor: onClick ? 'pointer' : 'default',
         fontSize: 12,
-        background: "transparent",
-        color: muted ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.7)",
+        background: 'transparent',
+        color: muted ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.7)',
         marginTop: 2,
       }}
     >
       {label}
     </button>
+  );
+}
+
+function FilterSelect({ label, value, onChange, options }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+      <span style={{ opacity: 0.7 }}>{label}</span>
+      <select
+        value={value}
+        onChange={onChange}
+        style={{
+          fontSize: 12,
+          padding: '6px 10px',
+          borderRadius: 999,
+          border: '1px solid rgba(255,255,255,0.16)',
+          background: 'rgba(0,0,0,0.6)',
+          color: 'rgba(255,255,255,0.9)',
+          minWidth: 170,
+        }}
+      >
+        {options.map((o) => (
+          <option key={o.v} value={o.v}>
+            {o.t}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function Pill({ children, tone = 'neutral' }) {
+  const t =
+    tone === 'danger'
+      ? {
+          bg: 'rgba(239,68,68,0.16)',
+          bd: 'rgba(239,68,68,0.30)',
+          tx: 'rgba(254,202,202,0.95)',
+        }
+      : {
+          bg: 'rgba(255,255,255,0.06)',
+          bd: 'rgba(255,255,255,0.12)',
+          tx: 'rgba(255,255,255,0.92)',
+        };
+
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '7px 10px',
+        borderRadius: 999,
+        background: t.bg,
+        border: `1px solid ${t.bd}`,
+        color: t.tx,
+        fontSize: 12,
+        lineHeight: 1,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </span>
   );
 }
 
@@ -665,12 +723,12 @@ function Stat({ label, value }) {
       style={{
         borderRadius: 12,
         padding: 10,
-        background: "rgba(255,255,255,0.06)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.08)',
       }}
     >
       <div style={{ fontSize: 10, opacity: 0.65, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 600 }}>{value}</div>
+      <div style={{ fontSize: 13, fontWeight: 900 }}>{value}</div>
     </div>
   );
 }
