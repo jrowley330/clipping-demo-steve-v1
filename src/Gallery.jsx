@@ -322,7 +322,7 @@ export default function Gallery() {
                   background:
                     'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
                   color: '#020617',
-                  fontWeight: 800,
+                  fontWeight: 600,
                   marginTop: 2,
                   marginBottom: 2,
                 }}
@@ -408,9 +408,9 @@ export default function Gallery() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-            <h1 style={{ fontSize: 30, fontWeight: 900, margin: 0 }}>Gallery</h1>
-            <span style={{ fontSize: 13, opacity: 0.72 }}>
-              Recent videos across platforms
+            <h1 style={{ fontSize: 30, fontWeight: 600, margin: 0 }}>Gallery</h1>
+            <span style={{ fontSize: 13, opacity: 0.7 }}>
+              Content gallery of all videos posted
             </span>
           </div>
 
