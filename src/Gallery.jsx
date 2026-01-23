@@ -575,9 +575,9 @@ export default function Gallery() {
                               width: '100%',
                               height: '100%',
                               objectFit: 'cover',
-                              padding: 6.5,
+                              padding: 8,
                               background: '#000',
-                              transform: 'translateY(-8px)', // 👈 subtle upward nudge
+                              transform: 'translateY(-6.5px)', // 👈 subtle upward nudge
                             }}
                           />
                         </span>
