@@ -577,7 +577,7 @@ export default function Gallery() {
                               objectFit: 'cover',
                               padding: 8,
                               background: '#000',
-                              transform: 'translateY(-7px)', // 👈 subtle upward nudge
+                              transform: 'translateY(-7.2px)', // 👈 subtle upward nudge
                             }}
                           />
                         </span>
