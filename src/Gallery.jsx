@@ -558,31 +558,28 @@ export default function Gallery() {
                           style={{
                             width: 26,
                             height: 26,
-                            borderRadius: 9,
+                            borderRadius: 10,        // ← change to 13 for perfect circle
+                            overflow: 'hidden',      // ← THIS is the crop
                             display: 'grid',
                             placeItems: 'center',
                             background: meta.tone,
-                            border: '1px solid rgba(255,255,255,0.10)',
+                            border: '1px solid rgba(255,255,255,0.12)',
                             boxShadow: `0 0 18px ${meta.glow}`,
                           }}
-                          title={`${meta.label}`}
+                          title={meta.label}
                         >
-                          {meta.img ? (
-                            <img
-                              src={meta.img}
-                              alt={meta.label}
-                              style={{
-                                width: 16,
-                                height: 16,
-                                objectFit: 'contain',
-                                filter: 'drop-shadow(0 0 6px rgba(0,0,0,0.55))',
-                              }}
-                            />
-                          ) : (
-                            <span style={{ fontWeight: 900 }}>•</span>
-                          )}
+                          <img
+                            src={meta.img}
+                            alt={meta.label}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',     // ← important
+                              padding: 4,             // ← trims edges of logo
+                              background: '#000',     // optional: ensures clean background
+                            }}
+                          />
                         </span>
-
 
                         <div style={{ minWidth: 0 }}>
                           <div
