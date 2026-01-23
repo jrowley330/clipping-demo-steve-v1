@@ -2,6 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
+import instagramIcon from "../assets/instagram.png";
+import tiktokIcon from "../assets/tiktok.png";
+import youtubeIcon from "../assets/youtube.png";
+
 import { useBranding } from './branding/BrandingContext';
 
 const API_BASE_URL =
@@ -24,17 +28,53 @@ const daysAgoLabel = (daysAgo) => {
 
 const platformMeta = (platform) => {
   const p = String(platform || '').toLowerCase();
+
   if (p === 'youtube')
-    return { label: 'YouTube', icon: '▶', tone: 'rgba(239,68,68,0.18)' };
+    return {
+      key: 'youtube',
+      label: 'YouTube',
+      tone: 'rgba(239,68,68,0.18)',
+      glow: 'rgba(239,68,68,0.55)',
+      img: PLATFORM_ICONS.youtube,
+    };
+
   if (p === 'instagram')
-    return { label: 'Instagram', icon: '◎', tone: 'rgba(236,72,153,0.16)' };
+    return {
+      key: 'instagram',
+      label: 'Instagram',
+      tone: 'rgba(236,72,153,0.16)',
+      glow: 'rgba(236,72,153,0.55)',
+      img: PLATFORM_ICONS.instagram,
+    };
+
   if (p === 'tiktok')
-    return { label: 'TikTok', icon: '♪', tone: 'rgba(34,211,238,0.14)' };
-  return { label: p || '—', icon: '•', tone: 'rgba(255,255,255,0.10)' };
+    return {
+      key: 'tiktok',
+      label: 'TikTok',
+      tone: 'rgba(34,211,238,0.14)',
+      glow: 'rgba(34,211,238,0.55)',
+      img: PLATFORM_ICONS.tiktok,
+    };
+
+  return {
+    key: p || 'unknown',
+    label: p || '—',
+    tone: 'rgba(255,255,255,0.10)',
+    glow: 'rgba(255,255,255,0.25)',
+    img: null,
+  };
 };
+
 
 const placeholderThumb = (seed = 1) =>
   `https://picsum.photos/seed/clipper_gallery_${seed}/600/900`;
+
+const PLATFORM_ICONS = {
+  instagram: instagramIcon,
+  tiktok: tiktokIcon,
+  youtube: youtubeIcon,
+};
+
 
 export default function Gallery() {
   const navigate = useNavigate();
@@ -523,12 +563,26 @@ export default function Gallery() {
                             placeItems: 'center',
                             background: meta.tone,
                             border: '1px solid rgba(255,255,255,0.10)',
-                            fontWeight: 900,
+                            boxShadow: `0 0 18px ${meta.glow}`,
                           }}
-                          title={meta.label}
+                          title={`${meta.label}`}
                         >
-                          {meta.icon}
+                          {meta.img ? (
+                            <img
+                              src={meta.img}
+                              alt={meta.label}
+                              style={{
+                                width: 16,
+                                height: 16,
+                                objectFit: 'contain',
+                                filter: 'drop-shadow(0 0 6px rgba(0,0,0,0.55))',
+                              }}
+                            />
+                          ) : (
+                            <span style={{ fontWeight: 900 }}>•</span>
+                          )}
                         </span>
+
 
                         <div style={{ minWidth: 0 }}>
                           <div
