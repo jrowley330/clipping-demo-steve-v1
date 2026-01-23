@@ -654,6 +654,7 @@ export default function Gallery() {
                           fontSize: 13,
                           fontWeight: 800,
                           lineHeight: 1.25,
+                          height: '2.5em',
                           display: '-webkit-box',
                           WebkitLineClamp: 2,
                           WebkitBoxOrient: 'vertical',
