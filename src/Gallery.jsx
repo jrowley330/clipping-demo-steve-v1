@@ -104,6 +104,7 @@ export default function Gallery() {
   };
 
   const goDashV2 = () => navigate('/dashboard-v2');
+  const goContentApproval = () => navigate('/content-approval');
   const goPayouts = () => navigate('/payouts');
   const goClippers = () => navigate('/clippers');
   const goPerformance = () => navigate('/performance');
@@ -301,6 +302,7 @@ export default function Gallery() {
               </div>
 
               <NavBtn onClick={goDashV2} label="Dashboards" />
+              <NavBtn onClick={goContentApproval} label="Review Content" />
               <NavBtn onClick={goPayouts} label="Payouts" />
               <NavBtn onClick={goClippers} label="Clippers" />
               <NavBtn onClick={goPerformance} label="Performance" />
@@ -318,7 +320,7 @@ export default function Gallery() {
                   cursor: 'pointer',
                   fontSize: 13,
                   background:
-                    'linear-gradient(135deg, rgba(96,165,250,0.95), rgba(34,211,238,0.95))',
+                    'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
                   color: '#020617',
                   fontWeight: 800,
                   marginTop: 2,
