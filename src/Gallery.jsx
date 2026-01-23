@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
-import instagramIcon from "src/assets/instagram.png";
-import tiktokIcon from "src/assets/tiktok.png";
-import youtubeIcon from "src/assets/youtube.png";
+import instagramIcon from "./assets/instagram.png";
+import tiktokIcon from "./assets/tiktok.png";
+import youtubeIcon from "./assets/youtube.png";
 
 import { useBranding } from './branding/BrandingContext';
 
