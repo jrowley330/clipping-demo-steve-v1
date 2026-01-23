@@ -574,9 +574,10 @@ export default function Gallery() {
                             style={{
                               width: '100%',
                               height: '100%',
-                              objectFit: 'cover',     // ← important
-                              padding: 4,             // ← trims edges of logo
-                              background: '#000',     // optional: ensures clean background
+                              objectFit: 'cover',
+                              padding: 4,
+                              background: '#000',
+                              transform: 'translateY(-1px)', // 👈 subtle upward nudge
                             }}
                           />
                         </span>
