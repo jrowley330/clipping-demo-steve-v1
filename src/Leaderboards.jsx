@@ -306,6 +306,12 @@ export default function Leaderboards() {
   const [weekOptions, setWeekOptions] = useState([]); // [{ weekEnd, label }]
   const [weeksLoading, setWeeksLoading] = useState(true);
 
+  // Reset selected week when platform changes
+  useEffect(() => {
+    setWeekEndParam("");
+    setWeekEndDisplay("");
+  }, [platform]);
+
 
   // Real API rows
   const [rowsApi, setRowsApi] = useState([]);
