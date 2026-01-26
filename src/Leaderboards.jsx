@@ -303,10 +303,54 @@ export default function Leaderboards() {
   const [platform, setPlatform] = useState("all"); // all | instagram | tiktok | youtube
   const [rankBy, setRankBy] = useState("views"); // views | videos | vpp | e1k
 
+  const [weekOptions, setWeekOptions] = useState([]); // [{ weekEnd, label }]
+  const [weeksLoading, setWeeksLoading] = useState(true);
+
+
   // Real API rows
   const [rowsApi, setRowsApi] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState("");
+
+  // FETCH available weeks (labels)
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setWeeksLoading(true);
+
+        const qs = new URLSearchParams();
+        qs.set("clientId", "default");
+        qs.set("platform", platform); // keep platform-specific week list (recommended)
+        qs.set("limit", "80");
+
+        const res = await fetch(`${API_BASE_URL}/leaderboards/weeks?${qs.toString()}`);
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          throw new Error(txt || `Weeks API error (${res.status})`);
+        }
+
+        const json = await res.json();
+        const list = Array.isArray(json?.weeks) ? json.weeks : [];
+
+        if (cancelled) return;
+        setWeekOptions(list);
+      } catch (e) {
+        // don’t hard fail the page if weeks list fails; just leave dropdown minimal
+        console.warn("Failed to load week options:", e);
+        if (!cancelled) setWeekOptions([]);
+      } finally {
+        if (!cancelled) setWeeksLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [platform]);
+
+
 
   // FETCH
   useEffect(() => {
@@ -471,7 +515,16 @@ export default function Leaderboards() {
     const platformLabel =
       platform === "all" ? "All Platforms" : platform.charAt(0).toUpperCase() + platform.slice(1);
 
-    const weekLabel = weekEndDisplay ? formatDateLabel(weekEndDisplay) : "Latest";
+    const headerWeekLabel = useMemo(() => {
+      if (loading) return "Loading…";
+      // If user picked a specific week, use that
+      const chosen = weekEndParam || weekEndDisplay;
+      if (!chosen) return "Latest available";
+
+      const hit = weekOptions.find((w) => w.weekEnd === chosen);
+      return hit?.label || formatDateLabel(chosen);
+    }, [loading, weekEndParam, weekEndDisplay, weekOptions]);
+
 
     const title = `🏆 Weekly Leaderboard — Week of ${weekLabel} (${platformLabel})`;
 
@@ -806,12 +859,16 @@ export default function Leaderboards() {
                 label="Week of"
                 value={weekEndParam}
                 onChange={(e) => setWeekEndParam(e.target.value)}
-                disabled={loading}
+                disabled={loading || weeksLoading}
                 options={[
-                  { v: "", t: loading ? "Loading..." : "Latest available" },
-                  ...(weekEndDisplay ? [{ v: weekEndDisplay, t: formatDateLabel(weekEndDisplay) }] : []),
+                  { v: "", t: weeksLoading ? "Loading..." : "Latest available" },
+                  ...weekOptions.map((w) => ({
+                    v: w.weekEnd,
+                    t: w.label || formatDateLabel(w.weekEnd),
+                  })),
                 ]}
               />
+
 
               <FilterSelect
                 label="Platform"
