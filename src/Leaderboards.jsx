@@ -511,20 +511,24 @@ export default function Leaderboards() {
   const goSettings = () => navigate("/settings");
   const goContentApproval = () => navigate("/content-approval");
 
+  const getWeekLabel = () => {
+    if (loading) return "Loading…";
+
+    // what week are we talking about?
+    const chosen = weekEndParam || weekEndDisplay;
+    if (!chosen) return "Latest available";
+
+    // try to use the nice label from /leaderboards/weeks
+    const hit = weekOptions.find((w) => w.weekEnd === chosen);
+    return hit?.label || formatDateLabel(chosen);
+  };
+
+
   const copySummary = async () => {
     const platformLabel =
       platform === "all" ? "All Platforms" : platform.charAt(0).toUpperCase() + platform.slice(1);
 
-    const headerWeekLabel = useMemo(() => {
-      if (loading) return "Loading…";
-      // If user picked a specific week, use that
-      const chosen = weekEndParam || weekEndDisplay;
-      if (!chosen) return "Latest available";
-
-      const hit = weekOptions.find((w) => w.weekEnd === chosen);
-      return hit?.label || formatDateLabel(chosen);
-    }, [loading, weekEndParam, weekEndDisplay, weekOptions]);
-
+    const weekLabel = getWeekLabel();
 
     const title = `🏆 Weekly Leaderboard — Week of ${weekLabel} (${platformLabel})`;
 
@@ -582,7 +586,7 @@ export default function Leaderboards() {
       ? "Views / Video"
       : "Eng / 1K Views";
 
-  const headerWeekLabel = weekEndDisplay ? formatDateLabel(weekEndDisplay) : "Loading…";
+  const headerWeekLabel = getWeekLabel();
 
   return (
     <div
