@@ -109,6 +109,8 @@ export default function Gallery() {
   const goClippers = () => navigate('/clippers');
   const goPerformance = () => navigate('/performance');
   const goLeaderboards = () => navigate('/leaderboards');
+  const goSettings = () => navigate('/settings');
+
 
   // Load clippers for dropdown (once)
   useEffect(() => {
@@ -330,7 +332,7 @@ export default function Gallery() {
                 Gallery
               </button>
 
-              <NavBtn label="Settings" muted />
+              <NavBtn onClick={goSettings} label="Settings" />
 
               <div style={{ flexGrow: 1 }} />
 
