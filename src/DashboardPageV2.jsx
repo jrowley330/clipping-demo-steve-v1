@@ -5,6 +5,8 @@ import { supabase } from './supabaseClient';
 
 import { useBranding } from "./branding/BrandingContext";
 
+import { useRole } from "./RoleContext";
+
 const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
@@ -75,6 +77,11 @@ const unwrapValue = (v) => {
 
 export default function DashboardsPageV2() {
   const navigate = useNavigate();
+
+  //PERMISSIONS/ROLE ACCESS
+  const { profile } = useRole();
+  const role = profile?.role || "client";
+  const isManager = role === "manager";
 
   //BRANDING
   const { headingText, watermarkText, defaults } = useBranding();
@@ -573,6 +580,7 @@ export default function DashboardsPageV2() {
               </button>
 
               {/* Payouts */}
+              {isManager && (
               <button
                 onClick={goPayouts}
                 style={{
@@ -589,7 +597,7 @@ export default function DashboardsPageV2() {
               >
                 Payouts
               </button>
-
+              )}
 
               {/* Clippers */}
               <button
