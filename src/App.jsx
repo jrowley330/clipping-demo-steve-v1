@@ -1,7 +1,9 @@
 // src/App.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+
 import { supabase } from "./supabaseClient";
+import { RoleProvider } from "./RoleContext";
 
 const INVITE_FORCE_KEY = "force_set_password";
 
@@ -65,5 +67,5 @@ export default function App({ children }) {
   if (loading) return <div>Loading…</div>;
   if (!session) return null;
 
-  return <>{children}</>;
+  return <RoleProvider session={session}>{children}</RoleProvider>;
 }

@@ -5,6 +5,8 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import { BrandingProvider } from "./branding/BrandingContext";
 
+import { RequireRole } from "./RoleContext";
+
 import App from "./App.jsx";
 import LoginPage from "./LoginPage.jsx";
 import SetPasswordPage from "./SetPasswordPage.jsx";
@@ -43,9 +45,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           path="/dashboard-v2"
           element={
             <App>
-              <BrandingProvider clientId="default">
-                <DashboardsPageV2 />
-              </BrandingProvider>
+              <RequireRole allowed={["manager", "client"]}>
+                <BrandingProvider clientId="default">
+                  <DashboardsPageV2 />
+                </BrandingProvider>
+              </RequireRole>
             </App>
           }
         />
@@ -65,9 +69,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           path="/payouts"
           element={
             <App>
-              <BrandingProvider clientId="default">
-                <PayoutsPage />
-              </BrandingProvider>
+              <RequireRole allowed={["manager"]}>
+                <BrandingProvider clientId="default">
+                  <PayoutsPage />
+                </BrandingProvider>
+              </RequireRole>
             </App>
           }
         />
