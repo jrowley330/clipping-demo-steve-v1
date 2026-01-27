@@ -1164,7 +1164,7 @@ export default function DashboardsPageV2() {
                               fontWeight: 500,
                             }}
                           >
-                            {formatCurrency(row.payoutUsd)}
+                            {isManager ? formatCurrency(row.payoutUsd) : '—'}
                           </td>
                         </tr>
                       ))}
