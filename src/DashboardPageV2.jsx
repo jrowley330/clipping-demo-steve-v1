@@ -991,6 +991,7 @@ export default function DashboardsPageV2() {
                   </div>
                 </div>
 
+                {isManager && (
                 <div
                   style={{
                     borderRadius: 16,
@@ -1009,6 +1010,7 @@ export default function DashboardsPageV2() {
                     {formatCurrency(summaryTotalPayout)}
                   </div>
                 </div>
+                )}
 
                 <div
                   style={{
