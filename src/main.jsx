@@ -45,11 +45,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           path="/dashboard-v2"
           element={
             <App>
-              <RequireRole allowed={["manager", "client"]}>
                 <BrandingProvider clientId="default">
                   <DashboardsPageV2 />
                 </BrandingProvider>
-              </RequireRole>
             </App>
           }
         />
@@ -58,9 +56,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           path="/content-approval"
           element={
             <App>
+              <RequireRole allowed={["manager"]}>
               <BrandingProvider clientId="default">
                 <ContentApprovalPage />
               </BrandingProvider>
+              </RequireRole>
             </App>
           }
         />
@@ -82,9 +82,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           path="/clippers"
           element={
             <App>
+              <RequireRole allowed={["manager"]}>
               <BrandingProvider clientId="default">
                 <ClippersPage />
               </BrandingProvider>
+              </RequireRole>
             </App>
           }
         />
@@ -93,9 +95,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           path="/performance"
           element={
             <App>
+              <RequireRole allowed={["manager"]}>
               <BrandingProvider clientId="default">
                 <Performance />
               </BrandingProvider>
+              </RequireRole>
             </App>
           }
         />
@@ -126,7 +130,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           path="/settings"
           element={
             <App>
+              <RequireRole allowed={["manager"]}>
+              <BrandingProvider clientId="default">
               <Settings />
+              </BrandingProvider>
+              </RequireRole>
             </App>
           }
         />
