@@ -1101,6 +1101,7 @@ export default function DashboardsPageV2() {
                         >
                           Views generated
                         </th>
+                        {isManager && (
                         <th
                           style={{
                             textAlign: 'right',
@@ -1113,6 +1114,7 @@ export default function DashboardsPageV2() {
                         >
                           Payout (USD)
                         </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
