@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
+import { useRole } from "./RoleContext";
+
 import instagramIcon from "./assets/instagram.png";
 import tiktokIcon from "./assets/tiktok.png";
 import youtubeIcon from "./assets/youtube.png";
@@ -79,6 +81,11 @@ const PLATFORM_ICONS = {
 export default function Gallery() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  //PERMISSIONS/ROLE ACCESS
+  const { profile } = useRole();
+  const role = profile?.role || "client";
+  const isManager = role === "manager";
 
   const { headingText, watermarkText } = useBranding();
   const defaults = { headingText: 'Your Clipping Campaign', watermarkText: 'CLIPPING' };
@@ -304,10 +311,12 @@ export default function Gallery() {
               </div>
 
               <NavBtn onClick={goDashV2} label="Dashboards" />
-              <NavBtn onClick={goContentApproval} label="Review Content" />
-              <NavBtn onClick={goPayouts} label="Payouts" />
-              <NavBtn onClick={goClippers} label="Clippers" />
-              <NavBtn onClick={goPerformance} label="Performance" />
+
+              {isManager && <NavBtn onClick={goContentApproval} label="Review Content" />}
+              {isManager && <NavBtn onClick={goPayouts} label="Payouts" />}
+              {isManager && <NavBtn onClick={goClippers} label="Clippers" />}
+              {isManager && <NavBtn onClick={goPerformance} label="Performance" />}
+
               <NavBtn onClick={goLeaderboards} label="Leaderboards" />
 
               {/* Active */}
@@ -332,7 +341,7 @@ export default function Gallery() {
                 Gallery
               </button>
 
-              <NavBtn onClick={goSettings} label="Settings" />
+              {isManager && <NavBtn onClick={goSettings} label="Settings" />}
 
               <div style={{ flexGrow: 1 }} />
 

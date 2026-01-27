@@ -562,6 +562,7 @@ export default function DashboardsPageV2() {
               </button>
 
               {/* Content Approval */}
+              {isManager && (
               <button
                 onClick={goContentApproval}
                 style={{
@@ -578,6 +579,7 @@ export default function DashboardsPageV2() {
               >
                 Review Content
               </button>
+              )}
 
               {/* Payouts */}
               {isManager && (
@@ -600,6 +602,7 @@ export default function DashboardsPageV2() {
               )}
 
               {/* Clippers */}
+              {isManager && (
               <button
                 onClick={goClippers}
                 style={{
@@ -617,8 +620,10 @@ export default function DashboardsPageV2() {
               >
                 Clippers
               </button>
+              )}
               
               {/* Performance */}
+              {isManager && (
               <button
                   onClick={goPerformance}
                   style={{
@@ -637,6 +642,7 @@ export default function DashboardsPageV2() {
                 >
                   Performance
               </button>
+              )}
 
               {/* Leaderboards */}
               <button
@@ -679,6 +685,7 @@ export default function DashboardsPageV2() {
               </button>
 
               {/* Settings */}
+              {isManager && (
               <button
                 onClick={goSettings}
                 style={{
@@ -695,6 +702,7 @@ export default function DashboardsPageV2() {
               >
                 Settings
               </button>
+              )}
 
               <div style={{ flexGrow: 1 }} />
 

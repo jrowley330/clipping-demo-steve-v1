@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 
+import { useRole } from "./RoleContext";
+
 import { useBranding } from "./branding/BrandingContext";
 
 /**
@@ -286,6 +288,13 @@ function MiniCard({ title, main, sub, tone = "neutral" }) {
 export default function Leaderboards() {
   const navigate = useNavigate();
   const boardRef = useRef(null);
+
+  
+  //PERMISSIONS/ROLE ACCESS
+  const { profile } = useRole();
+  const role = profile?.role || "client";
+  const isManager = role === "manager";
+
 
   // BRANDING
   const { headingText, watermarkText, defaults } = useBranding();
@@ -705,10 +714,12 @@ export default function Leaderboards() {
               </div>
 
               <NavBtn onClick={goDashV2} label="Dashboards" />
-              <NavBtn onClick={goContentApproval} label="Review Content" />
-              <NavBtn onClick={goPayouts} label="Payouts" />
-              <NavBtn onClick={goClippers} label="Clippers" />
-              <NavBtn onClick={goPerformance} label="Performance" />
+             
+              {/* Manager only */}
+              {isManager && <NavBtn onClick={goContentApproval} label="Review Content" />}
+              {isManager && <NavBtn onClick={goPayouts} label="Payouts" />}
+              {isManager && <NavBtn onClick={goClippers} label="Clippers" />}
+              {isManager && <NavBtn onClick={goPerformance} label="Performance" />}
 
               {/* Active */}
               <button
@@ -733,7 +744,7 @@ export default function Leaderboards() {
               </button>
 
               <NavBtn onClick={goGallery} label="Gallery" />
-              <NavBtn onClick={goSettings} label="Settings" />
+              {isManager && <NavBtn onClick={goSettings} label="Settings" />}
 
               <div style={{ flexGrow: 1 }} />
 
