@@ -250,12 +250,16 @@ export default function ContentApprovalPage() {
         const reviewedAt = unwrapValue(r.reviewed_at ?? "");
         const feedbackText = safeStr(r.feedback_text || "");
 
+        const titleKey = safeStr(r.title_key || r.titleKey || ""); // FOR GROUPING BY *VIDEO TITLE*
+
+
 
         return {
           id,
           clipper,
           account,
           accountKey, // hidden but required for bulk endpoint
+          titleKey, // FOR GROUPING BY *VIDEO TITLE*
           platform,
           title,
           videoId, // hidden but required for bulk endpoint
@@ -448,6 +452,7 @@ export default function ContentApprovalPage() {
 
       const item = {
         clientId,
+        titleKey: reviewRow.titleKey,   // FOR GROUPING BY *VIDEO TITLE*
         platform: reviewRow.platform,
         accountKey: reviewRow.accountKey,
         videoId: reviewRow.videoId,
@@ -517,6 +522,7 @@ export default function ContentApprovalPage() {
 
       const items = selectedRows.map((r) => ({
         clientId,
+        titleKey: r.titleKey,           //FOR GROUPING BY *VIDEO TITLE*
         platform: r.platform,
         accountKey: r.accountKey,
         videoId: r.videoId,
