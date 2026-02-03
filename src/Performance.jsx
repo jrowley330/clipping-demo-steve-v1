@@ -425,7 +425,7 @@ export default function PerformancePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          source: "test",
+          source: "prod",
           cohort: timeframe,
           mode: videoMode,
           limit: 20,
@@ -1336,7 +1336,7 @@ export default function PerformancePage() {
                 5) Hit <strong>Summarize</strong> to replace the full output with key takeaways.
               </div>
               <div style={{ opacity: 0.65, fontSize: 12, marginTop: 10 }}>
-                (This is running against your PERF_ANALYSIS_INPUT_TEST rows right now.)
+                (This is running against your PERF_ANALYSIS_INPUT rows right now.)
               </div>
             </div>
 
