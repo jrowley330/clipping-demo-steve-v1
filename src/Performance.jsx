@@ -316,7 +316,7 @@ export default function PerformancePage() {
         setVideosError("");
 
         const qs = new URLSearchParams({
-          source: "test", // change to 'prod' later if you want
+          source: "prod", // change to 'prod' later if you want
           mode: videoMode,
           cohort: timeframe,
         });
