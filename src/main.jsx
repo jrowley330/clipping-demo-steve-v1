@@ -3,10 +3,6 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import { BrandingProvider } from "./branding/BrandingContext";
-
-import { RequireRole } from "./RoleContext";
-
 import App from "./App.jsx";
 import LoginPage from "./LoginPage.jsx";
 import SetPasswordPage from "./SetPasswordPage.jsx";
@@ -21,6 +17,25 @@ import Gallery from "./Gallery.jsx";
 import Settings from "./Settings.jsx";
 import ContentApprovalPage from "./ContentApprovalPage.jsx";
 
+import { RequireRole } from "./RoleContext";
+import { BrandingProvider } from "./branding/BrandingContext";
+import { EnvironmentProvider } from "./EnvironmentContext.jsx";
+
+import AppLayout from "./AppLayout.jsx";
+
+// Protected wrapper: App -> RoleProvider -> EnvironmentProvider -> Branding -> Layout
+function ProtectedShell({ children }) {
+  return (
+    <App>
+      <EnvironmentProvider>
+        <BrandingProvider>
+          <AppLayout>{children}</AppLayout>
+        </BrandingProvider>
+      </EnvironmentProvider>
+    </App>
+  );
+}
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <HashRouter>
@@ -31,111 +46,98 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
 
-        {/* protected */}
+        {/* protected (no layout needed) */}
         <Route
           path="/set-password"
           element={
             <App>
-              <SetPasswordPage />
+              <EnvironmentProvider>
+                <SetPasswordPage />
+              </EnvironmentProvider>
             </App>
           }
         />
 
+        {/* protected + layout */}
         <Route
           path="/dashboard-v2"
           element={
-            <App>
-                <BrandingProvider clientId="default">
-                  <DashboardsPageV2 />
-                </BrandingProvider>
-            </App>
+            <ProtectedShell>
+              <DashboardsPageV2 />
+            </ProtectedShell>
           }
         />
 
         <Route
           path="/content-approval"
           element={
-            <App>
+            <ProtectedShell>
               <RequireRole allowed={["manager"]}>
-              <BrandingProvider clientId="default">
                 <ContentApprovalPage />
-              </BrandingProvider>
               </RequireRole>
-            </App>
+            </ProtectedShell>
           }
         />
-        
+
         <Route
           path="/payouts"
           element={
-            <App>
+            <ProtectedShell>
               <RequireRole allowed={["manager"]}>
-                <BrandingProvider clientId="default">
-                  <PayoutsPage />
-                </BrandingProvider>
+                <PayoutsPage />
               </RequireRole>
-            </App>
+            </ProtectedShell>
           }
         />
 
         <Route
           path="/clippers"
           element={
-            <App>
+            <ProtectedShell>
               <RequireRole allowed={["manager"]}>
-              <BrandingProvider clientId="default">
                 <ClippersPage />
-              </BrandingProvider>
               </RequireRole>
-            </App>
+            </ProtectedShell>
           }
         />
 
         <Route
           path="/performance"
           element={
-            <App>
+            <ProtectedShell>
               <RequireRole allowed={["manager"]}>
-              <BrandingProvider clientId="default">
                 <Performance />
-              </BrandingProvider>
               </RequireRole>
-            </App>
+            </ProtectedShell>
           }
         />
 
         <Route
           path="/leaderboards"
           element={
-            <App>
-              <BrandingProvider clientId="default">
-                <Leaderboards />
-              </BrandingProvider>
-            </App>
+            <ProtectedShell>
+              <Leaderboards />
+            </ProtectedShell>
           }
         />
 
         <Route
           path="/gallery"
           element={
-            <App>
-              <BrandingProvider clientId="default">
-                <Gallery />
-              </BrandingProvider>
-            </App>
+            <ProtectedShell>
+              <Gallery />
+            </ProtectedShell>
           }
         />
 
         <Route
           path="/settings"
           element={
-            <App>
+            <ProtectedShell>
               <RequireRole allowed={["manager"]}>
-              <BrandingProvider clientId="default">
-              <Settings />
-              </BrandingProvider>
+                <Settings />
               </RequireRole>
-            </App>
+            </ProtectedShell>
           }
         />
 

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useEnvironment } from "../EnvironmentContext"; // adjust path if needed
 
 const BrandingContext = createContext(null);
 
@@ -10,6 +11,8 @@ const DEFAULTS = {
 const API_BASE = "https://clipper-payouts-api-810712855216.us-central1.run.app";
 
 export function BrandingProvider({ clientId = "default", children }) {
+  const { clientId: envClientId } = useEnvironment(); // ✅ ARAFTA / BONGINO
+
   const [headingText, setHeadingText] = useState("");
   const [watermarkText, setWatermarkText] = useState("");
   const [loadingBranding, setLoadingBranding] = useState(false);
@@ -20,7 +23,7 @@ export function BrandingProvider({ clientId = "default", children }) {
     setBrandingError("");
 
     try {
-      const url = `${API_BASE}/settings?clientId=${encodeURIComponent(clientId)}`;
+      const url = `${API_BASE}/settings?clientId=${encodeURIComponent(envClientId)}`; // ✅ single clientId now
       const res = await fetch(url);
 
       if (!res.ok) {
@@ -31,7 +34,6 @@ export function BrandingProvider({ clientId = "default", children }) {
       const raw = await res.json();
       const data = Array.isArray(raw) ? raw[0] : raw;
 
-      // Support BOTH camelCase (current API) and snake_case (if you ever switch)
       const h = data?.headingText ?? data?.heading_text ?? "";
       const w = data?.watermarkText ?? data?.watermark_text ?? "";
 
@@ -47,7 +49,7 @@ export function BrandingProvider({ clientId = "default", children }) {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId]);
+  }, [envClientId]); // ✅ reload branding when env changes
 
   const value = useMemo(
     () => ({
@@ -57,7 +59,7 @@ export function BrandingProvider({ clientId = "default", children }) {
       loadingBranding,
       brandingError,
       refresh,
-      clientId,
+      clientId, // (not used for fetch anymore, but fine to keep)
       setBrandingLocal: ({ headingText: h, watermarkText: w }) => {
         if (h !== undefined) setHeadingText(String(h ?? ""));
         if (w !== undefined) setWatermarkText(String(w ?? ""));
