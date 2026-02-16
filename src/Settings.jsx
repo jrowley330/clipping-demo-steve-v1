@@ -3,12 +3,12 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 
+import { useEnvironment } from "./EnvironmentContext";
+
 // ✅ match your other pages (Cloud Run base)
-const API_BASE_URL =
-  "https://clipper-payouts-api-810712855216.us-central1.run.app";
+const API_BASE_URL = "https://clipper-payouts-api-810712855216.us-central1.run.app";
 
 // ✅ for now (later you can tie to a real client/user id)
-const DEFAULT_CLIENT_ID = "default";
 
 const DEFAULT_PAYOUT = {
   viewsPerDollar: 1000,
@@ -214,6 +214,8 @@ const SectionCard = ({ title, subtitle, accent, children }) => (
 );
 
 export default function SettingsPage() {
+  const { clientId: envClientId } = useEnvironment();
+
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -226,7 +228,6 @@ export default function SettingsPage() {
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [settingsError, setSettingsError] = useState("");
 
-  const clientId = DEFAULT_CLIENT_ID;
 
   const [activePlatform, setActivePlatform] = useState("instagram"); // instagram | youtube | tiktok
   const p = (s?.payouts?.[activePlatform]) || DEFAULTS.payouts.instagram; // safe fallback for memo math only
@@ -268,8 +269,10 @@ export default function SettingsPage() {
 
       try {
         const resp = await fetch(
-          `${API_BASE_URL}/settings?clientId=${encodeURIComponent(clientId)}`
+          `${API_BASE_URL}/settings?clientId=${encodeURIComponent(envClientId)}`
         );
+
+
 
         if (!resp.ok) {
           const txt = await resp.text().catch(() => "");
@@ -287,7 +290,7 @@ export default function SettingsPage() {
     };
 
     run();
-  }, [clientId]);
+  }, [envClientId]);
 
   // nav
   const handleLogout = async () => {
@@ -418,7 +421,7 @@ export default function SettingsPage() {
 
     try {
       const payload = {
-        clientId,
+        clientId: envClientId,
 
         headingText: norm.headingText,
         watermarkText: norm.watermarkText,

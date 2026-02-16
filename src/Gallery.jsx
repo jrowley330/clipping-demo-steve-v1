@@ -10,6 +10,8 @@ import youtubeIcon from "./assets/youtube.png";
 
 import { useBranding } from './branding/BrandingContext';
 
+import { useEnvironment } from "./EnvironmentContext";
+
 const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
@@ -82,11 +84,15 @@ export default function Gallery() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  //clientId
+  const { clientId } = useEnvironment();
+
   //PERMISSIONS/ROLE ACCESS
   const { profile } = useRole();
   const role = profile?.role || "client";
   const isManager = role === "manager";
 
+  //BRANDING
   const { headingText, watermarkText } = useBranding();
   const defaults = { headingText: 'Your Clipping Campaign', watermarkText: 'CLIPPING' };
   const brandText = headingText || defaults.headingText;
@@ -110,6 +116,16 @@ export default function Gallery() {
     navigate('/login');
   };
 
+  useEffect(() => {
+    // reset state so you don't carry an ARAFTA clipper_id into BONGINO, etc.
+    setClipperFilter('all');
+    setSearch('');
+    // optionally reset platform/sort too if you want:
+    // setPlatformFilter('all');
+    // setSortBy('published_at');
+  }, [clientId]);
+
+
   const goDashV2 = () => navigate('/dashboard-v2');
   const goContentApproval = () => navigate('/content-approval');
   const goPayouts = () => navigate('/payouts');
@@ -118,13 +134,12 @@ export default function Gallery() {
   const goLeaderboards = () => navigate('/leaderboards');
   const goSettings = () => navigate('/settings');
 
-
   // Load clippers for dropdown (once)
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/clippers`);
+        const res = await fetch(`${API_BASE_URL}/clippers?clientId=${encodeURIComponent(clientId)}`);
         if (!res.ok) throw new Error(`Clippers API ${res.status}`);
         const data = await res.json();
         const list = (Array.isArray(data) ? data : [])
@@ -145,7 +160,7 @@ export default function Gallery() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [clientId]);
 
   // Fetch gallery rows when filters change (debounce search a bit)
   useEffect(() => {
@@ -156,6 +171,7 @@ export default function Gallery() {
 
       try {
         const params = new URLSearchParams();
+        params.set('clientId', clientId);                 // ✅ ADD THIS
         params.set('limit', '250');
         params.set('offset', '0');
         params.set('platform', platformFilter || 'all');
@@ -210,7 +226,7 @@ export default function Gallery() {
       mounted = false;
       window.clearTimeout(t);
     };
-  }, [platformFilter, clipperFilter, sortBy, search]);
+  }, [clientId, platformFilter, clipperFilter, sortBy, search]);
 
   const clipperOptions = useMemo(() => {
     return [{ id: 'all', name: 'All clippers' }, ...clippers];

@@ -7,6 +7,8 @@ import { useRole } from "./RoleContext";
 
 import { useBranding } from "./branding/BrandingContext";
 
+import { useEnvironment } from "./EnvironmentContext";
+
 /**
  * Leaderboards (revamped)
  * - NO AI-derived analysis text (only metrics you can compute from: videos posted, publish times, views, likes, comments)
@@ -289,12 +291,13 @@ export default function Leaderboards() {
   const navigate = useNavigate();
   const boardRef = useRef(null);
 
-  
+  //clientId
+  const { clientId } = useEnvironment();
+
   //PERMISSIONS/ROLE ACCESS
   const { profile } = useRole();
   const role = profile?.role || "client";
   const isManager = role === "manager";
-
 
   // BRANDING
   const { headingText, watermarkText, defaults } = useBranding();
@@ -320,6 +323,12 @@ export default function Leaderboards() {
     setWeekEndParam("");
     setWeekEndDisplay("");
   }, [platform]);
+  
+  // Reset week selection when environment changes
+  useEffect(() => {
+    setWeekEndParam("");
+    setWeekEndDisplay("");
+  }, [clientId]);
 
 
   // Real API rows
@@ -336,7 +345,7 @@ export default function Leaderboards() {
         setWeeksLoading(true);
 
         const qs = new URLSearchParams();
-        qs.set("clientId", "default");
+        qs.set("clientId", clientId);
         qs.set("platform", platform); // keep platform-specific week list (recommended)
         qs.set("limit", "80");
 
@@ -352,7 +361,6 @@ export default function Leaderboards() {
         if (cancelled) return;
         setWeekOptions(list);
       } catch (e) {
-        // don’t hard fail the page if weeks list fails; just leave dropdown minimal
         console.warn("Failed to load week options:", e);
         if (!cancelled) setWeekOptions([]);
       } finally {
@@ -363,9 +371,7 @@ export default function Leaderboards() {
     return () => {
       cancelled = true;
     };
-  }, [platform]);
-
-
+  }, [clientId, platform]);
 
   // FETCH
   useEffect(() => {
@@ -377,7 +383,7 @@ export default function Leaderboards() {
         setDataError("");
 
         const qs = new URLSearchParams();
-        qs.set("clientId", "default");
+        qs.set("clientId", clientId);
         qs.set("platform", platform);
         qs.set("rankBy", rankBy);
         qs.set("limit", "50");
@@ -398,7 +404,6 @@ export default function Leaderboards() {
           likes: Number(r.likes_generated || 0),
           comments: Number(r.comments_generated || 0),
           videos: Number(r.videos_posted || 0),
-          // already computed in view:
           viewsPerVideo: Number(r.avg_views_per_video || 0),
           engPer1k: Number(r.eng_per_1k_views || 0),
           cadence: Number(r.cadence_per_day || 0),
@@ -411,7 +416,6 @@ export default function Leaderboards() {
         const returnedWeek = json?.weekEnd?.value ?? json?.weekEnd ?? null;
         if (returnedWeek) setWeekEndDisplay(String(returnedWeek));
         else setWeekEndDisplay("");
-
       } catch (e) {
         if (!cancelled) setDataError(String(e?.message || e));
       } finally {
@@ -422,7 +426,10 @@ export default function Leaderboards() {
     return () => {
       cancelled = true;
     };
-  }, [platform, rankBy, weekEndParam]);
+  }, [clientId, platform, rankBy, weekEndParam]);
+
+
+ 
 
   const computed = useMemo(() => {
     const base = rowsApi.map((r) => {
@@ -714,7 +721,7 @@ export default function Leaderboards() {
               </div>
 
               <NavBtn onClick={goDashV2} label="Dashboards" />
-             
+
               {/* Manager only */}
               {isManager && <NavBtn onClick={goContentApproval} label="Review Content" />}
               {isManager && <NavBtn onClick={goPayouts} label="Payouts" />}

@@ -5,8 +5,10 @@ import { supabase } from "./supabaseClient";
 
 import { useBranding } from "./branding/BrandingContext";
 
+import { useEnvironment } from "./EnvironmentContext";
+
 // NEW performance API (Cloud Run)
-const PERF_API_BASE_URL = "https://clipper-performance-api-xidmvbbcza-uc.a.run.app";
+const PERF_API_BASE_URL = "https://roimedia-clipper-performance-api-810712855216.us-central1.run.app"; //UPDATE TO DEMO VERSION
 
 // ---------- helpers ----------
 const formatNumber = (value) => {
@@ -248,6 +250,9 @@ const fallbackSummarize = (text) => {
 export default function PerformancePage() {
   const navigate = useNavigate();
 
+  //client/environment
+  const { clientId } = useEnvironment();
+
   //BRANDING
   const { headingText, watermarkText, defaults } = useBranding();
   const brandText = headingText || defaults.headingText;
@@ -297,7 +302,6 @@ export default function PerformancePage() {
   };
 
   const goDashV2 = () => navigate("/dashboard-v2");
-  const goDashV1 = () => navigate("/dashboard");
   const goPayouts = () => navigate("/payouts");
   const goClippers = () => navigate("/clippers");
   const goPerformance = () => navigate("/performance");
@@ -305,6 +309,26 @@ export default function PerformancePage() {
   const goGallery = () => navigate("/gallery");
   const goSettings = () => navigate("/settings");
   const goContentApproval = () => navigate('/content-approval');
+
+
+  // Reset analysis/video selection when client changes
+  useEffect(() => {
+    // reset UI when switching environments
+    setSelectedId(null);
+
+    setAnalysisOutput("");
+    setFullAnalysisOutput("");
+    setIsShowingSummary(false);
+    setAnalysisError("");
+    setSummaryError("");
+    setAnalysisLog([]);
+    setAnalysisProgress(0);
+    setAnalysisHeader("");
+
+    // optional: if you want to clear the list while it reloads
+    // setVideos([]);
+  }, [clientId]);
+
 
   // ---------- fetch videos ----------
   useEffect(() => {
@@ -317,6 +341,7 @@ export default function PerformancePage() {
 
         const qs = new URLSearchParams({
           source: "prod", // change to 'prod' later if you want
+          clientId,          // ✅ add this
           mode: videoMode,
           cohort: timeframe,
         });
@@ -366,7 +391,7 @@ export default function PerformancePage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoMode, timeframe]);
+  }, [videoMode, timeframe, clientId]);
 
   const selectedVideo = useMemo(() => videos.find((v) => v.id === selectedId) || null, [videos, selectedId]);
 
@@ -426,6 +451,7 @@ export default function PerformancePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           source: "prod",
+          clientId,          // ✅ add this
           cohort: timeframe,
           mode: videoMode,
           limit: 20,
@@ -541,6 +567,7 @@ export default function PerformancePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: fullAnalysisOutput || analysisOutput,
+          clientId,          // ✅ add this
           cohort: timeframe,
           mode: videoMode,
           hint: selectionLabel,
@@ -833,7 +860,6 @@ export default function PerformancePage() {
                 Gallery
               </button>
 
-              {/* Settings */}
               <button
                 onClick={goSettings}
                 style={{
