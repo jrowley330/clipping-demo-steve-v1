@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 
 import { useBranding } from './branding/BrandingContext';
 
+import { useEnvironment } from "./EnvironmentContext.jsx";
+
 const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
@@ -135,6 +137,8 @@ export default function ClippersPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  const { clientId } = useEnvironment(); // will be "ARAFTA" or "BONGINO"
+
   // BRANDING
   const { headingText, watermarkText, defaults } = useBranding();
   const brandText = headingText || defaults.headingText;
@@ -193,7 +197,7 @@ export default function ClippersPage() {
         setLoading(true);
         setError('');
 
-        const res = await fetch(`${API_BASE_URL}/clippers`);
+        const res = await fetch(`${API_BASE_URL}/clippers?clientId=${encodeURIComponent(clientId)}`);
         if (!res.ok) throw new Error(`Clippers API ${res.status}`);
 
         const data = await res.json();
@@ -237,7 +241,7 @@ export default function ClippersPage() {
     };
 
     fetchClippers();
-  }, []);
+  }, [clientId]);
 
   const toggleExpanded = (id) => {
     setExpandedId((current) => (current === id ? null : id));
@@ -310,7 +314,7 @@ export default function ClippersPage() {
 
       const payload = {
         clipperName: editDraft.clipperName.trim(),
-        clientId: 'default',
+        clientId, // ✅ use selected env
         isActive: !!editDraft.isActive,
         paymentProcessor: editDraft.paymentProcessor.trim(),
         processorKey: editDraft.processorKey.trim(),
@@ -332,7 +336,7 @@ export default function ClippersPage() {
             ? {
                 ...c,
                 clipperName: payload.clipperName,
-                clientId: 'default',
+                clientId,
                 isActive: payload.isActive,
                 paymentProcessor: payload.paymentProcessor,
                 processorKey: payload.processorKey,
@@ -381,9 +385,10 @@ export default function ClippersPage() {
     try {
       setDeletingId(deleteTarget.id);
 
-      const res = await fetch(`${API_BASE_URL}/clippers/${deleteTarget.id}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/clippers/${deleteTarget.id}?clientId=${encodeURIComponent(clientId)}`,
+        { method: 'DELETE' }
+      );
 
       if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
 
@@ -468,7 +473,7 @@ export default function ClippersPage() {
       const payload = {
         id: newId,
         clipperName: addDraft.clipperName.trim(),
-        clientId: 'default',
+        clientId,
         isActive: !!addDraft.isActive,
         paymentProcessor: addDraft.paymentProcessor.trim(),
         processorKey: addDraft.processorKey.trim(),
@@ -481,6 +486,7 @@ export default function ClippersPage() {
         body: JSON.stringify(payload),
       });
 
+
       if (!res.ok) throw new Error(`Create failed: ${res.status}`);
 
       setClippers((prev) => [
@@ -488,7 +494,7 @@ export default function ClippersPage() {
         {
           id: newId,
           clipperName: payload.clipperName,
-          clientId: 'default',
+          clientId,
           isActive: payload.isActive,
           paymentProcessor: payload.paymentProcessor,
           processorKey: payload.processorKey,
