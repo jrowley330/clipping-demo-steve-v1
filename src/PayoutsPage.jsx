@@ -4,6 +4,8 @@ import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { useBranding } from "./branding/BrandingContext";
 
+import { useEnvironment } from "./EnvironmentContext.jsx";
+
 const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
@@ -62,6 +64,8 @@ export default function PayoutsPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  const { clientId } = useEnvironment(); // 'ARAFTA' | 'BONGINO'
+
   // BRANDING
   const { headingText, watermarkText, defaults } = useBranding();
   const brandText = headingText || defaults.headingText;
@@ -113,7 +117,7 @@ export default function PayoutsPage() {
   const goLeaderboards = () => navigate('/leaderboards');
   const goGallery = () => navigate('/gallery');
   const goSettings = () => navigate('/settings');
-  const goContentApproval = () => {navigate('/content-approval');};
+  const goContentApproval = () => navigate('/content-approval');
 
   // ---------- fetch monthly balances ----------
 
@@ -122,7 +126,7 @@ export default function PayoutsPage() {
       try {
         setBalancesLoading(true);
         setBalancesError('');
-        const res = await fetch(`${API_BASE_URL}/clipper-monthly-balances`);
+        const res = await fetch(`${API_BASE_URL}/clipper-monthly-balances?clientId=${encodeURIComponent(clientId)}`);
         if (!res.ok) throw new Error(`Balances API ${res.status}`);
         const data = await res.json();
         setMonthlyBalances(Array.isArray(data) ? data : []);
@@ -134,7 +138,7 @@ export default function PayoutsPage() {
       }
     };
     fetchBalances();
-  }, []);
+  }, [clientId]);
 
   // ---------- fetch payout history ----------
 
@@ -143,7 +147,7 @@ export default function PayoutsPage() {
       try {
         setHistoryLoading(true);
         setHistoryError('');
-        const res = await fetch(`${API_BASE_URL}/clipper-payout-history`);
+        const res = await fetch(`${API_BASE_URL}/clipper-payout-history?clientId=${encodeURIComponent(clientId)}`);
         if (!res.ok) throw new Error(`History API ${res.status}`);
         const data = await res.json();
         setHistoryRows(Array.isArray(data) ? data : []);
@@ -155,7 +159,7 @@ export default function PayoutsPage() {
       }
     };
     fetchHistory();
-  }, []);
+  }, [clientId]);
 
   // ---------- derived datasets ----------
 
@@ -340,6 +344,7 @@ export default function PayoutsPage() {
       setPaying(true);
 
       const body = {
+        clientId,
         clipperId: modalClipper.clipper_id,
         month: modalClipper.month_label, // "January 2026"
         amountUsd: desiredAmount,
