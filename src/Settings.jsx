@@ -228,6 +228,12 @@ export default function SettingsPage() {
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [settingsError, setSettingsError] = useState("");
 
+  // ✅ manual scrape UI state ******************************************************************* !!!!!!!!!/
+  const [scrapeStatus, setScrapeStatus] = useState(null);
+  const [scrapeMsg, setScrapeMsg] = useState("");
+  const [scrapeErr, setScrapeErr] = useState("");
+  const [scrapeLoading, setScrapeLoading] = useState(false);
+
 
   const [activePlatform, setActivePlatform] = useState("instagram"); // instagram | youtube | tiktok
   const p = (s?.payouts?.[activePlatform]) || DEFAULTS.payouts.instagram; // safe fallback for memo math only
@@ -292,6 +298,26 @@ export default function SettingsPage() {
     run();
   }, [envClientId]);
 
+
+  // ✅ GET scrape status on env change *********************************************************** !!!!!!!!!! /
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setScrapeErr("");
+        const r = await fetch(
+          `${API_BASE_URL}/scrape/status?clientId=${encodeURIComponent(envClientId)}`
+        );
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || `Status failed (${r.status})`);
+        setScrapeStatus(j);
+      } catch (e) {
+        setScrapeErr(e?.message || "Failed to load scrape status");
+      }
+    };
+    load();
+  }, [envClientId]);
+
+
   // nav
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -305,6 +331,7 @@ export default function SettingsPage() {
   const goLeaderboards = () => navigate("/leaderboards");
   const goGallery = () => navigate("/gallery");
   const goContentApproval = () => navigate('/content-approval');
+
 
   const payoutExplain = useMemo(() => {
     const v = Math.max(1, toInt(p.viewsPerDollar, 1000));
@@ -369,6 +396,55 @@ export default function SettingsPage() {
 
   const selectAllPlatforms = () => setPlatforms([...ALL_PLATFORMS]);
   const clearPlatforms = () => setPlatforms([]);
+
+
+  // ✅ trigger manual scrape *********************************************************** !!!!!!!!!!!! /
+  const triggerManualScrape = async () => {
+    if (scrapeLoading) return;
+
+    if (scrapeStatus && scrapeStatus.canTrigger === false) {
+      const d = scrapeStatus.daysSince;
+      if (d === 0) return setScrapeErr("Data was pulled today! Please wait at least 2 days to pull data again.");
+      if (d === 1) return setScrapeErr("Data was pulled yesterday! Please wait at least 2 days to pull data again.");
+      return setScrapeErr("Please wait at least 2 days to pull data again.");
+    }
+
+    const ok = window.confirm(
+      "Are you sure you want to scrape data?\n\nNote that this incurs additional charges."
+    );
+    if (!ok) return;
+
+    window.alert("Please allow the system up to 30 minutes to scrape pull recent data.");
+
+    try {
+      setScrapeLoading(true);
+      setScrapeErr("");
+      setScrapeMsg("");
+
+      const resp = await fetch(`${API_BASE_URL}/scrape/trigger`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: envClientId }),
+      });
+
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || `Trigger failed (${resp.status})`);
+
+      setScrapeMsg("Triggered. Check back in ~30 minutes.");
+
+      const r2 = await fetch(
+        `${API_BASE_URL}/scrape/status?clientId=${encodeURIComponent(envClientId)}`
+      );
+      const j2 = await r2.json().catch(() => ({}));
+      if (r2.ok) setScrapeStatus(j2);
+    } catch (e) {
+      setScrapeErr(e?.message || "Failed to trigger scrape");
+    } finally {
+      setScrapeLoading(false);
+      setTimeout(() => setScrapeMsg(""), 4000);
+    }
+  };
+
 
   // ✅ POST settings on save
   const onSave = async () => {
@@ -1227,6 +1303,51 @@ export default function SettingsPage() {
                   Next: we’ll add OAuth/Connect flows + store account IDs in BigQuery.
                 </div>
               </SectionCard>
+
+
+              <SectionCard            /// ----------- ******************************************** !!!!!!!!!!!! //
+                title="Data Scrape"
+                subtitle="Manually trigger a fresh scrape (rate-limited to prevent extra charges)"
+                accent="rgba(34,197,94,0.08)"
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'grid', gap: 4 }}>
+                    <div style={{ fontSize: 12, opacity: 0.75 }}>
+                      Last manual pull:{' '}
+                      <span style={{ fontWeight: 900, opacity: 0.95 }}>
+                        {scrapeStatus?.lastSuccessAt ? new Date(scrapeStatus.lastSuccessAt).toLocaleString() : '—'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, opacity: 0.6 }}>
+                      Cooldown: cannot run if last pull was today or yesterday.
+                    </div>
+                    {scrapeMsg ? <div style={{ fontSize: 12, fontWeight: 800, color: 'rgba(74,222,128,0.95)' }}>{scrapeMsg}</div> : null}
+                    {scrapeErr ? <div style={{ fontSize: 12, fontWeight: 800, color: 'rgba(248,113,113,0.95)' }}>{scrapeErr}</div> : null}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={triggerManualScrape}
+                    disabled={scrapeLoading || (scrapeStatus && !scrapeStatus.canTrigger)}
+                    style={{
+                      borderRadius: 12,
+                      padding: '10px 12px',
+                      border: '1px solid rgba(34,197,94,0.35)',
+                      background: 'rgba(34,197,94,0.10)',
+                      color: 'rgba(74,222,128,0.95)',
+                      fontSize: 12,
+                      fontWeight: 900,
+                      cursor: (scrapeLoading || (scrapeStatus && !scrapeStatus.canTrigger)) ? 'not-allowed' : 'pointer',
+                      opacity: (scrapeLoading || (scrapeStatus && !scrapeStatus.canTrigger)) ? 0.5 : 1,
+                      whiteSpace: 'nowrap',
+                    }}
+                    title="Trigger manual scrape"
+                  >
+                    {scrapeLoading ? 'Triggering…' : 'Trigger Manual Data Scrape'}
+                  </button>
+                </div>
+              </SectionCard>
+
             </>
           )}
         </div>
