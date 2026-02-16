@@ -1313,7 +1313,7 @@ export default function SettingsPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                   <div style={{ display: 'grid', gap: 4 }}>
                     <div style={{ fontSize: 12, opacity: 0.75 }}>
-                      Last manual pull:{' '}
+                      Last data pull:{' '}
                       <span style={{ fontWeight: 900, opacity: 0.95 }}>
                         {scrapeStatus?.lastSuccessAt ? new Date(scrapeStatus.lastSuccessAt).toLocaleString() : '—'}
                       </span>
