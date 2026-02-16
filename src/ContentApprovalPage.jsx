@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import { useBranding } from "./branding/BrandingContext";
 
+import { useEnvironment } from "./EnvironmentContext.jsx";
+
 const API_BASE_URL =
   "https://clipper-payouts-api-810712855216.us-central1.run.app";
 
@@ -92,6 +94,8 @@ export default function ContentApprovalPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  const { clientId } = useEnvironment(); // will be "ARAFTA" or "BONGINO"
+
   // BRANDING
   const { headingText, watermarkText, defaults } = useBranding();
   const brandText = headingText || defaults.headingText;
@@ -144,10 +148,7 @@ export default function ContentApprovalPage() {
     setBulkFeedback("");
   };
 
-  const clientId =
-    safeStr(localStorage.getItem("client_id")) ||
-    safeStr(sessionStorage.getItem("client_id")) ||
-    "default";
+
 
   // ---------- navigation handlers ----------
   const handleLogout = async () => {
@@ -251,7 +252,6 @@ export default function ContentApprovalPage() {
         const feedbackText = safeStr(r.feedback_text || "");
 
         const titleKey = safeStr(r.title_key || r.titleKey || ""); // FOR GROUPING BY *VIDEO TITLE*
-
 
 
         return {
