@@ -8,7 +8,7 @@ import { useBranding } from "./branding/BrandingContext";
 import { useEnvironment } from "./EnvironmentContext";
 
 // NEW performance API (Cloud Run)
-const PERF_API_BASE_URL = "https://roimedia-clipper-performance-api-810712855216.us-central1.run.app"; //UPDATE TO DEMO VERSION
+const PERF_API_BASE_URL = "https://clipper-performance-api-810712855216.us-central1.run.app"; //UPDATE TO DEMO VERSION
 
 // ---------- helpers ----------
 const formatNumber = (value) => {
