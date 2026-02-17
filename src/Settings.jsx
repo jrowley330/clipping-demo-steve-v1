@@ -64,6 +64,18 @@ const fmt = (n) => {
   return x.toLocaleString();
 };
 
+const safeDate = (v) => {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isFinite(d.getTime()) ? d : null;
+};
+
+const fmtDateTime = (v) => {
+  const d = safeDate(v);
+  return d ? d.toLocaleString() : '—';
+};
+
+
 // ✅ map API row -> UI state
 const mapApiToUi = (row) => {
   if (!row) return null;
@@ -213,6 +225,84 @@ const SectionCard = ({ title, subtitle, accent, children }) => (
   </div>
 );
 
+
+
+const Modal = ({ open, title, message, confirmText = "OK", cancelText = "Cancel", onConfirm, onClose, showCancel }) => {
+  if (!open) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.65)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 9999,
+        padding: 16,
+      }}
+      onMouseDown={onClose}
+    >
+      <div
+        style={{
+          width: "min(520px, 100%)",
+          borderRadius: 16,
+          border: "1px solid rgba(148,163,184,0.25)",
+          background: "rgba(2,6,23,0.96)",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.75)",
+          padding: 16,
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 8 }}>{title}</div>
+        <div style={{ fontSize: 12, opacity: 0.75, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+          {message}
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14 }}>
+          {showCancel ? (
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                borderRadius: 999,
+                padding: "8px 12px",
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: "rgba(255,255,255,0.06)",
+                color: "rgba(255,255,255,0.85)",
+                fontSize: 12,
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+            >
+              {cancelText}
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={onConfirm}
+            style={{
+              borderRadius: 999,
+              padding: "8px 12px",
+              border: "1px solid rgba(34,197,94,0.35)",
+              background: "rgba(34,197,94,0.12)",
+              color: "rgba(74,222,128,0.95)",
+              fontSize: 12,
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 export default function SettingsPage() {
   const { clientId: envClientId } = useEnvironment();
 
@@ -237,6 +327,17 @@ export default function SettingsPage() {
 
   const [activePlatform, setActivePlatform] = useState("instagram"); // instagram | youtube | tiktok
   const p = (s?.payouts?.[activePlatform]) || DEFAULTS.payouts.instagram; // safe fallback for memo math only
+
+  const runningLabel =
+    scrapeStatus?.isRunning && scrapeStatus?.lastRun?.startedAt
+      ? `Pulling… (started ${fmtDateTime(scrapeStatus.lastRun.startedAt)})`
+      : null;
+
+  const lastPullLabel =
+    runningLabel || (scrapeStatus?.lastSuccessAt ? fmtDateTime(scrapeStatus.lastSuccessAt) : '—');
+
+  const [modal, setModal] = useState({ open: false });
+
 
   const platformTint = useMemo(() => {
     if (activePlatform === "youtube")
@@ -403,18 +504,64 @@ export default function SettingsPage() {
     if (scrapeLoading) return;
 
     if (scrapeStatus && scrapeStatus.canTrigger === false) {
-      const d = scrapeStatus.daysSince;
-      if (d === 0) return setScrapeErr("Data was pulled today! Please wait at least 2 days to pull data again.");
-      if (d === 1) return setScrapeErr("Data was pulled yesterday! Please wait at least 2 days to pull data again.");
-      return setScrapeErr("Please wait at least 2 days to pull data again.");
+      return setScrapeErr(scrapeStatus.blockReason || "Cannot trigger right now.");
     }
 
-    const ok = window.confirm(
-      "Are you sure you want to scrape data?\n\nNote that this incurs additional charges."
-    );
-    if (!ok) return;
+    // 1) open confirm modal and exit
+    setModal({
+      open: true,
+      title: "Trigger manual scrape?",
+      message: "Are you sure you want to scrape data?\n\nNote: this incurs additional charges.",
+      showCancel: true,
+      confirmText: "Yes, trigger",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        setModal({ open: false });
 
-    window.alert("Please allow the system up to 30 minutes to scrape pull recent data.");
+        // optional info modal (instead of alert)
+        setModal({
+          open: true,
+          title: "Scrape started",
+          message: "Triggered. Please allow up to 30 minutes for data to populate.",
+          showCancel: false,
+          confirmText: "Got it",
+          onConfirm: () => setModal({ open: false }),
+          onClose: () => setModal({ open: false }),
+        });
+
+        // then actually trigger
+        try {
+          setScrapeLoading(true);
+          setScrapeErr("");
+          setScrapeMsg("");
+
+          const resp = await fetch(`${API_BASE_URL}/scrape/trigger`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ clientId: envClientId }),
+          });
+
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.error || `Trigger failed (${resp.status})`);
+
+          setScrapeMsg("Triggered. Check back in ~30 minutes.");
+
+          // refresh status
+          const r2 = await fetch(`${API_BASE_URL}/scrape/status?clientId=${encodeURIComponent(envClientId)}`);
+          const j2 = await r2.json().catch(() => ({}));
+          if (r2.ok) setScrapeStatus(j2);
+        } catch (e) {
+          setScrapeErr(e?.message || "Failed to trigger scrape");
+        } finally {
+          setScrapeLoading(false);
+          setTimeout(() => setScrapeMsg(""), 4000);
+        }
+      },
+      onClose: () => setModal({ open: false }),
+    });
+
+    return;
+
 
     try {
       setScrapeLoading(true);
@@ -1314,8 +1461,14 @@ export default function SettingsPage() {
                   <div style={{ display: 'grid', gap: 4 }}>
                     <div style={{ fontSize: 12, opacity: 0.75 }}>
                       Last data pull:{' '}
-                      <span style={{ fontWeight: 900, opacity: 0.95 }}>
-                        {scrapeStatus?.lastSuccessAt ? new Date(scrapeStatus.lastSuccessAt).toLocaleString() : '—'}
+                      <span
+                        style={{
+                          fontWeight: 900,
+                          opacity: 0.95,
+                          color: scrapeStatus?.isRunning ? 'rgba(74,222,128,0.95)' : undefined,
+                        }}
+                      >
+                        {lastPullLabel || '—'}
                       </span>
                     </div>
                     <div style={{ fontSize: 11, opacity: 0.6 }}>
@@ -1352,6 +1505,16 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+      <Modal
+      open={!!modal.open}
+      title={modal.title || ""}
+      message={modal.message || ""}
+      confirmText={modal.confirmText}
+      cancelText={modal.cancelText}
+      showCancel={!!modal.showCancel}
+      onConfirm={modal.onConfirm || (() => setModal({ open: false }))}
+      onClose={modal.onClose || (() => setModal({ open: false }))}
+    />
     </div>
   );
 }
