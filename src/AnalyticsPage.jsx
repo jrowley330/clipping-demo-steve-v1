@@ -61,26 +61,31 @@ export default function AnalyticsPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        setError('');
+        setError("");
 
-        const clientId = new URLSearchParams(window.location.search).get('clientId') || 'DEMOV2';
+        const env = (clientId || "DEMOV2"); // could be 'arafta' (lowercase) — API normalizes it
+        const url =
+          `${API_BASE_URL}/analytics/locations` +
+          `?clientId=${encodeURIComponent(env)}` +
+          `&platform=${encodeURIComponent(platform)}` +
+          `&engSpan=${encodeURIComponent(engSpan)}`;
 
-        const res = await fetch(
-          `${API_BASE_URL}/analytics/locations?clientId=${clientId}&platform=${platform}&engSpan=${engSpan}`
-        );
-
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`Analytics API ${res.status}`);
 
         const data = await res.json();
         setRows(data.rows || []);
       } catch (err) {
-        console.error('Error fetching analytics:', err);
-        setError('Unable to load analytics data.');
+        console.error("Error fetching analytics:", err);
+        setError("Unable to load analytics data.");
         setRows([]);
       } finally {
         setLoading(false);
       }
     };
+
+    fetchData();
+  }, [clientId, platform, engSpan]); // <-- KEY: refetch on env change + filter change
 
     fetchData();
   }, [platform, engSpan]);
