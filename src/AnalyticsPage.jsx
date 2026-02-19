@@ -87,8 +87,6 @@ export default function AnalyticsPage() {
     fetchData();
   }, [clientId, platform, engSpan]); // <-- KEY: refetch on env change + filter change
 
-    fetchData();
-  }, [platform, engSpan]);
 
   const maxPct = useMemo(() => {
     if (!rows.length) return 0;
