@@ -136,7 +136,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           element={
             <ProtectedShell>
               <RequireRole allowed={["manager"]}>
-                <Settings />
+                <Analytics />
               </RequireRole>
             </ProtectedShell>
           }
