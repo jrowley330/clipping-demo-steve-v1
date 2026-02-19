@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
+import { useEnvironment } from "./EnvironmentContext";
+
 import { useBranding } from "./branding/BrandingContext";
 import { useRole } from "./RoleContext";
 
