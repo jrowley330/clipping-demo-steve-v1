@@ -16,6 +16,7 @@ import Leaderboards from "./Leaderboards.jsx";
 import Gallery from "./Gallery.jsx";
 import Settings from "./Settings.jsx";
 import ContentApprovalPage from "./ContentApprovalPage.jsx";
+import Analytics from "./AnalyticsPage.jsx";
 
 import { RequireRole } from "./RoleContext";
 import { BrandingProvider } from "./branding/BrandingContext";
@@ -126,6 +127,17 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           element={
             <ProtectedShell>
               <Gallery />
+            </ProtectedShell>
+          }
+        />
+
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedShell>
+              <RequireRole allowed={["manager"]}>
+                <Settings />
+              </RequireRole>
             </ProtectedShell>
           }
         />
