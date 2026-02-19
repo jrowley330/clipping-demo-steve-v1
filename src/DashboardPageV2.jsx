@@ -160,6 +160,10 @@ const goContentApproval = () => {
     navigate('/content-approval');
   };
 
+const goAnalytics = () => {
+    navigate('/analytics');
+};
+
 
   // FETCH SUMMARY
   useEffect(() => {
@@ -705,6 +709,25 @@ const goContentApproval = () => {
                   }}
                 >
                   Gallery
+              </button>
+
+              <button
+                  onClick={goAnalytics}
+                  style={{
+                    border: 'none',
+                    outline: 'none',
+                    borderRadius: 12,
+                    padding: '7px 10px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    background: 'transparent',
+                    color: 'rgba(255,255,255,0.55)',
+                    marginTop: 2,
+                    marginBottom: 2,
+                  }}
+                >
+                  Analytics
               </button>
 
               {/* Settings */}
