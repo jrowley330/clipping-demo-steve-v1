@@ -20,6 +20,9 @@ const formatPct = (value) => {
 export default function AnalyticsPage() {
   const navigate = useNavigate();
 
+  //clientId
+  const { clientId } = useEnvironment();
+
   const { profile } = useRole();
   const role = profile?.role || "client";
   const isManager = role === "manager";
