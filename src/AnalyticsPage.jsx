@@ -173,7 +173,16 @@ export default function AnalyticsPage() {
 
           {sidebarOpen && (
             <>
-              <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 4 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.1,
+                  opacity: 0.6,
+                  marginTop: 4,
+                  marginBottom: 4,
+                }}
+              >
                 Navigation
               </div>
 
