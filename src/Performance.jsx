@@ -309,6 +309,7 @@ export default function PerformancePage() {
   const goGallery = () => navigate("/gallery");
   const goSettings = () => navigate("/settings");
   const goContentApproval = () => navigate('/content-approval');
+  const goAnalytics = () => navigate('/analytics');
 
 
   // Reset analysis/video selection when client changes
@@ -858,6 +859,23 @@ export default function PerformancePage() {
                 }}
               >
                 Gallery
+              </button>
+
+              <button
+                onClick={goAnalytics}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: 12,
+                  padding: '7px 10px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                Analytics
               </button>
 
               <button

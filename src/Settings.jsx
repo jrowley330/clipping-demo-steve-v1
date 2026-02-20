@@ -432,6 +432,7 @@ export default function SettingsPage() {
   const goLeaderboards = () => navigate("/leaderboards");
   const goGallery = () => navigate("/gallery");
   const goContentApproval = () => navigate('/content-approval');
+  const goAnalytics = () => navigate('/analytics');
 
 
   const payoutExplain = useMemo(() => {
@@ -804,6 +805,9 @@ export default function SettingsPage() {
               </button>
               <button onClick={goGallery} style={{ border: "none", borderRadius: 12, padding: "7px 10px", textAlign: "left", cursor: "pointer", fontSize: 12, background: "transparent", color: "rgba(255,255,255,0.7)" }}>
                 Gallery
+              </button>
+              <button onClick={goAnalytics} style={{ border: "none", borderRadius: 12, padding: "7px 10px", textAlign: "left", cursor: "pointer", fontSize: 12, background: "transparent", color: "rgba(255,255,255,0.7)" }}>
+                Analytics
               </button>
 
               <button

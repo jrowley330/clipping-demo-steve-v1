@@ -181,9 +181,6 @@ export default function AnalyticsPage() {
                 Dashboards
               </button>
 
-              <button onClick={goAnalytics} style={activeNavButtonStyle}>
-                Analytics
-              </button>
 
               {isManager && <button onClick={goContentApproval} style={navSubStyle}>Review Content</button>}
               {isManager && <button onClick={goPayouts} style={navSubStyle}>Payouts</button>}
@@ -192,6 +189,9 @@ export default function AnalyticsPage() {
 
               <button onClick={goLeaderboards} style={navSubStyle}>Leaderboards</button>
               <button onClick={goGallery} style={navSubStyle}>Gallery</button>
+
+              <button onClick={goAnalytics} style={activeNavButtonStyle}>Analytics</button>
+
               {isManager && <button onClick={goSettings} style={navSubStyle}>Settings</button>}
 
               <div style={{ flexGrow: 1 }} />

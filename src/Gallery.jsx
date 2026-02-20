@@ -133,6 +133,7 @@ export default function Gallery() {
   const goPerformance = () => navigate('/performance');
   const goLeaderboards = () => navigate('/leaderboards');
   const goSettings = () => navigate('/settings');
+  const goAnalytics = () => navigate('/analytics');
 
   // Load clippers for dropdown (once)
   useEffect(() => {
@@ -356,6 +357,8 @@ export default function Gallery() {
               >
                 Gallery
               </button>
+
+              <NavBtn onClick={goAnalytics} label="Analytics" />
 
               {isManager && <NavBtn onClick={goSettings} label="Settings" />}
 

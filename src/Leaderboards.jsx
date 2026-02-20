@@ -532,6 +532,7 @@ export default function Leaderboards() {
   const goGallery = () => navigate("/gallery");
   const goSettings = () => navigate("/settings");
   const goContentApproval = () => navigate("/content-approval");
+  const goAnalytics = () => navigate("/analytics");
 
   const getWeekLabel = () => {
     if (loading) return "Loading…";
@@ -751,6 +752,9 @@ export default function Leaderboards() {
               </button>
 
               <NavBtn onClick={goGallery} label="Gallery" />
+
+              <NavBtn onClick={goAnalytics} label="Analytics" />
+              
               {isManager && <NavBtn onClick={goSettings} label="Settings" />}
 
               <div style={{ flexGrow: 1 }} />
