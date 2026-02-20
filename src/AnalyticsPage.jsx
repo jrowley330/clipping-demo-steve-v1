@@ -177,7 +177,7 @@ export default function AnalyticsPage() {
                 Navigation
               </div>
 
-              <button onClick={goDashV2} style={navButtonStyle}>
+              <button onClick={goDashV2} style={navSubStyle}>
                 Dashboards
               </button>
 
@@ -190,7 +190,7 @@ export default function AnalyticsPage() {
               <button onClick={goLeaderboards} style={navSubStyle}>Leaderboards</button>
               <button onClick={goGallery} style={navSubStyle}>Gallery</button>
 
-              <button onClick={goAnalytics} style={activeNavButtonStyle}>Analytics</button>
+              <button onClick={goAnalytics} style={navButtonStyle}>Analytics</button>
 
               {isManager && <button onClick={goSettings} style={navSubStyle}>Settings</button>}
 
