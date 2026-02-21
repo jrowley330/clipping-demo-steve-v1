@@ -255,6 +255,43 @@ export default function AnalyticsPage() {
           </select>
         </div>
 
+
+        {/* summary box */}
+        {totalViews > 0 && (
+          <div
+            style={{
+              marginBottom: 24,
+              padding: '18px 24px',
+              borderRadius: 18,
+              background:
+                'linear-gradient(90deg, rgba(255,180,0,0.15), rgba(255,140,0,0.05))',
+              border: '1px solid rgba(255,180,0,0.3)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 13, opacity: 0.6 }}>
+                Total Views (Filtered)
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 700 }}>
+                {Number(totalViews).toLocaleString()}
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 13, opacity: 0.6 }}>
+                Coverage
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 600 }}>
+                100%
+              </div>
+            </div>
+          </div>
+        )}
+
+
         {/* Card */}
         <div
           style={{
