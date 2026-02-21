@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
 import { useEnvironment } from "./EnvironmentContext";
-
 import { useBranding } from "./branding/BrandingContext";
 import { useRole } from "./RoleContext";
 
@@ -17,31 +16,32 @@ const formatPct = (value) => {
   return `${num.toFixed(1)}%`;
 };
 
+// 🔥 Remove decimals from views
 const formatViews = (v) =>
-  Number(v).toLocaleString('en-US');
+  Math.round(Number(v || 0)).toLocaleString('en-US');
 
 export default function AnalyticsPage() {
   const navigate = useNavigate();
-
-  //clientId
   const { clientId } = useEnvironment();
-
   const { profile } = useRole();
   const role = profile?.role || "client";
   const isManager = role === "manager";
-
   const { headingText, watermarkText, defaults } = useBranding();
+
   const brandText = headingText || defaults.headingText;
   const wmText = watermarkText || defaults.watermarkText;
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
   const [platform, setPlatform] = useState('all');
   const [engSpan, setEngSpan] = useState('all');
 
   const [rows, setRows] = useState([]);
+  const [totalViews, setTotalViews] = useState(0);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const [animate, setAnimate] = useState(false);
 
   // NAVIGATION
   const handleLogout = async () => {
@@ -65,8 +65,10 @@ export default function AnalyticsPage() {
       try {
         setLoading(true);
         setError("");
+        setAnimate(false);
 
-        const env = (clientId || "DEMOV2"); // could be 'arafta' (lowercase) — API normalizes it
+        const env = clientId || "DEMOV2";
+
         const url =
           `${API_BASE_URL}/analytics/locations` +
           `?clientId=${encodeURIComponent(env)}` +
@@ -77,7 +79,13 @@ export default function AnalyticsPage() {
         if (!res.ok) throw new Error(`Analytics API ${res.status}`);
 
         const data = await res.json();
+
         setRows(data.rows || []);
+        setTotalViews(data.totalViews || 0);
+
+        // trigger smooth animation
+        setTimeout(() => setAnimate(true), 50);
+
       } catch (err) {
         console.error("Error fetching analytics:", err);
         setError("Unable to load analytics data.");
@@ -88,8 +96,7 @@ export default function AnalyticsPage() {
     };
 
     fetchData();
-  }, [clientId, platform, engSpan]); // <-- KEY: refetch on env change + filter change
-
+  }, [clientId, platform, engSpan]);
 
   const maxPct = useMemo(() => {
     if (!rows.length) return 0;
@@ -189,28 +196,18 @@ export default function AnalyticsPage() {
                 Navigation
               </div>
 
-              <button onClick={goDashV2} style={navSubStyle}>
-                Dashboards
-              </button>
-
-
+              <button onClick={goDashV2} style={navSubStyle}>Dashboards</button>
               {isManager && <button onClick={goContentApproval} style={navSubStyle}>Review Content</button>}
               {isManager && <button onClick={goPayouts} style={navSubStyle}>Payouts</button>}
               {isManager && <button onClick={goClippers} style={navSubStyle}>Clippers</button>}
               {isManager && <button onClick={goPerformance} style={navSubStyle}>Performance</button>}
-
               <button onClick={goLeaderboards} style={navSubStyle}>Leaderboards</button>
               <button onClick={goGallery} style={navSubStyle}>Gallery</button>
-
               <button onClick={goAnalytics} style={navButtonStyle}>Analytics</button>
-
               {isManager && <button onClick={goSettings} style={navSubStyle}>Settings</button>}
 
               <div style={{ flexGrow: 1 }} />
-
-              <button onClick={handleLogout} style={logoutStyle}>
-                ⏻ Logout
-              </button>
+              <button onClick={handleLogout} style={logoutStyle}>⏻ Logout</button>
             </>
           )}
         </div>
@@ -218,7 +215,7 @@ export default function AnalyticsPage() {
 
       {/* MAIN */}
       <div style={{ flex: 1, position: 'relative', zIndex: 3 }}>
-        {/* Branding */}
+
         <div style={{ marginBottom: 12 }}>
           <span
             style={{
@@ -231,7 +228,6 @@ export default function AnalyticsPage() {
           </span>
         </div>
 
-        {/* Header */}
         <div style={{ marginBottom: 20 }}>
           <h1 style={{ fontSize: 30, margin: 0 }}>Analytics</h1>
           <span style={{ fontSize: 13, opacity: 0.7 }}>
@@ -239,7 +235,7 @@ export default function AnalyticsPage() {
           </span>
         </div>
 
-        {/* Filters */}
+        {/* FILTERS */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
           <select value={platform} onChange={e => setPlatform(e.target.value)} style={filterStyle}>
             <option value="all">All Platforms</option>
@@ -255,8 +251,7 @@ export default function AnalyticsPage() {
           </select>
         </div>
 
-
-        {/* Card */}
+        {/* CARD */}
         <div
           style={{
             borderRadius: 20,
@@ -266,6 +261,36 @@ export default function AnalyticsPage() {
             boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
           }}
         >
+
+          {/* SUMMARY BOX */}
+          {!loading && !error && totalViews > 0 && (
+            <div
+              style={{
+                marginBottom: 28,
+                padding: '18px 24px',
+                borderRadius: 18,
+                background:
+                  'linear-gradient(90deg, rgba(249,115,22,0.15), rgba(250,204,21,0.05))',
+                border: '1px solid rgba(249,115,22,0.3)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 13, opacity: 0.6 }}>
+                  Total Views (Filtered)
+                </div>
+                <div style={{ fontSize: 28, fontWeight: 700 }}>
+                  {formatViews(totalViews)}
+                </div>
+              </div>
+              <div style={{ fontSize: 13, opacity: 0.6 }}>
+                Includes Unreported
+              </div>
+            </div>
+          )}
+
           {loading && <div>Loading analytics…</div>}
           {error && <div style={{ color: '#fed7aa' }}>{error}</div>}
 
@@ -274,7 +299,7 @@ export default function AnalyticsPage() {
             const width = maxPct ? (pct / maxPct) * 100 : 0;
 
             return (
-              <div key={row.country} style={{ marginBottom: 12 }}>
+              <div key={row.country} style={{ marginBottom: 14 }}>
                 <div
                   style={{
                     display: 'flex',
@@ -296,7 +321,7 @@ export default function AnalyticsPage() {
                         marginTop: 2,
                       }}
                     >
-                      {Number(row.weighted_views || 0).toLocaleString()} views
+                      {formatViews(row.weighted_views)} views
                     </div>
                   </div>
                 </div>
@@ -306,16 +331,18 @@ export default function AnalyticsPage() {
                     height: 8,
                     borderRadius: 999,
                     background: 'rgba(255,255,255,0.08)',
-                    marginTop: 4,
+                    marginTop: 6,
+                    overflow: 'hidden',
                   }}
                 >
                   <div
                     style={{
-                      width: `${width}%`,
+                      width: animate ? `${width}%` : '0%',
                       height: '100%',
                       borderRadius: 999,
                       background: 'linear-gradient(135deg, #f97316, #facc15)',
-                      transition: 'width 300ms ease',
+                      boxShadow: '0 0 12px rgba(249,115,22,0.5)',
+                      transition: 'width 900ms cubic-bezier(0.22, 1, 0.36, 1)',
                     }}
                   />
                 </div>
@@ -337,17 +364,6 @@ const navButtonStyle = {
   background: 'linear-gradient(135deg, rgba(249,115,22,0.95), rgba(250,204,21,0.95))',
   color: '#020617',
   fontWeight: 600,
-  cursor: 'pointer',
-};
-
-const activeNavButtonStyle = {
-  border: 'none',
-  borderRadius: 12,
-  padding: '7px 10px',
-  textAlign: 'left',
-  fontSize: 12,
-  background: 'rgba(255,255,255,0.08)',
-  color: '#fff',
   cursor: 'pointer',
 };
 
