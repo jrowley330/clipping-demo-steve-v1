@@ -17,6 +17,9 @@ const formatPct = (value) => {
   return `${num.toFixed(1)}%`;
 };
 
+const formatViews = (v) =>
+  Number(v).toLocaleString('en-US');
+
 export default function AnalyticsPage() {
   const navigate = useNavigate();
 
@@ -271,10 +274,32 @@ export default function AnalyticsPage() {
 
             return (
               <div key={row.country} style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    fontSize: 13,
+                  }}
+                >
                   <span>{row.country}</span>
-                  <span>{formatPct(pct)}</span>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 600 }}>
+                      {formatPct(pct)}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        opacity: 0.6,
+                        marginTop: 2,
+                      }}
+                    >
+                      {Number(row.weighted_views || 0).toLocaleString()} views
+                    </div>
+                  </div>
                 </div>
+
                 <div
                   style={{
                     height: 8,
