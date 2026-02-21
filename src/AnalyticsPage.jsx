@@ -1,5 +1,5 @@
 // AnalyticsPage.jsx
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
@@ -16,38 +16,32 @@ const formatPct = (value) => {
   return `${num.toFixed(1)}%`;
 };
 
-// remove decimals from views
+// 🔥 Remove decimals from views
 const formatViews = (v) =>
   Math.round(Number(v || 0)).toLocaleString('en-US');
 
 export default function AnalyticsPage() {
   const navigate = useNavigate();
   const { clientId } = useEnvironment();
-
   const { profile } = useRole();
   const role = profile?.role || "client";
   const isManager = role === "manager";
-
   const { headingText, watermarkText, defaults } = useBranding();
+
   const brandText = headingText || defaults.headingText;
   const wmText = watermarkText || defaults.watermarkText;
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
   const [platform, setPlatform] = useState('all');
   const [engSpan, setEngSpan] = useState('all');
 
   const [rows, setRows] = useState([]);
   const [totalViews, setTotalViews] = useState(0);
 
-  const [animatedTotal, setAnimatedTotal] = useState(0);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [animateBars, setAnimateBars] = useState(false);
-
-  const lastTotalRef = useRef(0);
+  const [animate, setAnimate] = useState(false);
 
   // NAVIGATION
   const handleLogout = async () => {
@@ -71,7 +65,7 @@ export default function AnalyticsPage() {
       try {
         setLoading(true);
         setError("");
-        setAnimateBars(false);
+        setAnimate(false);
 
         const env = clientId || "DEMOV2";
 
@@ -87,17 +81,15 @@ export default function AnalyticsPage() {
         const data = await res.json();
 
         setRows(data.rows || []);
-        setTotalViews(Number(data.totalViews || 0));
+        setTotalViews(data.totalViews || 0);
 
-        // trigger bar animation after render
-        requestAnimationFrame(() => {
-          setTimeout(() => setAnimateBars(true), 80);
-        });
+        // trigger smooth animation
+        setTimeout(() => setAnimate(true), 50);
+
       } catch (err) {
         console.error("Error fetching analytics:", err);
         setError("Unable to load analytics data.");
         setRows([]);
-        setTotalViews(0);
       } finally {
         setLoading(false);
       }
@@ -106,63 +98,10 @@ export default function AnalyticsPage() {
     fetchData();
   }, [clientId, platform, engSpan]);
 
-  // Animate the total views count-up when totalViews changes
-  useEffect(() => {
-    const target = Number(totalViews || 0);
-    const from = Number(lastTotalRef.current || 0);
-
-    // if first load or target is smaller, just set it
-    if (!Number.isFinite(target) || target <= 0 || from === 0 || target < from) {
-      setAnimatedTotal(target);
-      lastTotalRef.current = target;
-      return;
-    }
-
-    const durationMs = 900;
-    const start = performance.now();
-
-    const tick = (now) => {
-      const t = Math.min((now - start) / durationMs, 1);
-      // easeOutCubic
-      const eased = 1 - Math.pow(1 - t, 3);
-      const value = from + (target - from) * eased;
-      setAnimatedTotal(value);
-      if (t < 1) requestAnimationFrame(tick);
-      else {
-        setAnimatedTotal(target);
-        lastTotalRef.current = target;
-      }
-    };
-
-    requestAnimationFrame(tick);
-  }, [totalViews]);
-
   const maxPct = useMemo(() => {
     if (!rows.length) return 0;
     return Math.max(...rows.map(r => Number(r.overall_pct || 0)));
   }, [rows]);
-
-  const exportCSV = () => {
-    const header = "Country,OverallPct,WeightedViews\n";
-    const body = (rows || [])
-      .map(r => {
-        const c = String(r.country ?? '').replaceAll('"', '""');
-        const p = Number(r.overall_pct ?? 0);
-        const w = Number(r.weighted_views ?? 0);
-        return `"${c}",${p},${w}`;
-      })
-      .join("\n");
-
-    const blob = new Blob([header + body], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `location-analytics_${clientId || "DEMOV2"}_${platform}_${engSpan}.csv`;
-    a.click();
-
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div
@@ -181,14 +120,6 @@ export default function AnalyticsPage() {
         paddingBottom: '40px',
       }}
     >
-      {/* Keyframes (inline so no CSS file needed) */}
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: 0% 50%; }
-          100% { background-position: 200% 50%; }
-        }
-      `}</style>
-
       {/* WATERMARK */}
       <div
         style={{
@@ -284,7 +215,7 @@ export default function AnalyticsPage() {
 
       {/* MAIN */}
       <div style={{ flex: 1, position: 'relative', zIndex: 3 }}>
-        {/* Branding */}
+
         <div style={{ marginBottom: 12 }}>
           <span
             style={{
@@ -297,7 +228,6 @@ export default function AnalyticsPage() {
           </span>
         </div>
 
-        {/* Header */}
         <div style={{ marginBottom: 20 }}>
           <h1 style={{ fontSize: 30, margin: 0 }}>Analytics</h1>
           <span style={{ fontSize: 13, opacity: 0.7 }}>
@@ -305,7 +235,7 @@ export default function AnalyticsPage() {
           </span>
         </div>
 
-        {/* Filters */}
+        {/* FILTERS */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
           <select value={platform} onChange={e => setPlatform(e.target.value)} style={filterStyle}>
             <option value="all">All Platforms</option>
@@ -321,7 +251,7 @@ export default function AnalyticsPage() {
           </select>
         </div>
 
-        {/* Card */}
+        {/* CARD */}
         <div
           style={{
             borderRadius: 20,
@@ -331,31 +261,12 @@ export default function AnalyticsPage() {
             boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
           }}
         >
-          {/* Top right actions */}
-          {!loading && !error && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-              <button
-                onClick={exportCSV}
-                style={{
-                  border: '1px solid rgba(255,255,255,0.14)',
-                  background: 'rgba(255,255,255,0.06)',
-                  color: 'rgba(255,255,255,0.9)',
-                  padding: '6px 10px',
-                  borderRadius: 999,
-                  fontSize: 12,
-                  cursor: 'pointer',
-                }}
-              >
-                Export CSV
-              </button>
-            </div>
-          )}
 
           {/* SUMMARY BOX */}
           {!loading && !error && totalViews > 0 && (
             <div
               style={{
-                marginBottom: 26,
+                marginBottom: 28,
                 padding: '18px 24px',
                 borderRadius: 18,
                 background:
@@ -371,91 +282,24 @@ export default function AnalyticsPage() {
                   Total Views (Filtered)
                 </div>
                 <div style={{ fontSize: 28, fontWeight: 700 }}>
-                  {formatViews(animatedTotal)}
+                  {formatViews(totalViews)}
                 </div>
               </div>
-
-              <div
-                style={{
-                  fontSize: 12,
-                  padding: '6px 10px',
-                  borderRadius: 999,
-                  background: 'rgba(250,204,21,0.12)',
-                  border: '1px solid rgba(250,204,21,0.35)',
-                  color: 'rgba(255,255,255,0.9)',
-                }}
-              >
+              <div style={{ fontSize: 13, opacity: 0.6 }}>
                 Includes Unreported
               </div>
             </div>
           )}
 
-          {/* Loading / error */}
-          {loading && (
-            <div style={{ paddingTop: 6 }}>
-              {[...Array(10)].map((_, i) => (
-                <div key={i} style={{ marginBottom: 16 }}>
-                  <div
-                    style={{
-                      height: 12,
-                      width: `${70 + (i % 3) * 10}%`,
-                      borderRadius: 8,
-                      background:
-                        'linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.11) 37%, rgba(255,255,255,0.06) 63%)',
-                      backgroundSize: '200% 100%',
-                      animation: 'shimmer 1.35s ease infinite',
-                    }}
-                  />
-                  <div
-                    style={{
-                      height: 8,
-                      borderRadius: 999,
-                      background: 'rgba(255,255,255,0.06)',
-                      marginTop: 8,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: '100%',
-                        width: `${25 + (i % 5) * 8}%`,
-                        borderRadius: 999,
-                        background:
-                          'linear-gradient(135deg, rgba(249,115,22,0.35), rgba(250,204,21,0.25))',
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
+          {loading && <div>Loading analytics…</div>}
           {error && <div style={{ color: '#fed7aa' }}>{error}</div>}
 
-          {/* Rows */}
-          {!loading && !error && rows.map((row, i) => {
+          {!loading && !error && rows.map((row) => {
             const pct = Number(row.overall_pct || 0);
             const width = maxPct ? (pct / maxPct) * 100 : 0;
 
             return (
-              <div
-                key={`${row.country}-${i}`}
-                style={{
-                  marginBottom: 14,
-                  padding: '10px 10px',
-                  borderRadius: 14,
-                  transition: 'transform 150ms ease, background 150ms ease',
-                  background: 'transparent',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                  e.currentTarget.style.background = 'transparent';
-                }}
-              >
+              <div key={row.country} style={{ marginBottom: 14 }}>
                 <div
                   style={{
                     display: 'flex',
@@ -464,13 +308,19 @@ export default function AnalyticsPage() {
                     fontSize: 13,
                   }}
                 >
-                  <span style={{ opacity: 0.95 }}>{row.country}</span>
+                  <span>{row.country}</span>
 
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 700 }}>
+                    <div style={{ fontWeight: 600 }}>
                       {formatPct(pct)}
                     </div>
-                    <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        opacity: 0.6,
+                        marginTop: 2,
+                      }}
+                    >
                       {formatViews(row.weighted_views)} views
                     </div>
                   </div>
@@ -483,19 +333,16 @@ export default function AnalyticsPage() {
                     background: 'rgba(255,255,255,0.08)',
                     marginTop: 6,
                     overflow: 'hidden',
-                    position: 'relative',
                   }}
                 >
                   <div
-                    title={`${formatPct(pct)} • ${formatViews(row.weighted_views)} views`}
                     style={{
-                      width: animateBars ? `${width}%` : '0%',
+                      width: animate ? `${width}%` : '0%',
                       height: '100%',
                       borderRadius: 999,
                       background: 'linear-gradient(135deg, #f97316, #facc15)',
-                      boxShadow: '0 0 12px rgba(249,115,22,0.55)',
-                      transition: 'width 950ms cubic-bezier(0.22, 1, 0.36, 1)',
-                      transitionDelay: `${i * 45}ms`, // stagger
+                      boxShadow: '0 0 12px rgba(249,115,22,0.5)',
+                      transition: 'width 900ms cubic-bezier(0.22, 1, 0.36, 1)',
                     }}
                   />
                 </div>
