@@ -1,6 +1,6 @@
 // src/AppLayout.jsx
 import React from "react";
-import EnvironmentSwitcher from "./components/EnvironmentSwitcher";
+//import EnvironmentSwitcher from "./components/EnvironmentSwitcher";
 import { useRole } from "./RoleContext";
 
 export default function AppLayout({ children }) {
@@ -15,7 +15,7 @@ export default function AppLayout({ children }) {
         background: "radial-gradient(circle at top, #141414 0, #020202 55%)",
       }}
     >
-      {isManager && <EnvironmentSwitcher />}
+      {/* {isManager && <EnvironmentSwitcher />} */}
       {children}
     </div>
   );

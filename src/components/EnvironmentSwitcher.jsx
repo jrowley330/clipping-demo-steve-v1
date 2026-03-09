@@ -40,7 +40,7 @@ export default function EnvironmentSwitcher() {
     <div
       ref={wrapRef}
       style={{
-        position: "fixed",
+        position: "absolute",
         top: 10,
         left: 10,
         zIndex: 9999,
@@ -62,7 +62,7 @@ export default function EnvironmentSwitcher() {
           borderRadius: 11,
           border: "1px solid rgba(249,115,22,0.30)",
           background:
-            "linear-gradient(180deg, rgba(249,115,22,0.92), rgba(161,98,7,0.86))",
+            "linear-gradient(180deg, rgba(220, 127, 40, 0.64), rgba(161, 97, 7, 0.67))",
           boxShadow:
             "0 10px 22px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.22)",
           cursor: "pointer",

@@ -6,6 +6,11 @@ import { useBranding } from "./branding/BrandingContext";
 
 import { useEnvironment } from "./EnvironmentContext.jsx";
 
+import { useRole } from "./RoleContext";
+
+import EnvironmentSwitcher from "./components/EnvironmentSwitcher";
+import brandIcon from "./assets/clipcontrol-icon.png";
+
 const API_BASE_URL =
   'https://clipper-payouts-api-810712855216.us-central1.run.app';
 
@@ -574,6 +579,25 @@ export default function PayoutsPage() {
       >
         {wmText}
       </div>
+
+      {isManager && <EnvironmentSwitcher />}
+        
+      <img
+          src={brandIcon}
+          alt="ClipControl"
+          draggable={false}
+          style={{
+            position: "absolute",
+            top: -30,
+            right: -10,
+            width: 180,
+            height: 120,
+            opacity: 0.98,
+            pointerEvents: "none",
+            zIndex: 5,
+            filter: "drop-shadow(0 14px 28px rgba(0,0,0,0.65))",
+          }}
+      />
 
       {/* SIDEBAR */}
       <div

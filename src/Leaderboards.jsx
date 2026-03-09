@@ -9,6 +9,9 @@ import { useBranding } from "./branding/BrandingContext";
 
 import { useEnvironment } from "./EnvironmentContext";
 
+import EnvironmentSwitcher from "./components/EnvironmentSwitcher";
+import brandIcon from "./assets/clipcontrol-icon.png";
+
 /**
  * Leaderboards (revamped)
  * - NO AI-derived analysis text (only metrics you can compute from: videos posted, publish times, views, likes, comments)
@@ -665,6 +668,25 @@ export default function Leaderboards() {
       >
         {wmText}
       </div>
+
+      {isManager && <EnvironmentSwitcher />}
+        
+      <img
+          src={brandIcon}
+          alt="ClipControl"
+          draggable={false}
+          style={{
+            position: "absolute",
+            top: -30,
+            right: -10,
+            width: 180,
+            height: 120,
+            opacity: 0.98,
+            pointerEvents: "none",
+            zIndex: 5,
+            filter: "drop-shadow(0 14px 28px rgba(0,0,0,0.65))",
+          }}
+      />
 
       {/* Sidebar (ORIGINAL) */}
       <div

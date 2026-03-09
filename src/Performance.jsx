@@ -5,7 +5,12 @@ import { supabase } from "./supabaseClient";
 
 import { useBranding } from "./branding/BrandingContext";
 
+import { useRole } from "./RoleContext";
+
 import { useEnvironment } from "./EnvironmentContext";
+
+import EnvironmentSwitcher from "./components/EnvironmentSwitcher";
+import brandIcon from "./assets/clipcontrol-icon.png";
 
 // NEW performance API (Cloud Run)
 const PERF_API_BASE_URL = "https://clipper-performance-api-810712855216.us-central1.run.app"; //UPDATE TO DEMO VERSION
@@ -679,6 +684,25 @@ export default function PerformancePage() {
       >
         {wmText}
       </div>
+
+      {isManager && <EnvironmentSwitcher />}
+        
+      <img
+          src={brandIcon}
+          alt="ClipControl"
+          draggable={false}
+          style={{
+            position: "absolute",
+            top: -30,
+            right: -10,
+            width: 180,
+            height: 120,
+            opacity: 0.98,
+            pointerEvents: "none",
+            zIndex: 5,
+            filter: "drop-shadow(0 14px 28px rgba(0,0,0,0.65))",
+          }}
+      />
 
       {/* SIDEBAR */}
       <div
