@@ -1282,7 +1282,14 @@ function PodiumCard({ place, person, rankBy, isFirst, loading }) {
           </div>
         </div>
 
-        <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+        <div
+          style={{
+            marginTop: 12,
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 10,
+          }}
+        >
           <MiniStat label="Views" value={loading ? "—" : formatNumber(safePerson?.views)} />
           <MiniStat label="Likes" value={loading ? "—" : formatNumber(safePerson?.likes)} />
           <MiniStat label="Comments" value={loading ? "—" : formatNumber(safePerson?.comments)} />
@@ -1311,17 +1318,34 @@ function PodiumCard({ place, person, rankBy, isFirst, loading }) {
 }
 
 function MiniStat({ label, value }) {
+  const isLong = String(value ?? "").length >= 9;
+
   return (
     <div
       style={{
+        minWidth: 0,
         borderRadius: 14,
         padding: "10px 10px",
         background: "rgba(0,0,0,0.28)",
         border: "1px solid rgba(255,255,255,0.08)",
+        overflow: "hidden",
       }}
     >
       <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 900 }}>{value}</div>
+      <div
+        style={{
+          minWidth: 0,
+          fontSize: isLong ? 13 : 15,
+          fontWeight: 900,
+          lineHeight: 1.1,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+        title={String(value ?? "")}
+      >
+        {value}
+      </div>
     </div>
   );
 }
