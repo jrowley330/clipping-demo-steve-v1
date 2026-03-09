@@ -314,6 +314,11 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  //PERMISSIONS/ROLE ACCESS
+  const { profile } = useRole();
+  const role = profile?.role || "client";
+  const isManager = role === "manager";
+
   // start as null so we don't flash DEFAULTS placeholders
   const [s, setS] = useState(null);
 

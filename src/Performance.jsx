@@ -258,6 +258,11 @@ export default function PerformancePage() {
   //client/environment
   const { clientId } = useEnvironment();
 
+  //PERMISSIONS/ROLE ACCESS
+  const { profile } = useRole();
+  const role = profile?.role || "client";
+  const isManager = role === "manager";
+
   //BRANDING
   const { headingText, watermarkText, defaults } = useBranding();
   const brandText = headingText || defaults.headingText;

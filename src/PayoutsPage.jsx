@@ -71,6 +71,11 @@ export default function PayoutsPage() {
 
   const { clientId } = useEnvironment(); // 'ARAFTA' | 'BONGINO'
 
+  //PERMISSIONS/ROLE ACCESS
+  const { profile } = useRole();
+  const role = profile?.role || "client";
+  const isManager = role === "manager";
+
   // BRANDING
   const { headingText, watermarkText, defaults } = useBranding();
   const brandText = headingText || defaults.headingText;
